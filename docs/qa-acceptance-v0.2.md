@@ -12,6 +12,9 @@ Date: 2026-09-07
 - Combat supports export/restore of active fight state.
 - Opponent ladder simulation completes deterministically.
 - 10,000 full-career simulations complete without a stalled state.
+- CI downloads the official Godot 4.7.2 stable Linux editor and verifies the release SHA-256 before execution.
+- Godot 4.7.2 headless project parse/import completes successfully.
+- The configured main scene boots successfully in Godot headless mode.
 
 ## Rejected baseline
 
@@ -43,12 +46,12 @@ Interpretation: the career is now winnable without making a first title trivial.
 
 ## Runtime gates still open
 
-The following are **not** proven by Python simulation and remain blockers before product-level QA:
+Godot syntax/import and a main-scene headless boot are now proven by CI. The following remain blockers before product-level QA:
 
-- Godot 4.7.2 parser/runtime boot with zero errors
-- All button flows on a real game runtime
-- Active fight resume after force-close
-- Primary-save corruption falling back to known-good backup
+- Complete button-flow interaction testing in a graphical runtime
+- Active fight resume after an actual force-close
+- Primary-save corruption falling back to the previous known-good backup with fixture files
+- Legacy v1 save migration fixture
 - iOS suspend/resume behavior
 - Actual iPhone/iPad portrait layout and safe areas
 - Touch target ergonomics
@@ -57,4 +60,4 @@ The following are **not** proven by Python simulation and remain blockers before
 
 ## Commercial acceptance
 
-v0.2 is allowed to merge as a development baseline if deterministic checks pass. It is **not release-ready** and must not be described as a paid-product candidate until runtime/device and first-five-minute fun gates are closed.
+v0.2 is allowed to merge as a development baseline if deterministic and Godot headless CI checks pass. It is **not release-ready** and must not be described as a paid-product candidate until device/runtime interaction and first-five-minute fun gates are closed.
