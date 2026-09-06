@@ -49,6 +49,7 @@ func resolve_exchange(player_action: String) -> Dictionary:
     var p_speed := float(player.speed) + rng.randf_range(-10.0, 10.0)
     var o_speed := float(opponent.stats.speed) + rng.randf_range(-10.0, 10.0)
     var first_is_player := p_speed >= o_speed
+
     if first_is_player:
         _perform(true, player_action, opponent_action)
         if not finished:
@@ -84,9 +85,11 @@ func _perform(is_player: bool, action_id: String, target_action: String) -> void
         stamina = min(100.0, stamina - float(action.stamina))
         if is_player:
             player_stamina = stamina
-            player_round_score += float(action.score)
         else:
             opponent_stamina = stamina
+        if is_player:
+            player_round_score += float(action.score)
+        else:
             opponent_round_score += float(action.score)
         log.append(("나" if is_player else opponent.name) + " 가드")
         return
@@ -217,16 +220,33 @@ func _choose_opponent_action() -> String:
 
 func snapshot() -> Dictionary:
     return {
-        "round":round_no,"exchange":exchange_no,"player_hp":player_hp,"opponent_hp":opponent_hp,
-        "player_stamina":player_stamina,"opponent_stamina":opponent_stamina,"cards":cards.duplicate(true),
-        "finished":finished,"result":result,"last_log":log.slice(max(0, log.size() - 5), log.size())
+        "round": round_no,
+        "exchange": exchange_no,
+        "player_hp": player_hp,
+        "opponent_hp": opponent_hp,
+        "player_stamina": player_stamina,
+        "opponent_stamina": opponent_stamina,
+        "cards": cards.duplicate(true),
+        "finished": finished,
+        "result": result,
+        "last_log": log.slice(max(0, log.size() - 5), log.size())
     }
 
 func export_state() -> Dictionary:
     return {
-        "round_no":round_no,"exchange_no":exchange_no,"player_hp":player_hp,"opponent_hp":opponent_hp,
-        "player_stamina":player_stamina,"opponent_stamina":opponent_stamina,"player_round_score":player_round_score,
-        "opponent_round_score":opponent_round_score,"cards":cards.duplicate(true),"finished":finished,"result":result,"log":log.duplicate()
+        "round_no": round_no,
+        "exchange_no": exchange_no,
+        "player_hp": player_hp,
+        "opponent_hp": opponent_hp,
+        "player_stamina": player_stamina,
+        "opponent_stamina": opponent_stamina,
+        "player_round_score": player_round_score,
+        "opponent_round_score": opponent_round_score,
+        "cards": cards.duplicate(true),
+        "finished": finished,
+        "result": result,
+        "log": log.duplicate(),
+        "rng_state": rng.state
     }
 
 func restore(player_stats: Dictionary, opponent_data: Dictionary, saved: Dictionary) -> void:
@@ -246,6 +266,8 @@ func restore(player_stats: Dictionary, opponent_data: Dictionary, saved: Diction
     log.clear()
     for entry in saved.get("log", []):
         log.append(str(entry))
+    if saved.has("rng_state"):
+        rng.state = int(saved.rng_state)
 
 static func _load_json(path: String) -> Dictionary:
     var parsed = JSON.parse_string(FileAccess.get_file_as_string(path))
