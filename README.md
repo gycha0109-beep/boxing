@@ -26,6 +26,7 @@ Commercial prototype for a premium, offline iPhone/iPad boxing career roguelite.
 12. Save schema v2 with SHA-256 validation, known-good backup, v1 migration, and in-fight resume state
 13. Python opponent and full-career simulation harnesses
 14. GitHub Actions QA for data, invariants, ladder simulation, and 10,000-career simulation
+15. CI downloads the official Godot 4.7.2 Linux editor, verifies its SHA-256, parses/imports the project headlessly, and boots the main scene
 
 ## Current balance evidence
 
@@ -55,6 +56,6 @@ python3 tools/simulate_careers.py
 
 ## Verification boundary
 
-Python/data/simulation checks are automated. **Godot 4.7.2 runtime parsing, real touch UX, suspend/resume on device, and Xcode/iOS export remain mandatory release gates.** This repository must not be labeled release-ready until those are executed on a machine with the engine and Apple toolchain.
+Python/data/simulation checks plus **Godot 4.7.2 headless project parsing and main-scene boot** are automated in CI. Remaining release gates include real touch UX, save-corruption and in-fight force-close fixtures, iOS suspend/resume, safe-area/device layout, Xcode/iOS export, and physical-device smoke. This repository must not be labeled release-ready until those gates are closed.
 
 See `docs/product-spec-v0.2.md` and `docs/qa-acceptance-v0.2.md` for the current product and QA baseline.
