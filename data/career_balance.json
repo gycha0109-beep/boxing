@@ -1,0 +1,17 @@
+{
+  "weight_class":{"name":"라이트급","limit_kg":61.2,"start_weight_kg":61.8,"hard_miss_kg":62.6},
+  "calendar":{"months_per_fight":2,"max_fights":36,"max_age_years":37},
+  "career_points":{"min":0,"max":100,"tiers":[
+    {"id":"prospect","label":"프로스펙트","min":0,"max":19},
+    {"id":"regional","label":"지역 랭커","min":20,"max":39},
+    {"id":"national","label":"국내 랭커","min":40,"max":59},
+    {"id":"continental","label":"대륙 랭커","min":60,"max":74},
+    {"id":"world","label":"세계 랭커","min":75,"max":89},
+    {"id":"title","label":"타이틀 도전자","min":90,"max":100}
+  ]},
+  "weigh_in":{"soft_over_kg":0.8,"emergency_cut_fatigue":14,"emergency_cut_health":5,"miss_purse_multiplier":0.68,"miss_reputation_penalty":3},
+  "retirement":{"health_floor":12,"loss_limit":18,"debt_floor":-450000},
+  "events":{"post_fight_chance":0.62},
+  "injury":{"base_training_chance":0.02,"base_fight_chance":0.025,"ko_loss_bonus":0.13,"high_fatigue_bonus":0.08},
+  "economy":{"purse_net_multiplier":0.58,"cycle_cost_by_tier":{"prospect":30000,"regional":50000,"national":80000,"continental":120000,"world":180000,"title":250000}}
+}
