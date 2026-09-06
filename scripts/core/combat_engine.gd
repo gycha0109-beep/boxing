@@ -246,7 +246,7 @@ func export_state() -> Dictionary:
         "finished": finished,
         "result": result,
         "log": log.duplicate(),
-        "rng_state": rng.state
+        "rng_state": str(rng.state)
     }
 
 func restore(player_stats: Dictionary, opponent_data: Dictionary, saved: Dictionary) -> void:
@@ -267,7 +267,7 @@ func restore(player_stats: Dictionary, opponent_data: Dictionary, saved: Diction
     for entry in saved.get("log", []):
         log.append(str(entry))
     if saved.has("rng_state"):
-        rng.state = int(saved.rng_state)
+        rng.state = int(str(saved.rng_state))
 
 static func _load_json(path: String) -> Dictionary:
     var parsed = JSON.parse_string(FileAccess.get_file_as_string(path))
