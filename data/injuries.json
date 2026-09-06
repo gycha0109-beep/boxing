@@ -1,0 +1,6 @@
+[
+  {"id":"hand_soreness","name":"손 통증","remaining_camps":2,"penalties":{"power":-4,"technique":-2}},
+  {"id":"rib_bruise","name":"갈비뼈 타박","remaining_camps":2,"penalties":{"power":-2,"conditioning":-5}},
+  {"id":"cut_eye","name":"눈가 컷","remaining_camps":1,"penalties":{"defense":-5,"technique":-1}},
+  {"id":"shoulder_strain","name":"어깨 염좌","remaining_camps":3,"penalties":{"power":-3,"speed":-3}}
+]
