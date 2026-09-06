@@ -1,0 +1,26 @@
+{
+  "fight": {
+    "rounds": 3,
+    "exchanges_per_round": 3,
+    "ko_base_threshold": 0.06,
+    "ko_damage_scale": 0.012,
+    "fatigue_accuracy_penalty": 0.0025,
+    "fatigue_damage_penalty": 0.003,
+    "guard_mitigation": 0.52
+  },
+  "actions": {
+    "jab": {"label":"잽","stamina":6,"accuracy":0.78,"damage":7,"score":1.25,"body_stamina_damage":0},
+    "power": {"label":"강타","stamina":15,"accuracy":0.55,"damage":17,"score":1.05,"body_stamina_damage":0},
+    "body": {"label":"바디","stamina":11,"accuracy":0.64,"damage":10,"score":1.0,"body_stamina_damage":9},
+    "guard": {"label":"가드","stamina":-5,"accuracy":1.0,"damage":0,"score":0.25,"body_stamina_damage":0},
+    "counter": {"label":"카운터","stamina":10,"accuracy":0.46,"damage":14,"score":1.15,"body_stamina_damage":0}
+  },
+  "matchups": {
+    "counter_vs_power":{"accuracy":0.2,"damage":1.35},
+    "counter_vs_body":{"accuracy":0.12,"damage":1.18},
+    "power_vs_guard":{"accuracy":-0.13,"damage":0.58},
+    "body_vs_guard":{"accuracy":-0.05,"damage":0.82},
+    "jab_vs_counter":{"accuracy":0.12,"damage":0.92},
+    "guard_vs_any":{"damage_taken":0.52}
+  }
+}
