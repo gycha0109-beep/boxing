@@ -1,0 +1,28 @@
+name: QA
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  deterministic-data-and-balance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Validate content data
+        run: python3 tools/test_data.py
+      - name: Validate project structure
+        run: python3 tools/project_sanity.py
+      - name: Validate career invariants
+        run: python3 tools/test_career_logic.py
+      - name: Simulate opponent ladder
+        run: python3 tools/simulate_balance.py
+      - name: Simulate 10,000 careers
+        run: python3 tools/simulate_careers.py
