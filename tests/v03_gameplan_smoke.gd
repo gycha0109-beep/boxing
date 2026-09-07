@@ -12,12 +12,6 @@ func _init() -> void:
 
 func _run() -> void:
     _cleanup_save_files()
-    _check(StateScript.can_instantiate(), "GameState script cannot instantiate")
-    _check(CombatScript.can_instantiate(), "CombatEngine script cannot instantiate")
-    if not StateScript.can_instantiate() or not CombatScript.can_instantiate():
-        _finish()
-        return
-
     game_state = StateScript.new()
     get_root().add_child(game_state)
     await process_frame
