@@ -47,7 +47,7 @@ The App Store Team ID and Bundle ID intentionally remain blank until the signing
 
 `python3 tools/validate_ios_release_v09.py`
 
-This validates the packaging structure while allowing the account-specific signing fields and final binary art assets to remain HOLD.
+This validates the packaging structure while allowing the account-specific signing fields to remain HOLD.
 
 Before a real device export, run:
 
@@ -97,15 +97,21 @@ The following are the release binary-asset authorities and remaining submission 
    - Merged-main QA authority: `main@ae30d19d70ca6fa2bf717e01294355140197cec3`, QA run `34158029820` attempt 2 **SUCCESS**.
    - Merged-main native iOS authority: run `34158029765` **SUCCESS**.
 
-2. **App icon — HOLD**
-   - Final 1024×1024 source must be opaque and contain no pre-rounded corners.
-   - Smaller iPhone icon slots must be mapped from the approved source or supplied explicitly.
-   - The icon must be inspected at actual small icon sizes, not only at 1024×1024.
+2. **App icon — GO**
+   - Master authority: `assets/release/icon/app_store_1024.png`.
+   - Source art is derived deterministically from the accepted player guard pose and title-night arena; no independent store-only illustration is introduced.
+   - All iPhone icon slots are wired explicitly in `export_presets.cfg`.
+   - Automated authority: `tools/validate_app_icon_v10.py`.
+   - Direct review sizes: 1024 / 180 / 120 / 60 / 40.
+   - Final visual review run: `34160941499`.
+   - Final visual review artifact: `10032566715` / `twelve-count-app-icon-v10-review`.
+   - 60px retains face + red-glove guard readability; 40px remains an immediately recognizable boxer silhouette.
+   - No title text, UI chrome, transparency fringe, unrelated fragment, or baked rounded corners were accepted.
 
 3. **Store screenshots — HOLD**
    - Use actual product renders, not mock gameplay.
    - Candidate content comes from the already accepted release flow: Title, Camp, Fight Offer, Scouting/Game Plan, Weigh-in, Fight Night, Result.
-   - Final App Store sizes must be generated after final app-icon/UI authority freezes.
+   - Final App Store sizes must be generated from the now-frozen UI/icon authority.
 
 ## Metadata and privacy
 
@@ -194,10 +200,10 @@ Required before TestFlight:
 - privacy policy draft: GO
 - bundled Korean font: GO
 - 430×932 bundled-font visual QA: GO
+- final app icon: GO
 - Apple Team ID: HOLD
 - Bundle ID: HOLD
-- final app icon: HOLD
-- App Store screenshot package: HOLD until app-icon/UI authority freezes
+- App Store screenshot package: HOLD
 - physical iPhone: NOT VERIFIED
 - TestFlight: NOT VERIFIED
 - App Store submission: NOT SUBMITTED
