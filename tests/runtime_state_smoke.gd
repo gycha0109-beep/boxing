@@ -9,11 +9,9 @@ func _init() -> void:
     call_deferred("_run")
 
 func _run() -> void:
-    _check(Combat.can_instantiate(), "CombatEngine script cannot instantiate")
-    if Combat.can_instantiate():
-        _test_save_round_trip_and_backup()
-        _test_legacy_v1_migration()
-        _test_combat_resume_rng_round_trip()
+    _test_save_round_trip_and_backup()
+    _test_legacy_v1_migration()
+    _test_combat_resume_rng_round_trip()
     _cleanup_save_files()
     if failures.is_empty():
         print("runtime-state-smoke: PASS")
