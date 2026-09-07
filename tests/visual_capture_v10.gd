@@ -81,10 +81,12 @@ func _run() -> void:
     _stabilize_fight_stage(false)
     await _capture("06_fight_opening.png")
 
+    # _choose_fight_action() resolves and renders synchronously. Freeze time before
+    # the first presentation frame so hit-stop/shake/tweens cannot advance to a
+    # scheduler-dependent intermediate pixel position.
     main_view._choose_fight_action("jab")
-    await process_frame
-    _stabilize_fight_stage(true)
     Engine.time_scale = 0.0
+    _stabilize_fight_stage(true)
     await _capture("07_fight_after_jab.png")
     Engine.time_scale = 1.0
 
@@ -106,11 +108,8 @@ func _stabilize_fight_stage(impact_frame: bool) -> void:
     if stage == null:
         _fail("active FightStage unavailable")
         return
-    # The live presentation intentionally pulses the telegraph from wall-clock time.
-    # Store captures must be reproducible, so remove only that clock-driven pulse here.
     stage.telegraph_action = ""
     if impact_frame:
-        # Freeze the real post-exchange stage on one deterministic impact frame.
         stage.animation_progress = 1.0
         stage.impact_flash = 1.0 if str(stage.last_animation_profile) in ["heavy", "counter", "knockdown"] else 0.55
     else:
