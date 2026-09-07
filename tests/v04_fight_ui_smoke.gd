@@ -1,10 +1,10 @@
 extends SceneTree
 
-const MainScene = preload("res://scenes/Main.tscn")
 const Save = preload("res://scripts/core/save_service.gd")
 
 var failures: Array[String] = []
 var main_view: Control
+var game_state: Node
 
 func _init() -> void:
     call_deferred("_run")
@@ -12,6 +12,11 @@ func _init() -> void:
 func _run() -> void:
     _cleanup_save_files()
     await process_frame
+    game_state = get_root().get_node_or_null("GameState")
+    _check(is_instance_valid(game_state), "GameState autoload was not available")
+    if not is_instance_valid(game_state):
+        _finish()
+        return
 
     var opponents: Array = _load_array("res://data/opponents.json")
     _check(not opponents.is_empty(), "fight UI fixture has no opponents")
@@ -19,16 +24,21 @@ func _run() -> void:
         _finish()
         return
 
-    GameState.new_career("UI 복서", "technician")
-    GameState.state.boxer.weight_kg = 61.0
-    GameState.state.phase = "fight_offer"
+    game_state.new_career("UI 복서", "technician")
+    game_state.state.boxer.weight_kg = 61.0
+    game_state.state.phase = "fight_offer"
     var opponent: Dictionary = opponents[0]
-    GameState.select_opponent(opponent)
-    var selected: Dictionary = GameState.select_game_plan("outside_boxing")
+    game_state.select_opponent(opponent)
+    var selected: Dictionary = game_state.select_game_plan("outside_boxing")
     _check(bool(selected.get("ok", false)), "fight UI fixture could not select game plan")
-    _check(str(GameState.state.phase) == "fight", "fight UI fixture did not enter fight phase")
+    _check(str(game_state.state.phase) == "fight", "fight UI fixture did not enter fight phase")
 
-    main_view = MainScene.instantiate()
+    var packed: PackedScene = load("res://scenes/Main.tscn")
+    _check(is_instance_valid(packed), "Main scene could not load after autoload initialization")
+    if not is_instance_valid(packed):
+        _finish()
+        return
+    main_view = packed.instantiate()
     get_root().add_child(main_view)
     await process_frame
     await process_frame
@@ -45,15 +55,15 @@ func _run() -> void:
     for action_label in ["잽", "강타", "바디", "가드", "카운터"]:
         _check(_contains_button_label(button_texts, action_label), "fight UI missing action button: %s" % action_label)
 
-    var locked_action: String = str(GameState.state.get("active_fight", {}).get("pending_opponent_action", ""))
+    var locked_action: String = str(game_state.state.get("active_fight", {}).get("pending_opponent_action", ""))
     _check(not locked_action.is_empty(), "rendered telegraph did not persist locked opponent action")
-    _check(not GameState.state.get("active_fight", {}).get("pending_telegraph", {}).is_empty(), "rendered telegraph did not persist save payload")
+    _check(not game_state.state.get("active_fight", {}).get("pending_telegraph", {}).is_empty(), "rendered telegraph did not persist save payload")
 
     main_view._choose_fight_action("jab")
     await process_frame
     await process_frame
 
-    var saved_fight: Dictionary = GameState.state.get("active_fight", {})
+    var saved_fight: Dictionary = game_state.state.get("active_fight", {})
     var last_exchange: Dictionary = saved_fight.get("last_exchange", {})
     _check(not last_exchange.is_empty(), "fight UI action did not persist structured exchange result")
     _check(str(last_exchange.get("player_action", "")) == "jab", "fight UI action persisted wrong player action")
