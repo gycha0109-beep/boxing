@@ -168,12 +168,15 @@ func _actor_for_action(base_actor: Dictionary, action_id: String, target_action:
     if modifiers.is_empty():
         return base_actor
     var required: Array = modifiers.get("requires_target_actions", [])
+    var source: Dictionary = modifiers
     if not required.is_empty() and (not reactive_window or not target_action in required):
-        return base_actor
+        source = modifiers.get("miss_read_stats", {})
+        if source.is_empty():
+            return base_actor
     var adjusted: Dictionary = base_actor.duplicate(true)
     for stat in TRAINABLE_STATS:
-        if modifiers.has(stat):
-            adjusted[stat] = clamp(int(adjusted.get(stat, 50)) + int(modifiers[stat]), 1, 100)
+        if source.has(stat):
+            adjusted[stat] = clamp(int(adjusted.get(stat, 50)) + int(source[stat]), 1, 100)
     return adjusted
 
 func _check_ko(attacker_is_player: bool, damage: float) -> void:
