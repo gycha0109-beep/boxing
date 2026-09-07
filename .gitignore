@@ -5,3 +5,4 @@
 __pycache__/
 build/
 exports/
+assets/release/screenshots/**/*.png.import
