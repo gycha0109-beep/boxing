@@ -1,0 +1,194 @@
+name: Android QA Playtest
+
+on:
+  push:
+    branches:
+      - fix/mobile-scroll-and-back-v1.1
+    paths:
+      - .github/workflows/android-qa-playtest.yml
+      - project.godot
+      - export_presets.cfg
+      - scenes/**
+      - scripts/**
+      - assets/**
+      - data/**
+      - tests/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-debug-apk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      GODOT_VERSION: 4.7.2-stable
+      GODOT_TEMPLATE_VERSION: 4.7.2.stable
+      GODOT_ZIP_SHA256: cadd3204e728a35d3f13adb7fd0d7902636b79f6b95c40c265eb73b6c35329e4
+      GODOT_TEMPLATES_SHA256: f298490b8d44d934be425a5a65a51bf15f422428b229a06a6e11d9ffea248011
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Prepare Android SDK 35
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          test -x "$SDK/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDK/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$SDK" --licenses >/dev/null || true
+          "$SDK/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$SDK" \
+            'platform-tools' 'build-tools;35.0.1' 'platforms;android-35'
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+
+      - name: Install verified Godot 4.7.2 editor
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          curl --fail --location --retry 3 --output "$RUNNER_TEMP/godot.zip" "$url"
+          echo "${GODOT_ZIP_SHA256}  $RUNNER_TEMP/godot.zip" | sha256sum --check --strict
+          mkdir -p "$RUNNER_TEMP/godot"
+          unzip -q "$RUNNER_TEMP/godot.zip" -d "$RUNNER_TEMP/godot"
+          GODOT_BIN="$RUNNER_TEMP/godot/Godot_v${GODOT_VERSION}_linux.x86_64"
+          chmod +x "$GODOT_BIN"
+          echo "GODOT_BIN=$GODOT_BIN" >> "$GITHUB_ENV"
+
+      - name: Install verified Godot 4.7.2 export templates
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_export_templates.tpz"
+          curl --fail --location --retry 3 --output "$RUNNER_TEMP/templates.tpz" "$url"
+          echo "${GODOT_TEMPLATES_SHA256}  $RUNNER_TEMP/templates.tpz" | sha256sum --check --strict
+          rm -rf "$RUNNER_TEMP/templates-unpacked"
+          mkdir -p "$RUNNER_TEMP/templates-unpacked"
+          unzip -q "$RUNNER_TEMP/templates.tpz" -d "$RUNNER_TEMP/templates-unpacked"
+          TEMPLATE_DIR="$HOME/.local/share/godot/export_templates/${GODOT_TEMPLATE_VERSION}"
+          rm -rf "$TEMPLATE_DIR"
+          mkdir -p "$TEMPLATE_DIR"
+          cp -R "$RUNNER_TEMP/templates-unpacked/templates/." "$TEMPLATE_DIR/"
+          test -f "$TEMPLATE_DIR/android_debug.apk"
+
+      - name: Configure debug keystore
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.config/godot" build/android-qa
+          keytool -genkeypair -noprompt \
+            -keystore "$RUNNER_TEMP/debug.keystore" \
+            -storepass android -keypass android \
+            -alias androiddebugkey \
+            -dname 'CN=Android Debug,O=Twelve Count QA,C=KR' \
+            -keyalg RSA -keysize 2048 -validity 10000
+          cat > "$HOME/.config/godot/editor_settings-4.tres" <<EOF
+          [gd_resource type="EditorSettings" format=3]
+
+          [resource]
+          export/android/android_sdk_path = "$ANDROID_SDK_ROOT"
+          export/android/java_sdk_path = "$JAVA_HOME"
+          export/android/debug_keystore = "$RUNNER_TEMP/debug.keystore"
+          export/android/debug_keystore_user = "androiddebugkey"
+          export/android/debug_keystore_pass = "android"
+          EOF
+
+      - name: Add temporary Android QA preset
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat >> export_presets.cfg <<'EOF'
+
+          [preset.1]
+
+          name="Android QA"
+          platform="Android"
+          runnable=true
+          advanced_options=true
+          dedicated_server=false
+          custom_features=""
+          export_filter="all_resources"
+          include_filter=""
+          exclude_filter=""
+          export_path="build/android-qa/TwelveCount-QA.apk"
+          patches=PackedStringArray()
+          encryption_include_filters=""
+          encryption_exclude_filters=""
+          seed=0
+          encrypt_pck=false
+          encrypt_directory=false
+          script_export_mode=2
+
+          [preset.1.options]
+
+          custom_template/debug=""
+          custom_template/release=""
+          gradle_build/use_gradle_build=false
+          gradle_build/export_format=0
+          architectures/armeabi-v7a=false
+          architectures/arm64-v8a=true
+          architectures/x86=false
+          architectures/x86_64=false
+          version/code=2
+          version/name="1.0.0-scrollfix"
+          package/unique_name="com.twelvecount.qaplaytest"
+          package/name="Twelve Count QA"
+          package/signed=true
+          package/app_category=0
+          package/retain_data_on_uninstall=false
+          package/exclude_from_recents=false
+          package/show_in_android_tv=false
+          package/show_in_app_library=true
+          package/show_as_launcher_app=true
+          launcher_icons/main_192x192=""
+          launcher_icons/adaptive_foreground_432x432=""
+          launcher_icons/adaptive_background_432x432=""
+          launcher_icons/adaptive_monochrome_432x432=""
+          graphics/opengl_debug=false
+          xr_features/xr_mode=0
+          screen/immersive_mode=false
+          screen/edge_to_edge=false
+          screen/support_small=true
+          screen/support_normal=true
+          screen/support_large=true
+          screen/support_xlarge=true
+          user_data_backup/allow=false
+          command_line/extra_args=""
+          permissions/custom_permissions=PackedStringArray()
+          EOF
+
+      - name: Import project and export debug APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$GODOT_BIN" --headless --editor --path . --quit 2>&1 | tee "$RUNNER_TEMP/godot-import.log"
+          "$GODOT_BIN" --headless --path . --export-debug "Android QA" build/android-qa/TwelveCount-QA.apk 2>&1 | tee "$RUNNER_TEMP/godot-android-export.log"
+          test -s build/android-qa/TwelveCount-QA.apk
+          sha256sum build/android-qa/TwelveCount-QA.apk | tee build/android-qa/SHA256SUMS.txt
+
+      - name: Inspect APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          AAPT="$ANDROID_SDK_ROOT/build-tools/35.0.1/aapt"
+          "$AAPT" dump badging build/android-qa/TwelveCount-QA.apk | tee build/android-qa/apk-badging.txt
+          grep -F "package: name='com.twelvecount.qaplaytest'" build/android-qa/apk-badging.txt
+          grep -F "application-label:'Twelve Count QA'" build/android-qa/apk-badging.txt
+          grep -F "native-code: 'arm64-v8a'" build/android-qa/apk-badging.txt
+
+      - name: Upload Android QA APK
+        uses: actions/upload-artifact@v6
+        with:
+          name: TwelveCount-Android-QA-ScrollFix
+          path: |
+            build/android-qa/TwelveCount-QA.apk
+            build/android-qa/SHA256SUMS.txt
+            build/android-qa/apk-badging.txt
+          if-no-files-found: error
+          retention-days: 14
