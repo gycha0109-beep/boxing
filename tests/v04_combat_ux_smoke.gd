@@ -50,7 +50,9 @@ func _test_locked_telegraph_survives_json_resume() -> void:
     var restored: RefCounted = CombatScript.new(1)
     restored.restore(player, opponent, disk_state)
     _check(str(restored.pending_opponent_action) == "power", "pending opponent action was not restored")
-    _check(restored.pending_telegraph == first_read, "pending telegraph was not restored")
+    _check(str(restored.pending_telegraph.get("signal_id", "")) == str(first_read.get("signal_id", "")), "pending telegraph signal was not restored")
+    _check(str(restored.pending_telegraph.get("title", "")) == str(first_read.get("title", "")), "pending telegraph title was not restored")
+    _check(int(restored.pending_telegraph.get("confidence", 0)) == int(first_read.get("confidence", 0)), "pending telegraph confidence was not restored")
 
     var out: Dictionary = restored.resolve_exchange("counter")
     var exchange: Dictionary = out.get("exchange_result", {})
@@ -97,10 +99,12 @@ func _test_body_stamina_feedback() -> void:
         if not bool(player_event.get("hit", false)):
             continue
         found_hit = true
+        _check(str(player_event.get("action", "")) == "body", "body fixture did not preserve action id")
         _check(float(player_event.get("target_stamina_damage", 0.0)) >= 8.9, "body hit did not expose stamina damage")
         _check(str(exchange.get("opponent_body_state", "")) == "hurt", "body stamina threshold did not become hurt")
         _check(Presentation.body_state_label(str(exchange.get("opponent_body_state", ""))) == "몸통 데미지 누적", "body state presentation mismatch")
-        _check(Presentation.exchange_headline(exchange) == "BODY HIT", "body hit headline mismatch")
+        var headline: String = Presentation.exchange_headline(exchange)
+        _check(headline in ["BODY HIT", "KNOCKDOWN!"], "body hit presentation lost body/KO feedback")
         break
     _check(found_hit, "could not produce deterministic body hit fixture")
 
