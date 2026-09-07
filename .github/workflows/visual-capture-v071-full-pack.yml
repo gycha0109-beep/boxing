@@ -1,0 +1,54 @@
+name: Visual Capture v0.7.1 Full Pack
+
+on:
+  push:
+    branches:
+      - chore/visual-capture-v071-full-pack
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      GODOT_VERSION: 4.7.2-stable
+      GODOT_ZIP_SHA256: cadd3204e728a35d3f13adb7fd0d7902636b79f6b95c40c265eb73b6c35329e4
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install verified Godot 4.7.2 stable
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          curl --fail --location --retry 3 --output "$RUNNER_TEMP/godot.zip" "$url"
+          echo "${GODOT_ZIP_SHA256}  $RUNNER_TEMP/godot.zip" | sha256sum --check --strict
+          mkdir -p "$RUNNER_TEMP/godot"
+          unzip -q "$RUNNER_TEMP/godot.zip" -d "$RUNNER_TEMP/godot"
+          chmod +x "$RUNNER_TEMP/godot/Godot_v${GODOT_VERSION}_linux.x86_64"
+          echo "$RUNNER_TEMP/godot" >> "$GITHUB_PATH"
+      - name: Import project
+        run: timeout 90s Godot_v${GODOT_VERSION}_linux.x86_64 --headless --editor --path . --quit
+      - name: Install virtual display
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y xvfb
+      - name: Capture all commercial poses at 430x932
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf visual-captures
+          mkdir -p visual-captures
+          xvfb-run -a -s "-screen 0 430x932x24" Godot_v${GODOT_VERSION}_linux.x86_64 --path . --script res://tests/visual_capture_v071_full_pack.gd
+          count=$(find visual-captures -maxdepth 1 -type f -name '*.png' | wc -l | tr -d ' ')
+          echo "capture_count=$count"
+          test "$count" -eq 32
+          file visual-captures/*.png
+      - name: Upload full-pack visual captures
+        uses: actions/upload-artifact@v6
+        with:
+          name: twelve-count-v071-full-pack-visuals
+          path: visual-captures/*.png
+          if-no-files-found: error
+          retention-days: 1
