@@ -3,5 +3,5 @@
   {"id":"outside_boxing","name":"거리전","description":"잽과 발을 살려 먼저 맞히고 위험한 강타 교환을 줄입니다.","risk":"낮음","global_stats":{"power":-2,"speed":2,"technique":2},"action_modifiers":{"jab":{"speed":3,"technique":5},"guard":{"conditioning":4},"power":{"power":-3}}},
   {"id":"body_breakdown","name":"바디 공략","description":"몸통 공격으로 상대의 후반 스태미나와 리듬을 무너뜨립니다.","risk":"중간","global_stats":{"conditioning":1},"action_modifiers":{"body":{"power":4,"technique":5,"conditioning":3},"jab":{"power":-1}}},
   {"id":"pressure","name":"정면 압박","description":"화력과 전진 압박을 올리는 대신 수비와 체력 여유를 희생합니다.","risk":"높음","global_stats":{"power":2,"conditioning":-2,"defense":-3},"action_modifiers":{"power":{"power":5,"technique":2},"body":{"power":3,"technique":2}}},
-  {"id":"counter_trap","name":"카운터 함정","description":"상대가 큰 공격을 꺼내도록 기다렸다가 카운터 한 번의 효율을 높입니다.","risk":"중간","global_stats":{"defense":2,"conditioning":-1},"action_modifiers":{"counter":{"power":5,"speed":4,"technique":7},"jab":{"power":-2}}}
+  {"id":"counter_trap","name":"카운터 함정","description":"상대의 큰 공격을 유도했을 때만 카운터 효율이 폭발합니다. 잽 싸움에는 이득이 거의 없습니다.","risk":"중간","global_stats":{"defense":1,"conditioning":-2},"action_modifiers":{"counter":{"requires_target_actions":["power","body"],"power":5,"speed":4,"technique":7},"jab":{"power":-2}}}
 ]
