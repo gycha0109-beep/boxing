@@ -18,6 +18,8 @@ jobs:
           python-version: '3.13'
       - name: Validate content data
         run: python3 tools/test_data.py
+      - name: Validate fighter identity, scouting, and game-plan data
+        run: python3 tools/test_gameplans.py
       - name: Validate project structure
         run: python3 tools/project_sanity.py
       - name: Validate career invariants
@@ -54,3 +56,5 @@ jobs:
         run: timeout 30s Godot_v${GODOT_VERSION}_linux.x86_64 --headless --path . --quit-after 5
       - name: Verify save recovery and deterministic fight resume
         run: timeout 60s Godot_v${GODOT_VERSION}_linux.x86_64 --headless --path . --script res://tests/runtime_state_smoke.gd
+      - name: Verify fighter identity, scouting, and game-plan flow
+        run: timeout 60s Godot_v${GODOT_VERSION}_linux.x86_64 --headless --path . --script res://tests/v03_gameplan_smoke.gd
