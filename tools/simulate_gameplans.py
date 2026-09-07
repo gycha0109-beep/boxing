@@ -10,8 +10,10 @@ REPRESENTATIVES = ["han_do-yun", "seo_min-jae", "park_tae-ho", "lee_jun-seok"]
 PLAYER = {"power":56,"speed":56,"technique":56,"defense":56,"conditioning":56,"fatigue":0,"health":100,"modifiers":{}}
 
 
-def win_rate(opponent, plan_id, n=1200):
-    seed_base = (REPRESENTATIVES.index(opponent["id"]) + 1) * 100_000_000 + PLANS.index(plan_id) * 1_000_000
+def win_rate(opponent, plan_id, n=2000):
+    # Use the same seed range for every plan against an opponent so plan comparisons
+    # are not biased by unrelated random samples.
+    seed_base = (REPRESENTATIVES.index(opponent["id"]) + 1) * 100_000_000
     wins = 0
     for i in range(n):
         result = fight(seed_base + i, opponent, PLAYER, plan_id)["result"]
@@ -20,25 +22,30 @@ def win_rate(opponent, plan_id, n=1200):
 
 
 def main():
-    matrix = {}
     best_counts = {p: 0 for p in PLANS}
     for opponent_id in REPRESENTATIVES:
         opponent = OPPONENTS[opponent_id]
         rates = {plan_id: win_rate(opponent, plan_id) for plan_id in PLANS}
-        matrix[opponent_id] = rates
         best_plan = max(rates, key=rates.get)
         best_counts[best_plan] += 1
         spread = max(rates.values()) - min(rates.values())
         suggested = opponent["scouting"]["suggested_plans"]
-        best_suggested = max(rates[p] for p in suggested)
-        print(f"{opponent['name']} [{opponent['style']}] " + " ".join(f"{p}={rates[p]:.3f}" for p in PLANS) + f" best={best_plan} spread={spread:.3f}")
+        print(
+            f"{opponent['name']} [{opponent['style']}] "
+            + " ".join(f"{p}={rates[p]:.3f}" for p in PLANS)
+            + f" best={best_plan} suggested={suggested} spread={spread:.3f}"
+        )
         assert spread >= 0.025, f"game plans do not materially change outcome vs {opponent_id}: spread={spread:.3f}"
-        assert best_suggested >= rates[best_plan] - 0.10, f"scouting recommendation misleading vs {opponent_id}: best={best_plan}"
+        assert best_plan in suggested, (
+            f"scouting recommendation does not contain actual best plan vs {opponent_id}: "
+            f"best={best_plan} suggested={suggested}"
+        )
 
     dominant_plan = max(best_counts, key=best_counts.get)
-    assert best_counts[dominant_plan] < len(REPRESENTATIVES), f"single universal best plan detected: {dominant_plan}"
+    assert best_counts[dominant_plan] <= 2, f"game plan dominates too many representative matchups: {best_counts}"
     non_balanced_best = sum(count for plan, count in best_counts.items() if plan != "balanced")
-    assert non_balanced_best >= 3, f"specialized plans rarely beat balanced: {best_counts}"
+    assert non_balanced_best == len(REPRESENTATIVES), f"balanced plan unexpectedly optimal in specialist matchup set: {best_counts}"
+    assert sum(1 for count in best_counts.values() if count > 0) >= 3, f"matchup adaptation lacks variety: {best_counts}"
     print(f"gameplan-best-counts={best_counts}")
     print("gameplan-simulation: PASS")
 
