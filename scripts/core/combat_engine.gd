@@ -56,13 +56,13 @@ func resolve_exchange(player_action: String) -> Dictionary:
     var first_is_player: bool = p_speed >= o_speed
 
     if first_is_player:
-        _perform(true, player_action, opponent_action)
+        _perform(true, player_action, opponent_action, false)
         if not finished:
-            _perform(false, opponent_action, player_action)
+            _perform(false, opponent_action, player_action, true)
     else:
-        _perform(false, opponent_action, player_action)
+        _perform(false, opponent_action, player_action, false)
         if not finished:
-            _perform(true, player_action, opponent_action)
+            _perform(true, player_action, opponent_action, true)
 
     if not finished and exchange_no % int(balance.fight.exchanges_per_round) == 0:
         _score_round()
@@ -77,13 +77,13 @@ func resolve_exchange(player_action: String) -> Dictionary:
     out["opponent_action"] = opponent_action
     return out
 
-func _perform(is_player: bool, action_id: String, target_action: String) -> void:
+func _perform(is_player: bool, action_id: String, target_action: String, reactive_window: bool) -> void:
     var actions: Dictionary = balance.actions
     if not actions.has(action_id):
         return
     var action: Dictionary = actions[action_id]
     var base_actor: Dictionary = player if is_player else opponent.stats
-    var actor: Dictionary = _actor_for_action(base_actor, action_id, target_action) if is_player else base_actor
+    var actor: Dictionary = _actor_for_action(base_actor, action_id, target_action, reactive_window) if is_player else base_actor
     var target: Dictionary = opponent.stats if is_player else player
     var stamina: float = player_stamina if is_player else opponent_stamina
 
@@ -112,10 +112,10 @@ func _perform(is_player: bool, action_id: String, target_action: String) -> void
     accuracy -= max(0.0, 45.0 - stamina) * float(balance.fight.fatigue_accuracy_penalty)
 
     var damage_mult: float = 1.0
-    if action_id == "counter" and target_action == "power":
+    if reactive_window and action_id == "counter" and target_action == "power":
         accuracy += float(balance.matchups.counter_vs_power.accuracy)
         damage_mult *= float(balance.matchups.counter_vs_power.damage)
-    elif action_id == "counter" and target_action == "body":
+    elif reactive_window and action_id == "counter" and target_action == "body":
         accuracy += float(balance.matchups.counter_vs_body.accuracy)
         damage_mult *= float(balance.matchups.counter_vs_body.damage)
     elif action_id == "jab" and target_action == "counter":
@@ -154,14 +154,14 @@ func _perform(is_player: bool, action_id: String, target_action: String) -> void
     log.append(("나" if is_player else str(opponent.name)) + " " + str(action.label) + " 적중 %.1f" % damage)
     _check_ko(is_player, damage)
 
-func _actor_for_action(base_actor: Dictionary, action_id: String, target_action: String) -> Dictionary:
+func _actor_for_action(base_actor: Dictionary, action_id: String, target_action: String, reactive_window: bool) -> Dictionary:
     var plan: Dictionary = base_actor.get("game_plan", {})
     var action_modifiers: Dictionary = plan.get("action_modifiers", {})
     var modifiers: Dictionary = action_modifiers.get(action_id, {})
     if modifiers.is_empty():
         return base_actor
     var required: Array = modifiers.get("requires_target_actions", [])
-    if not required.is_empty() and not target_action in required:
+    if not required.is_empty() and (not reactive_window or not target_action in required):
         return base_actor
     var adjusted: Dictionary = base_actor.duplicate(true)
     for stat in TRAINABLE_STATS:
