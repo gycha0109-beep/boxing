@@ -3,6 +3,7 @@ extends SceneTree
 const StateScript = preload("res://scripts/core/game_state.gd")
 const CombatScript = preload("res://scripts/core/combat_engine.gd")
 const Save = preload("res://scripts/core/save_service.gd")
+const TRAINABLE_STATS := ["power", "speed", "technique", "defense", "conditioning"]
 
 var failures: Array[String] = []
 var game_state: Node
@@ -18,6 +19,7 @@ func _run() -> void:
 
     _test_identity_created()
     _test_scouting_to_game_plan_flow()
+    _test_counter_reacts_after_committed_attack()
     _test_v02_additive_normalization()
     _finish()
 
@@ -62,10 +64,14 @@ func _test_scouting_to_game_plan_flow() -> void:
     _check(not game_state.state.get("last_weigh_in", {}).is_empty(), "weigh-in did not resolve after game-plan choice")
 
     var fight_boxer: Dictionary = game_state.get_fight_boxer()
-    _check(str(fight_boxer.get("game_plan", {}).get("id", "")) == "outside_boxing", "fight boxer missing game-plan payload")
-    _check(int(fight_boxer.speed) == clamp(int(base_boxer.speed) + 2, 1, 100), "outside_boxing global speed modifier missing")
-    _check(int(fight_boxer.technique) == clamp(int(base_boxer.technique) + 2, 1, 100), "outside_boxing global technique modifier missing")
-    _check(int(fight_boxer.power) == clamp(int(base_boxer.power) - 2, 1, 100), "outside_boxing power trade-off missing")
+    var plan: Dictionary = fight_boxer.get("game_plan", {})
+    _check(str(plan.get("id", "")) == "outside_boxing", "fight boxer missing game-plan payload")
+    var global_stats: Dictionary = plan.get("global_stats", {})
+    for stat in TRAINABLE_STATS:
+        var expected: int = int(base_boxer.get(stat, 50))
+        if global_stats.has(stat):
+            expected = clamp(expected + int(global_stats[stat]), 1, 100)
+        _check(int(fight_boxer.get(stat, -1)) == expected, "outside_boxing global modifier mismatch: %s" % stat)
 
     var combat: RefCounted = CombatScript.new(int(game_state.state.fight_seed))
     combat.start(fight_boxer, opponent)
@@ -76,6 +82,27 @@ func _test_scouting_to_game_plan_flow() -> void:
         _check(opponent.tendencies.has(action_id), "AI selected action outside opponent tendencies: %s" % action_id)
     combat.resolve_exchange("jab")
     _check(int(combat.exchange_no) == 1, "v0.3 combat did not resolve an exchange")
+
+func _test_counter_reacts_after_committed_attack() -> void:
+    var opponent := {
+        "id": "counter-order-fixture",
+        "name": "Order Fixture",
+        "style": "slugger",
+        "stats": {"power":1,"speed":1,"technique":1,"defense":90,"conditioning":90},
+        "tendencies": {"jab":0.0,"power":1.0,"body":0.0,"guard":0.0,"counter":0.0}
+    }
+    var player := {
+        "power":40,"speed":100,"technique":80,"defense":100,"conditioning":100,
+        "fatigue":0,"health":100,"modifiers":{},"game_plan":{}
+    }
+    var combat: RefCounted = CombatScript.new(424242)
+    combat.start(player, opponent)
+    var out: Dictionary = combat.resolve_exchange("counter")
+    _check(str(out.get("opponent_action", "")) == "power", "counter order fixture did not force power action")
+    _check(combat.log.size() >= 2, "counter order fixture did not execute both actors")
+    if combat.log.size() >= 2:
+        _check(str(combat.log[0]).begins_with("Order Fixture"), "counter must yield initiative to committed attack")
+        _check(str(combat.log[1]).begins_with("나"), "counter must execute after committed attack")
 
 func _test_v02_additive_normalization() -> void:
     var boxer: Dictionary = game_state.state.boxer
