@@ -30,7 +30,7 @@ func _ready() -> void:
             SaveService.save_game(state)
 
 func new_career(boxer_name: String, trait_id: String = "") -> void:
-    var trait: Dictionary = _pick_trait(trait_id)
+    var trait_data: Dictionary = _pick_trait(trait_id)
     var identity: Dictionary = _pick_identity()
     var base_boxer: Dictionary = {
         "name": boxer_name,
@@ -42,9 +42,9 @@ func new_career(boxer_name: String, trait_id: String = "") -> void:
         "fatigue": 0,
         "health": 100,
         "weight_kg": float(career_balance.weight_class.start_weight_kg),
-        "trait_id": str(trait.get("id", "")),
-        "trait_name": str(trait.get("name", "무특성")),
-        "modifiers": trait.get("modifiers", {}).duplicate(true),
+        "trait_id": str(trait_data.get("id", "")),
+        "trait_name": str(trait_data.get("name", "무특성")),
+        "modifiers": trait_data.get("modifiers", {}).duplicate(true),
         "injury": {},
         "identity_id": str(identity.get("id", "balanced")),
         "identity_name": str(identity.get("name", "균형형")),
@@ -52,7 +52,7 @@ func new_career(boxer_name: String, trait_id: String = "") -> void:
         "identity_signature": str(identity.get("signature", ""))
     }
     for stat in TRAINABLE_STATS:
-        var trait_bonus: int = int(trait.get("stat_bonus", {}).get(stat, 0))
+        var trait_bonus: int = int(trait_data.get("stat_bonus", {}).get(stat, 0))
         var identity_bonus: int = int(identity.get("stat_bonus", {}).get(stat, 0))
         base_boxer[stat] = clamp(int(base_boxer[stat]) + trait_bonus + identity_bonus, 1, 100)
 
@@ -484,9 +484,9 @@ func _check_retirement() -> void:
 
 func _pick_trait(requested_id: String) -> Dictionary:
     if not requested_id.is_empty():
-        for trait in traits:
-            if str(trait.id) == requested_id:
-                return trait
+        for trait_data in traits:
+            if str(trait_data.id) == requested_id:
+                return trait_data
     if traits.is_empty():
         return {}
     return traits[rng.randi_range(0, traits.size() - 1)]
