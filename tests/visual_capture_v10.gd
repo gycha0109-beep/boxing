@@ -2,6 +2,7 @@ extends SceneTree
 
 const Save = preload("res://scripts/core/save_service.gd")
 const CAPTURE_DIR := "res://visual-captures/v1.0-font"
+const CAPTURE_SEED := 424242
 
 var main_view: Control
 var game_state: Node
@@ -28,6 +29,7 @@ func _run() -> void:
         _fail("capture fixtures are incomplete")
         return
 
+    _seed_rng()
     game_state.new_career("Release Boxer", "technician")
     game_state.state.erase("first_launch_acknowledged")
     game_state.state.erase("weigh_in_acknowledged")
@@ -49,10 +51,12 @@ func _run() -> void:
 
     await _capture("01_title.png")
 
+    _seed_rng()
     main_view._start_new_career_from_title()
     await process_frame
     await _capture("02_camp.png")
 
+    _seed_rng()
     main_view._choose_camp_action(camps[0])
     await process_frame
     await _capture("03_fight_offer.png")
@@ -62,7 +66,11 @@ func _run() -> void:
     await process_frame
     await _capture("04_scouting_game_plan.png")
 
+    _seed_rng()
     main_view._choose_game_plan("balanced")
+    game_state.state.fight_seed = CAPTURE_SEED
+    game_state.state.active_fight = {}
+    Save.save_game(game_state.state)
     await process_frame
     await process_frame
     await _capture("05_weigh_in.png")
@@ -70,21 +78,60 @@ func _run() -> void:
     main_view._acknowledge_weigh_in()
     await process_frame
     await process_frame
+    _stabilize_fight_stage(false)
     await _capture("06_fight_opening.png")
 
     main_view._choose_fight_action("jab")
-    await create_timer(0.18).timeout
+    await process_frame
+    _stabilize_fight_stage(true)
+    Engine.time_scale = 0.0
     await _capture("07_fight_after_jab.png")
-    await create_timer(0.40).timeout
+    Engine.time_scale = 1.0
 
+    _seed_rng()
     game_state.apply_fight_result("WIN_DEC", opponent, {"player_hp": 72.0, "opponent_hp": 44.0})
     main_view._render_phase()
     await process_frame
     await _capture("08_result.png")
 
-    print("visual-capture-v10-font: PASS")
+    print("visual-capture-v10-font: PASS seed=%d" % CAPTURE_SEED)
     _cleanup_save_files()
     quit(0)
+
+func _seed_rng() -> void:
+    game_state.rng.seed = CAPTURE_SEED
+
+func _stabilize_fight_stage(impact_frame: bool) -> void:
+    var stage: Node = _active_fight_stage()
+    if stage == null:
+        _fail("active FightStage unavailable")
+        return
+    # The live presentation intentionally pulses the telegraph from wall-clock time.
+    # Store captures must be reproducible, so remove only that clock-driven pulse here.
+    stage.telegraph_action = ""
+    if impact_frame:
+        # Freeze the real post-exchange stage on one deterministic impact frame.
+        stage.animation_progress = 1.0
+        stage.impact_flash = 1.0 if str(stage.last_animation_profile) in ["heavy", "counter", "knockdown"] else 0.55
+    else:
+        stage.animation_progress = 0.0
+        stage.impact_flash = 0.0
+    stage.queue_redraw()
+
+func _active_fight_stage() -> Node:
+    var best: Node = null
+    var best_event := -1
+    var stack: Array[Node] = [main_view]
+    while not stack.is_empty():
+        var node: Node = stack.pop_back()
+        if node.name == "FightStage" and "presentation_event_id" in node:
+            var event_id := int(node.presentation_event_id)
+            if event_id > best_event:
+                best = node
+                best_event = event_id
+        for child in node.get_children():
+            stack.append(child)
+    return best
 
 func _capture(filename: String) -> void:
     await process_frame
@@ -105,6 +152,7 @@ func _load_array(path: String) -> Array:
     return parsed if typeof(parsed) == TYPE_ARRAY else []
 
 func _cleanup_save_files() -> void:
+    Engine.time_scale = 1.0
     for path in [Save.SAVE_PATH, Save.BACKUP_PATH, "user://career_v1.json", "user://career_v1.backup.json"]:
         if FileAccess.file_exists(path):
             DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
