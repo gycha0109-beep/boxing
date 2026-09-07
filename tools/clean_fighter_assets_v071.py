@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
-"""Deterministically clean the v0.7 vertical-slice fighter sprites.
+"""Deterministically clean the v0.7 commercial fighter sprite pack.
 
-This tool intentionally targets only the first commercial vertical slice:
-- player: 8 poses
-- swarmer: 8 poses
+The generated source pack contains disconnected body fragments, scan-line
+residue, gear-color drift, and two pose-level quality failures. This tool keeps
+the dominant boxer silhouette for all 40 fighter sprites, applies narrowly
+scoped gear corrections, and uses deterministic same-pack substitutes for two
+unusable frames:
 
-It removes disconnected generative-image contamination while preserving the
-largest connected boxer silhouette. It also normalizes the swarmer's blue
-shorts contamination in hurt/knockdown poses back to the locked red gear.
+- out-boxer idle reuses the cleaned out-boxer guard frame (gear consistency)
+- counter knockdown reuses the cleaned out-boxer knockdown silhouette with a
+  purple gear conversion (the original counter knockdown is only a body shard)
+
+The substitutions intentionally prefer a duplicated readable pose over a
+visibly corrupted generative frame for the commercial v1 release.
 
 Dependencies (tooling only): Pillow, numpy, opencv-python-headless
 """
@@ -23,12 +28,21 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
 ASSET_ROOT = ROOT / "assets" / "visual" / "v0.7" / "fighters"
+OPPONENT_ROOT = ASSET_ROOT / "opponents"
 
 PLAYER_FILES = tuple(sorted((ASSET_ROOT / "player").glob("player_base_*.png")))
-SWARMER_FILES = tuple(sorted((ASSET_ROOT / "opponents" / "swarmer").glob("op_swarmer_a_*.png")))
-TARGET_FILES = PLAYER_FILES + SWARMER_FILES
+OPPONENT_STYLES = ("swarmer", "outboxer", "slugger", "counter")
+OPPONENT_FILES = {
+    style: tuple(sorted((OPPONENT_ROOT / style).glob(f"op_{style}_a_*.png")))
+    for style in OPPONENT_STYLES
+}
+TARGET_FILES = PLAYER_FILES + tuple(
+    path for style in OPPONENT_STYLES for path in OPPONENT_FILES[style]
+)
 
 EXPECTED_SIZE = (512, 512)
+EXPECTED_POSES_PER_FIGHTER = 8
+EXPECTED_TOTAL = 40
 ALPHA_CORE_THRESHOLD = 8
 DILATION_KERNEL = np.ones((5, 5), dtype=np.uint8)
 
@@ -57,8 +71,7 @@ def _normalize_swarmer_gear(path: Path, rgba: np.ndarray) -> np.ndarray:
     hsv = cv2.cvtColor(rgb, cv2.COLOR_RGB2HSV)
     alpha = rgba[:, :, 3]
 
-    # The contaminated variants switched the locked red trunks to blue.
-    # Restrict the correction to clearly saturated blue/cyan pixels.
+    # These two generated variants switched the locked red trunks to blue.
     blue = (
         (hsv[:, :, 0] >= 90)
         & (hsv[:, :, 0] <= 135)
@@ -75,12 +88,43 @@ def _normalize_swarmer_gear(path: Path, rgba: np.ndarray) -> np.ndarray:
     return rgba
 
 
-def clean_sprite(path: Path, *, check_only: bool) -> tuple[int, int]:
+def _counter_palette_from_outboxer(rgba: np.ndarray) -> np.ndarray:
+    """Convert saturated out-boxer blue gear toward counter purple gear."""
+    rgb = rgba[:, :, :3]
+    hsv = cv2.cvtColor(rgb, cv2.COLOR_RGB2HSV)
+    alpha = rgba[:, :, 3]
+    blue = (
+        (hsv[:, :, 0] >= 90)
+        & (hsv[:, :, 0] <= 135)
+        & (hsv[:, :, 1] >= 40)
+        & (alpha > 20)
+    )
+    corrected = hsv.copy()
+    corrected[:, :, 0][blue] = 145
+    corrected_rgb = cv2.cvtColor(corrected, cv2.COLOR_HSV2RGB)
+    result = rgba.copy()
+    result[:, :, :3] = np.where(blue[:, :, None], corrected_rgb, rgb)
+    return result
+
+
+def _load_rgba(path: Path) -> np.ndarray:
     image = Image.open(path).convert("RGBA")
     if image.size != EXPECTED_SIZE:
         raise RuntimeError(f"{path}: expected {EXPECTED_SIZE}, got {image.size}")
+    return np.array(image)
 
-    rgba = np.array(image)
+
+def _save_rgba(path: Path, rgba: np.ndarray) -> None:
+    Image.fromarray(rgba, mode="RGBA").save(
+        path,
+        format="PNG",
+        optimize=True,
+        compress_level=9,
+    )
+
+
+def clean_sprite(path: Path, *, check_only: bool) -> tuple[int, int]:
+    rgba = _load_rgba(path)
     original_alpha = rgba[:, :, 3].copy()
     keep = _largest_component_mask(original_alpha)
     removed_pixels = int(np.count_nonzero((original_alpha > 0) & ~keep))
@@ -94,14 +138,33 @@ def clean_sprite(path: Path, *, check_only: bool) -> tuple[int, int]:
         raise RuntimeError(f"{path}: cleanup removed the boxer silhouette")
 
     if not check_only:
-        Image.fromarray(cleaned, mode="RGBA").save(
-            path,
-            format="PNG",
-            optimize=True,
-            compress_level=9,
-        )
+        _save_rgba(path, cleaned)
 
     return removed_pixels, remaining_pixels
+
+
+def _apply_quality_substitutions(*, check_only: bool) -> None:
+    outboxer_guard = OPPONENT_ROOT / "outboxer" / "op_outboxer_a_guard.png"
+    outboxer_idle = OPPONENT_ROOT / "outboxer" / "op_outboxer_a_idle.png"
+    outboxer_down = OPPONENT_ROOT / "outboxer" / "op_outboxer_a_knockdown.png"
+    counter_down = OPPONENT_ROOT / "counter" / "op_counter_a_knockdown.png"
+
+    guard_rgba = _load_rgba(outboxer_guard)
+    idle_rgba = _load_rgba(outboxer_idle)
+    expected_counter_down = _counter_palette_from_outboxer(_load_rgba(outboxer_down))
+    current_counter_down = _load_rgba(counter_down)
+
+    if check_only:
+        if not np.array_equal(idle_rgba, guard_rgba):
+            raise RuntimeError("out-boxer idle substitution is not canonical")
+        if not np.array_equal(current_counter_down, expected_counter_down):
+            raise RuntimeError("counter knockdown substitution is not canonical")
+        return
+
+    _save_rgba(outboxer_idle, guard_rgba)
+    _save_rgba(counter_down, expected_counter_down)
+    print("QUALITY FIX out-boxer idle <- cleaned guard")
+    print("QUALITY FIX counter knockdown <- cleaned out-boxer knockdown + purple gear")
 
 
 def main() -> int:
@@ -113,11 +176,18 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    if len(PLAYER_FILES) != 8 or len(SWARMER_FILES) != 8:
+    if len(PLAYER_FILES) != EXPECTED_POSES_PER_FIGHTER:
         raise RuntimeError(
-            f"expected 8 player + 8 swarmer sprites, got "
-            f"{len(PLAYER_FILES)} + {len(SWARMER_FILES)}"
+            f"expected {EXPECTED_POSES_PER_FIGHTER} player sprites, got {len(PLAYER_FILES)}"
         )
+    for style in OPPONENT_STYLES:
+        if len(OPPONENT_FILES[style]) != EXPECTED_POSES_PER_FIGHTER:
+            raise RuntimeError(
+                f"expected {EXPECTED_POSES_PER_FIGHTER} {style} sprites, "
+                f"got {len(OPPONENT_FILES[style])}"
+            )
+    if len(TARGET_FILES) != EXPECTED_TOTAL:
+        raise RuntimeError(f"expected {EXPECTED_TOTAL} fighter sprites, got {len(TARGET_FILES)}")
 
     total_removed = 0
     total_remaining = 0
@@ -130,8 +200,10 @@ def main() -> int:
             f"{path.relative_to(ROOT)} removed={removed} remaining={remaining}"
         )
 
+    _apply_quality_substitutions(check_only=args.check_only)
+
     print(
-        f"v0.7.1 vertical slice: sprites={len(TARGET_FILES)} "
+        f"v0.7.1 commercial fighter pack: sprites={len(TARGET_FILES)} "
         f"removed={total_removed} remaining={total_remaining}"
     )
     return 0
