@@ -46,7 +46,7 @@ func _render_offer_card(opponent: Dictionary) -> void:
     info.add_child(style_label)
 
     var money_label := Label.new()
-    money_label.text = "파이트머니 %,d원 · 승리 +%dpt · 패배 -%dpt" % [
+    money_label.text = "파이트머니 %d원 · 승리 +%dpt · 패배 -%dpt" % [
         int(opponent.get("purse", 0)), int(opponent.get("career_points_win", 0)), int(opponent.get("career_points_loss", 0))
     ]
     money_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
