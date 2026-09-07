@@ -21,4 +21,4 @@ renderer/rendering_method.mobile="gl_compatibility"
 environment/defaults/default_clear_color=Color(0.055, 0.06, 0.075, 1)
 
 [autoload]
-GameState="*res://scripts/core/game_state.gd"
+GameState="*res://scripts/core/game_state_v03.gd"
