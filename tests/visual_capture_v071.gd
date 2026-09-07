@@ -54,8 +54,10 @@ func _run() -> void:
     await _capture("04_fight_opening.png")
 
     main_view._choose_fight_action("jab")
-    await create_timer(0.18).timeout
-    await _capture("05_fight_after_jab.png")
+    await create_timer(0.08).timeout
+    await _capture("05_fight_jab_contact.png")
+    await create_timer(0.14).timeout
+    await _capture("06_fight_jab_recovery.png")
 
     print("visual-capture-v071: PASS")
     quit(0)
