@@ -6,13 +6,22 @@ on:
       - chore/v071-fighter-asset-audit
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  collect-fighter-assets:
+  clean-vertical-slice:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - name: Check out current feature head
+        uses: actions/checkout@v7
+        with:
+          ref: feat/commercial-visual-integration-v0.7
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Install deterministic image tooling
+        run: python -m pip install --disable-pip-version-check pillow numpy opencv-python-headless
       - name: Verify fighter asset count
         shell: bash
         run: |
@@ -20,10 +29,38 @@ jobs:
           count=$(find assets/visual/v0.7/fighters -type f -name '*.png' | wc -l | tr -d ' ')
           echo "fighter_png_count=$count"
           test "$count" -eq 40
-      - name: Upload exact-head fighter PNGs
-        uses: actions/upload-artifact@v6
-        with:
-          name: twelve-count-v071-fighter-audit
-          path: assets/visual/v0.7/fighters/**/*.png
-          if-no-files-found: error
-          retention-days: 1
+      - name: Clean Player + Swarmer vertical slice
+        run: python tools/clean_fighter_assets_v071.py
+      - name: Verify cleanup is idempotent
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tools/clean_fighter_assets_v071.py --check-only | tee /tmp/v071-check.txt
+          if grep -Eq 'removed=[1-9][0-9]*' /tmp/v071-check.txt; then
+            echo 'cleanup is not idempotent; residual disconnected contamination remains'
+            exit 1
+          fi
+      - name: Validate changed asset scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t changed < <(git diff --name-only -- assets/visual/v0.7/fighters)
+          printf '%s\n' "${changed[@]}"
+          test "${#changed[@]}" -gt 0
+          test "${#changed[@]}" -le 16
+          for path in "${changed[@]}"; do
+            case "$path" in
+              assets/visual/v0.7/fighters/player/*.png|assets/visual/v0.7/fighters/opponents/swarmer/*.png) ;;
+              *) echo "unexpected changed path: $path"; exit 1 ;;
+            esac
+          done
+      - name: Commit cleaned binary assets to feature branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add assets/visual/v0.7/fighters/player assets/visual/v0.7/fighters/opponents/swarmer
+          git diff --cached --quiet && { echo 'no cleaned PNG changes'; exit 1; }
+          git commit -m 'assets: clean vertical slice fighter sprites v0.7.1'
+          git push origin HEAD:feat/commercial-visual-integration-v0.7
