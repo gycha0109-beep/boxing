@@ -98,3 +98,5 @@ jobs:
         run: timeout 60s Godot_v${GODOT_VERSION}_linux.x86_64 --headless --path . --script res://tests/v08_first_five_minutes_smoke.gd
       - name: Verify v1.0 bundled Korean release font
         run: timeout 60s Godot_v${GODOT_VERSION}_linux.x86_64 --headless --path . --script res://tests/v10_release_font_smoke.gd
+      - name: Verify mobile card scrolling and opponent back navigation
+        run: timeout 60s Godot_v${GODOT_VERSION}_linux.x86_64 --headless --path . --script res://tests/mobile_scroll_back_smoke.gd
