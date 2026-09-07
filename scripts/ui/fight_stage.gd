@@ -12,6 +12,12 @@ const READ := Color(0.93, 0.71, 0.32, 1.0)
 const IMPACT := Color(1.0, 0.88, 0.54, 1.0)
 const COUNTER := Color(0.52, 0.88, 0.96, 1.0)
 
+const COMMERCIAL_PLAYER_X := 0.35
+const COMMERCIAL_OPPONENT_X := 0.65
+const COMMERCIAL_STAND_HEIGHT := 176.0
+const COMMERCIAL_COMPACT_HEIGHT := 166.0
+const COMMERCIAL_DOWN_HEIGHT := 112.0
+
 var snapshot: Dictionary = {}
 var telegraph: Dictionary = {}
 var last_exchange: Dictionary = {}
@@ -28,6 +34,7 @@ var animation_progress: float = 0.0
 var impact_flash: float = 0.0
 var presentation_event_id: int = 0
 var commercial_assets_active: bool = false
+var asset_used_rect_cache: Dictionary = {}
 
 func _ready() -> void:
     name = "FightStage"
@@ -102,13 +109,18 @@ func _draw() -> void:
     else:
         _draw_procedural_arena(w, h)
 
-    var player_center := Vector2(w * 0.32, h * 0.82) + _fighter_motion(true)
-    var opponent_center := Vector2(w * 0.68, h * 0.82) + _fighter_motion(false)
+    var player_x: float = COMMERCIAL_PLAYER_X if commercial_assets_active else 0.32
+    var opponent_x: float = COMMERCIAL_OPPONENT_X if commercial_assets_active else 0.68
+    var player_center := Vector2(w * player_x, h * 0.82) + _fighter_motion(true)
+    var opponent_center := Vector2(w * opponent_x, h * 0.82) + _fighter_motion(false)
     _draw_fighter_asset_or_fallback(player_center, 1.0, true, "", PLAYER, player_pose)
     _draw_fighter_asset_or_fallback(opponent_center, -1.0, false, opponent_style, OPPONENT, opponent_pose)
 
     if not telegraph_action.is_empty():
-        var read_center := opponent_center + Vector2(0.0, -116.0)
+        var read_offset := 116.0
+        if commercial_assets_active:
+            read_offset = max(126.0, _commercial_pose_height(opponent_pose) - 38.0)
+        var read_center := opponent_center + Vector2(0.0, -read_offset)
         var pulse: float = 1.0 + 0.12 * sin(Time.get_ticks_msec() / 140.0)
         draw_arc(read_center, 14.0 * pulse, 0.0, TAU, 28, READ, 2.0)
         draw_circle(read_center, 4.0, READ)
@@ -116,9 +128,15 @@ func _draw() -> void:
     if not last_exchange.is_empty() and impact_flash > 0.01:
         var impact_center := (player_center + opponent_center) * 0.5
         if bool(last_exchange.get("player_event", {}).get("hit", false)):
-            impact_center = opponent_center + Vector2(-22.0, -62.0)
+            if commercial_assets_active:
+                impact_center = _commercial_impact_center(opponent_center, opponent_pose, str(last_exchange.get("player_action", "")), -1.0)
+            else:
+                impact_center = opponent_center + Vector2(-22.0, -62.0)
         elif bool(last_exchange.get("opponent_event", {}).get("hit", false)):
-            impact_center = player_center + Vector2(22.0, -62.0)
+            if commercial_assets_active:
+                impact_center = _commercial_impact_center(player_center, player_pose, str(last_exchange.get("opponent_action", "")), 1.0)
+            else:
+                impact_center = player_center + Vector2(22.0, -62.0)
         var fx_texture := VisualAssetCatalog.fx_texture(last_exchange)
         if fx_texture != null:
             var fx_size := 92.0 + 52.0 * impact_flash
@@ -143,12 +161,50 @@ func _draw_fighter_asset_or_fallback(center: Vector2, facing: float, is_player: 
     if texture == null:
         _draw_fighter(center, facing, tint, pose)
         return
-    var sprite_size := Vector2(154.0, 194.0)
-    if pose == "down":
-        sprite_size = Vector2(180.0, 138.0)
+
+    var source_rect := _texture_used_rect(texture)
+    if source_rect.size.x <= 0 or source_rect.size.y <= 0:
+        _draw_fighter(center, facing, tint, pose)
+        return
+
+    var target_height := _commercial_pose_height(pose)
+    var target_width := target_height * float(source_rect.size.x) / float(source_rect.size.y)
+    var destination_rect := Rect2(-target_width * 0.5, -target_height, target_width, target_height)
+    var source_rect_f := Rect2(Vector2(source_rect.position), Vector2(source_rect.size))
+
     draw_set_transform(center, 0.0, Vector2(facing, 1.0))
-    draw_texture_rect(texture, Rect2(-sprite_size.x * 0.5, -sprite_size.y, sprite_size.x, sprite_size.y), false)
+    draw_texture_rect_region(texture, destination_rect, source_rect_f, Color.WHITE, false, true)
     draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+func _texture_used_rect(texture: Texture2D) -> Rect2i:
+    var key := texture.resource_path
+    if key.is_empty():
+        key = str(texture.get_instance_id())
+    if asset_used_rect_cache.has(key):
+        return asset_used_rect_cache[key]
+
+    var image := texture.get_image()
+    var used := Rect2i(0, 0, texture.get_width(), texture.get_height())
+    if image != null:
+        var detected := image.get_used_rect()
+        if detected.size.x > 0 and detected.size.y > 0:
+            used = detected
+    asset_used_rect_cache[key] = used
+    return used
+
+func _commercial_pose_height(pose: String) -> float:
+    match pose:
+        "down":
+            return COMMERCIAL_DOWN_HEIGHT
+        "body", "hurt":
+            return COMMERCIAL_COMPACT_HEIGHT
+        _:
+            return COMMERCIAL_STAND_HEIGHT
+
+func _commercial_impact_center(center: Vector2, pose: String, action_id: String, horizontal_sign: float) -> Vector2:
+    var visual_height := _commercial_pose_height(pose)
+    var vertical_ratio := 0.50 if action_id == "body" else 0.72
+    return center + Vector2(14.0 * horizontal_sign, -visual_height * vertical_ratio)
 
 func _draw_procedural_impact(impact_center: Vector2) -> void:
     var flash_color := COUNTER if last_animation_profile == "counter" else IMPACT
@@ -169,14 +225,16 @@ func _fighter_motion(is_player: bool) -> Vector2:
     var target_event: Dictionary = last_exchange.get("opponent_event" if is_player else "player_event", {})
     var offset := Vector2.ZERO
     if action_id in ["jab", "power", "body", "counter"]:
-        var lunge: float = 8.0
+        var lunge: float = 14.0
         if action_id == "power":
-            lunge = 15.0
+            lunge = 22.0
+        elif action_id == "body":
+            lunge = 16.0
         elif action_id == "counter":
-            lunge = 12.0
+            lunge = 18.0
         offset.x += direction * lunge * animation_progress
     if bool(target_event.get("hit", false)):
-        offset.x -= direction * 10.0 * animation_progress
+        offset.x -= direction * 7.0 * animation_progress
         offset.y += 3.0 * animation_progress
     if bool(event.get("knockout", false)):
         offset.x += direction * 5.0 * animation_progress
