@@ -4,15 +4,17 @@ import json
 
 ROOT = Path(__file__).resolve().parents[1]
 required = [
-    "project.godot", "scenes/Main.tscn", "scripts/main.gd", "scripts/main_v05.gd", "scripts/main_v06.gd",
+    "project.godot", "scenes/Main.tscn", "scripts/main.gd", "scripts/main_v05.gd", "scripts/main_v06.gd", "scripts/main_v07.gd",
     "scripts/core/game_state.gd", "scripts/core/combat_engine.gd", "scripts/core/save_service.gd",
     "scripts/ui/combat_presentation.gd", "scripts/ui/fight_stage.gd", "scripts/ui/impact_feedback.gd",
-    "scripts/ui/fight_fx_director.gd", "scripts/ui/arena_audio.gd", "scripts/ui/safe_area_layout.gd",
+    "scripts/ui/fight_fx_director.gd", "scripts/ui/arena_audio.gd", "scripts/ui/safe_area_layout.gd", "scripts/ui/visual_asset_catalog.gd",
     "data/balance.json", "data/camp_actions.json", "data/opponents.json", "data/career_balance.json",
     "data/traits.json", "data/events.json", "data/injuries.json", "data/fighter_identities.json", "data/game_plans.json",
     "tools/sim_combat.py", "tools/simulate_careers.py", "tools/simulate_gameplans.py", "tools/test_gameplans.py",
+    "tools/validate_visual_assets_v07.py", "tools/import_visual_assets_v07.ps1",
     "tests/runtime_state_smoke.gd", "tests/v03_gameplan_smoke.gd", "tests/v04_combat_ux_smoke.gd",
     "tests/v04_fight_ui_smoke.gd", "tests/v05_fight_presentation_smoke.gd", "tests/v06_device_polish_smoke.gd",
+    "tests/v07_visual_integration_smoke.gd",
 ]
 missing = [p for p in required if not (ROOT / p).exists()]
 if missing:
@@ -25,7 +27,7 @@ project = (ROOT / "project.godot").read_text()
 assert 'run/main_scene="res://scenes/Main.tscn"' in project
 assert 'GameState="*res://scripts/core/game_state.gd"' in project
 scene = (ROOT / "scenes/Main.tscn").read_text()
-assert 'res://scripts/main_v06.gd' in scene
+assert 'res://scripts/main_v07.gd' in scene
 
 main_v05 = (ROOT / "scripts/main_v05.gd").read_text()
 assert 'extends "res://scripts/main.gd"' in main_v05
@@ -40,6 +42,11 @@ assert "MainLoop.NOTIFICATION_APPLICATION_PAUSED" in main_v06
 assert "MainLoop.NOTIFICATION_APPLICATION_RESUMED" in main_v06
 assert "FightFxDirector.interaction_lock_seconds" in main_v06
 assert "ArenaAudio.new()" in main_v06 and "FightFxDirector.new()" in main_v06
+
+main_v07 = (ROOT / "scripts/main_v07.gd").read_text()
+assert 'extends "res://scripts/main_v06.gd"' in main_v07
+assert "VisualAssetCatalog.portrait_texture" in main_v07
+assert "func _render_offers()" in main_v07 and "func _render_game_plan()" in main_v07
 
 for name in ["balance.json","camp_actions.json","opponents.json","career_balance.json","traits.json","events.json","injuries.json","fighter_identities.json","game_plans.json"]:
     json.loads((ROOT / "data" / name).read_text())
@@ -81,6 +88,16 @@ stage = (ROOT / "scripts/ui/fight_stage.gd").read_text()
 assert "class_name FightStage" in stage
 assert "func play_exchange(" in stage
 assert 'player_pose = "down"' in stage and 'opponent_pose = "down"' in stage
+assert "VisualAssetCatalog.fighter_texture" in stage
+assert "VisualAssetCatalog.arena_texture" in stage
+assert "VisualAssetCatalog.fx_texture" in stage
+assert "_draw_fighter_asset_or_fallback" in stage
+
+catalog = (ROOT / "scripts/ui/visual_asset_catalog.gd").read_text()
+assert "class_name VisualAssetCatalog" in catalog
+assert 'ROOT := "res://assets/visual/v0.7"' in catalog
+assert "fighter_path" in catalog and "portrait_path" in catalog and "arena_path" in catalog and "fx_path" in catalog
+assert "missing_required_paths" in catalog and "asset_pack_available" in catalog
 
 impact = (ROOT / "scripts/ui/impact_feedback.gd").read_text()
 assert "class_name ImpactFeedback" in impact
