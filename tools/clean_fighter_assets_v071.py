@@ -75,7 +75,6 @@ def _normalize_swarmer_gear(path: Path, rgba: np.ndarray) -> np.ndarray:
     hsv = cv2.cvtColor(rgb, cv2.COLOR_RGB2HSV)
     alpha = rgba[:, :, 3]
 
-    # These two generated variants switched the locked red trunks to blue.
     blue = (
         (hsv[:, :, 0] >= 90)
         & (hsv[:, :, 0] <= 135)
@@ -122,10 +121,17 @@ def _alpha_bbox(rgba: np.ndarray) -> tuple[int, int, int, int]:
     return int(xs.min()), int(ys.min()), int(xs.max()) + 1, int(ys.max()) + 1
 
 
+def _canonicalize_component(rgba: np.ndarray) -> np.ndarray:
+    keep = _largest_component_mask(rgba[:, :, 3])
+    result = rgba.copy()
+    result[~keep, 3] = 0
+    return result
+
+
 def _scale_content(rgba: np.ndarray, width_scale: float) -> np.ndarray:
-    """Scale the visible silhouette horizontally around its alpha-bounds center."""
+    """Scale visible content horizontally and immediately canonicalize alpha."""
     if abs(width_scale - 1.0) < 0.0001:
-        return rgba.copy()
+        return _canonicalize_component(rgba.copy())
 
     x0, y0, x1, y1 = _alpha_bbox(rgba)
     crop = rgba[y0:y1, x0:x1]
@@ -148,7 +154,7 @@ def _scale_content(rgba: np.ndarray, width_scale: float) -> np.ndarray:
 
     result = np.zeros_like(rgba)
     result[y0:y1, dest_x0:dest_x1] = resized[:, src_x0:src_x1]
-    return result
+    return _canonicalize_component(result)
 
 
 def _load_rgba(path: Path) -> np.ndarray:
@@ -196,16 +202,11 @@ def _opponent_pose_path(style: str, pose: str) -> Path:
 
 
 def _expected_slugger_pose(pose: str) -> np.ndarray:
-    # The generated slugger set is cut at the shins/waist in multiple poses.
-    # Use the clean full-body player choreography and widen it to retain the
-    # slugger's heavier visual role without inventing missing pixels.
     donor = _load_rgba(_player_pose_path(pose))
     return _scale_content(donor, 1.14)
 
 
 def _expected_counter_pose(pose: str) -> np.ndarray:
-    # The generated counter set is torso-cropped in nearly every standing pose.
-    # Out-boxer provides the closest clean full-body technical silhouette.
     donor = _load_rgba(_opponent_pose_path("outboxer", pose))
     donor = _counter_palette_from_outboxer(donor)
     return _scale_content(donor, 0.96)
