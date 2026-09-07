@@ -12,8 +12,8 @@ func _render_phase() -> void:
     super._render_phase()
     _configure_mobile_scroll()
 
-func _render_fight() -> void:
-    super._render_fight()
+func _render_fight(animated_exchange: Dictionary = {}) -> void:
+    super._render_fight(animated_exchange)
     _configure_mobile_scroll()
 
 func _render_game_plan() -> void:
