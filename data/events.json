@@ -1,0 +1,10 @@
+[
+  {"id":"local_sponsor","name":"동네 스폰서","text":"지역 체육관 브랜드가 다음 경기를 후원하겠다고 제안했습니다.","weight":12,"effects":{"money":90000,"reputation":2}},
+  {"id":"viral_clip","name":"KO 영상 화제","text":"지난 경기 하이라이트가 짧은 영상으로 퍼졌습니다.","weight":9,"requires":{"last_result_prefix":"WIN"},"effects":{"reputation":4}},
+  {"id":"gym_fee","name":"체육관 비용 인상","text":"체육관 사정으로 이번 달 훈련비가 올랐습니다.","weight":10,"effects":{"money":-55000}},
+  {"id":"quiet_week","name":"조용한 일주일","text":"예상 밖으로 일정이 비어 몸을 제대로 쉬었습니다.","weight":11,"effects":{"fatigue":-12,"health":4}},
+  {"id":"hand_soreness","name":"주먹 통증","text":"경기 뒤 손에 통증이 남았습니다. 다음 캠프에서 무리하면 위험합니다.","weight":8,"effects":{"health":-5,"injury":"hand_soreness"}},
+  {"id":"rival_callout","name":"라이벌의 도발","text":"비슷한 랭킹의 복서가 공개적으로 당신을 지목했습니다.","weight":9,"effects":{"reputation":3,"money":25000}},
+  {"id":"bad_press","name":"판정 시비","text":"경기 결과를 두고 팬들 사이에서 판정 논란이 생겼습니다.","weight":7,"requires":{"last_result_prefix":"WIN_DEC"},"effects":{"reputation":-2}},
+  {"id":"family_support","name":"가족의 응원","text":"길어진 커리어에 지친 날, 가까운 사람들의 응원이 힘이 됐습니다.","weight":10,"effects":{"fatigue":-6,"health":3}}
+]

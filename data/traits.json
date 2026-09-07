@@ -1,0 +1,8 @@
+[
+  {"id":"iron_chin","name":"철턱","description":"큰 펀치를 버티는 데 강하지만 성장 속도가 약간 느립니다.","stat_bonus":{"defense":2,"conditioning":2},"modifiers":{"ko_taken_multiplier":0.72,"growth_multiplier":0.94}},
+  {"id":"glass_cannon","name":"유리 대포","description":"한 방은 강하지만 본인도 큰 타격에 취약합니다.","stat_bonus":{"power":7,"defense":-3},"modifiers":{"ko_taken_multiplier":1.28,"injury_risk_multiplier":1.12}},
+  {"id":"workhorse","name":"훈련광","description":"같은 훈련을 더 낮은 피로로 소화합니다.","stat_bonus":{"conditioning":3},"modifiers":{"training_fatigue_multiplier":0.78}},
+  {"id":"technician","name":"테크니션","description":"정교한 복싱에 강하지만 순수 파워는 낮습니다.","stat_bonus":{"technique":6,"power":-2},"modifiers":{"accuracy_bonus":0.025}},
+  {"id":"crowd_favorite","name":"흥행 복서","description":"관중을 끌어당겨 파이트머니와 인지도를 더 빨리 얻습니다.","stat_bonus":{"speed":2},"modifiers":{"purse_multiplier":1.18,"reputation_multiplier":1.2}},
+  {"id":"quick_healer","name":"빠른 회복","description":"부상과 캠프 피로 회복이 빠릅니다.","stat_bonus":{"conditioning":2},"modifiers":{"recovery_bonus":5,"injury_risk_multiplier":0.82}}
+]
