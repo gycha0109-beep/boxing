@@ -3,6 +3,7 @@ extends Node
 
 var last_profile: String = "idle"
 var last_sfx_cue: String = ""
+var last_target_sfx_cue: String = ""
 var last_haptic_ms: int = 0
 var last_haptic_amplitude: float = 0.0
 var audio_player: AudioStreamPlayer
@@ -11,11 +12,12 @@ var playback: AudioStreamGeneratorPlayback
 
 func trigger(exchange: Dictionary) -> String:
     last_profile = profile(exchange)
-    last_sfx_cue = sfx_cue_for_exchange(exchange, last_profile)
+    last_sfx_cue = sfx_cue(last_profile)
+    last_target_sfx_cue = sfx_cue_for_exchange(exchange, last_profile)
     last_haptic_ms = haptic_duration_ms(last_profile)
     last_haptic_amplitude = haptic_amplitude(last_profile)
     _ensure_audio()
-    _play_procedural_impact(last_profile, last_sfx_cue)
+    _play_procedural_impact(last_profile, last_target_sfx_cue)
     if OS.has_feature("mobile") and last_haptic_ms > 0:
         Input.vibrate_handheld(last_haptic_ms, last_haptic_amplitude)
     return last_profile
@@ -169,9 +171,9 @@ static func shake_strength(profile_id: String) -> float:
 static func sfx_cue(profile_id: String) -> String:
     match profile_id:
         "guard": return "glove_block"
-        "medium": return "glove_head_hit"
-        "heavy": return "head_crack"
-        "counter": return "head_crack"
+        "medium": return "glove_hit"
+        "heavy": return "heavy_hit"
+        "counter": return "counter_crack"
         "knockdown": return "knockdown_thud"
         "miss": return "air_swing"
         _: return ""
