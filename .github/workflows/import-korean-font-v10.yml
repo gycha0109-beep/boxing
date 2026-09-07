@@ -1,0 +1,75 @@
+name: Import Korean Release Font v1.0
+
+on:
+  push:
+    branches:
+      - feat/bundled-korean-font-v1.0
+    paths:
+      - .github/workflows/import-korean-font-v10.yml
+
+permissions:
+  contents: write
+
+jobs:
+  import-verified-font:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: Download upstream Noto Sans KR and OFL
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p assets/fonts
+          curl --fail --location --retry 3 \
+            'https://raw.githubusercontent.com/google/fonts/main/ofl/notosanskr/NotoSansKR%5Bwght%5D.ttf' \
+            -o assets/fonts/NotoSansKR-VF.ttf
+          curl --fail --location --retry 3 \
+            'https://raw.githubusercontent.com/google/fonts/main/ofl/notosanskr/OFL.txt' \
+            -o assets/fonts/OFL-NotoSansKR.txt
+
+      - name: Verify exact upstream Git blob and license
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from hashlib import sha1
+          from pathlib import Path
+
+          font_path = Path('assets/fonts/NotoSansKR-VF.ttf')
+          data = font_path.read_bytes()
+          git_blob = sha1(f'blob {len(data)}\0'.encode() + data).hexdigest()
+          expected = 'b386890ba945e1f39448a6b59f20c5d194f58808'
+          if git_blob != expected:
+              raise SystemExit(f'Noto Sans KR upstream blob mismatch: {git_blob} != {expected}')
+          if len(data) < 1_000_000:
+              raise SystemExit(f'font unexpectedly small: {len(data)} bytes')
+
+          license_text = Path('assets/fonts/OFL-NotoSansKR.txt').read_text(encoding='utf-8')
+          required = [
+              'SIL OPEN FONT LICENSE Version 1.1',
+              'may be bundled, embedded,',
+              'provided that each copy contains the above copyright notice and this license',
+          ]
+          missing = [text for text in required if text not in license_text]
+          if missing:
+              raise SystemExit(f'OFL verification failed: {missing}')
+
+          print(f'font-bytes={len(data)}')
+          print(f'font-git-blob={git_blob}')
+          print('font-license=OFL-1.1')
+          PY
+
+      - name: Commit verified font assets to branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add assets/fonts/NotoSansKR-VF.ttf assets/fonts/OFL-NotoSansKR.txt
+          git diff --cached --stat
+          git commit -m 'assets: bundle verified Noto Sans KR release font'
+          git push origin HEAD:feat/bundled-korean-font-v1.0
