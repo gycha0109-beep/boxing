@@ -34,19 +34,21 @@ assert "func export_state()" in combat and "func restore(" in combat
 assert "tendencies" in combat and "action_modifiers" in combat and "requires_target_actions" in combat
 assert "reactive_window" in combat
 assert 'if reactive_window and action_id == "counter"' in combat
-assert "not reactive_window or not target_action in required" in combat
 assert "COMMITTED_ATTACKS" in combat
 assert 'player_action == "counter" and opponent_action in COMMITTED_ATTACKS' in combat
 assert 'opponent_action == "counter" and player_action in COMMITTED_ATTACKS' in combat
+assert "miss_read_stats" in combat
+assert 'source = modifiers.get("miss_read_stats", {})' in combat
 assert "initiative_bias" not in combat
 
 sim_combat = (ROOT / "tools/sim_combat.py").read_text()
 assert "reactive_window" in sim_combat
 assert 'if reactive_window and action_id == "counter"' in sim_combat
-assert "not reactive_window or target_action not in required" in sim_combat
 assert "COMMITTED_ATTACKS" in sim_combat
 assert 'pa == "counter" and oa in COMMITTED_ATTACKS' in sim_combat
 assert 'oa == "counter" and pa in COMMITTED_ATTACKS' in sim_combat
+assert "miss_read_stats" in sim_combat
+assert 'source = mods.get("miss_read_stats", {})' in sim_combat
 assert "initiative_bias" not in sim_combat
 
 state = (ROOT / "scripts/core/game_state.gd").read_text()
