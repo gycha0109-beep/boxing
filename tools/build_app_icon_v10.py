@@ -41,10 +41,11 @@ def upper_guard_subject() -> Image.Image:
     width = right - left
     height = bottom - top
 
-    # Release icon wants head + high guard + upper torso, not the full head-to-knee combat sprite.
-    upper_bottom = min(bottom, top + int(round(height * 0.68)))
-    pad_x = int(round(width * 0.08))
-    pad_y = int(round(height * 0.035))
+    # Head + gloves + chest/waist only. This uses icon area for the readable guard silhouette,
+    # while leaving conservative space around the face/gloves for Apple's runtime mask.
+    upper_bottom = min(bottom, top + int(round(height * 0.54)))
+    pad_x = int(round(width * 0.09))
+    pad_y = int(round(height * 0.03))
     crop = fighter.crop((
         max(0, left - pad_x),
         max(0, top - pad_y),
@@ -52,15 +53,14 @@ def upper_guard_subject() -> Image.Image:
         min(fighter.height, upper_bottom + pad_y),
     ))
 
-    # Normalize the accepted guard pose into a strong centered square silhouette.
     cw, ch = crop.size
     side = max(cw, ch)
     square = Image.new("RGBA", (side, side), (0, 0, 0, 0))
-    square.alpha_composite(crop, ((side - cw) // 2, max(0, (side - ch) // 2 - int(side * 0.025))))
-    square = square.resize((900, 900), Image.Resampling.LANCZOS)
+    square.alpha_composite(crop, ((side - cw) // 2, max(0, (side - ch) // 2 - int(side * 0.035))))
+    square = square.resize((980, 980), Image.Resampling.LANCZOS)
 
-    rgb = ImageEnhance.Contrast(square.convert("RGB")).enhance(1.09)
-    rgb = ImageEnhance.Color(rgb).enhance(1.08)
+    rgb = ImageEnhance.Contrast(square.convert("RGB")).enhance(1.10)
+    rgb = ImageEnhance.Color(rgb).enhance(1.09)
     graded = rgb.convert("RGBA")
     graded.putalpha(square.getchannel("A"))
     return graded
@@ -69,21 +69,20 @@ def upper_guard_subject() -> Image.Image:
 def build_master() -> Image.Image:
     arena = Image.open(ARENA).convert("RGB")
     arena = cover(arena, 1024).filter(ImageFilter.GaussianBlur(4.0))
-    arena = ImageEnhance.Brightness(arena).enhance(0.42)
-    arena = ImageEnhance.Color(arena).enhance(0.70)
+    arena = ImageEnhance.Brightness(arena).enhance(0.40)
+    arena = ImageEnhance.Color(arena).enhance(0.68)
 
     navy = Image.new("RGB", (1024, 1024), (6, 14, 24))
-    base = Image.blend(arena, navy, 0.34).convert("RGBA")
+    base = Image.blend(arena, navy, 0.36).convert("RGBA")
 
     subject = upper_guard_subject()
     subject_alpha = subject.getchannel("A")
 
-    # Warm gold halo echoes the product's dossier/fight-night palette while keeping the icon textless.
     halo = subject_alpha.filter(ImageFilter.GaussianBlur(24.0))
     gold = Image.new("RGBA", subject.size, (205, 155, 73, 0))
     gold.putalpha(halo.point(lambda p: int(p * 0.28)))
 
-    pos = ((1024 - subject.width) // 2, 58)
+    pos = ((1024 - subject.width) // 2, 20)
     base.alpha_composite(gold, pos)
     base.alpha_composite(subject, pos)
 
