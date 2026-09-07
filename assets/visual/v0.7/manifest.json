@@ -1,0 +1,108 @@
+{
+  "pack": "Twelve Count Visual Assets v0.7 Starter Pack",
+  "source": "AI-generated master sheets created in this chat, cropped into individual assets",
+  "fighters": {
+    "player": [
+      "idle",
+      "jab",
+      "power",
+      "body",
+      "guard",
+      "counter",
+      "hurt",
+      "knockdown"
+    ],
+    "opponents": {
+      "swarmer": [
+        "idle",
+        "jab",
+        "power",
+        "body",
+        "guard",
+        "counter",
+        "hurt",
+        "knockdown"
+      ],
+      "outboxer": [
+        "idle",
+        "jab",
+        "power",
+        "body",
+        "guard",
+        "counter",
+        "hurt",
+        "knockdown"
+      ],
+      "slugger": [
+        "idle",
+        "jab",
+        "power",
+        "body",
+        "guard",
+        "counter",
+        "hurt",
+        "knockdown"
+      ],
+      "counter": [
+        "idle",
+        "jab",
+        "power",
+        "body",
+        "guard",
+        "counter",
+        "hurt",
+        "knockdown"
+      ]
+    }
+  },
+  "portraits": [
+    "player",
+    "swarmer",
+    "outboxer",
+    "slugger",
+    "counter"
+  ],
+  "arena": [
+    "arena_gym_basic.png",
+    "arena_title_night.png"
+  ],
+  "fx": [
+    "fx_hit_jab_01.png",
+    "fx_hit_power_01.png",
+    "fx_hit_body_01.png",
+    "fx_block_01.png",
+    "fx_counter_flash_01.png",
+    "fx_knockdown_burst_01.png"
+  ],
+  "ui": [
+    "ui_panel_card_dark.png",
+    "ui_panel_highlight_gold.png",
+    "ui_button_primary.png",
+    "ui_button_danger.png",
+    "ui_button_selected.png",
+    "ui_bar_hp_fill.png",
+    "ui_bar_sta_fill.png",
+    "ui_badge_style.png",
+    "ui_badge_trait.png",
+    "ui_divider_gold.png"
+  ],
+  "icons": [
+    "icon_power.png",
+    "icon_speed.png",
+    "icon_defense.png",
+    "icon_conditioning.png",
+    "icon_money.png",
+    "icon_weight.png",
+    "icon_health.png",
+    "icon_fatigue.png",
+    "icon_rank.png",
+    "icon_reputation.png",
+    "icon_injury.png"
+  ],
+  "notes": [
+    "Starter asset pack for prototyping/visual direction.",
+    "Fighter sprites are 512x512 RGBA PNGs with automated background removal.",
+    "Arena backgrounds are upscaled crops from the generated master sheet; replace with final authored 1080x1920 art before release.",
+    "UI and icon crops are starter assets and should be re-authored/cleaned for final commercial release."
+  ]
+}
