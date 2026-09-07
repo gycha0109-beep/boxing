@@ -65,12 +65,15 @@ def _apply_action_plan(actor, plan, action_id, target_action, reactive_window):
     if not mods:
         return actor
     required = mods.get("requires_target_actions", [])
+    source = mods
     if required and (not reactive_window or target_action not in required):
-        return actor
+        source = mods.get("miss_read_stats", {})
+        if not source:
+            return actor
     out = {**actor, "modifiers": dict(actor.get("modifiers", {}))}
     for stat in STATS:
-        if stat in mods:
-            out[stat] = max(1, min(100, int(out.get(stat, 50)) + int(mods[stat])))
+        if stat in source:
+            out[stat] = max(1, min(100, int(out.get(stat, 50)) + int(source[stat])))
     return out
 
 
