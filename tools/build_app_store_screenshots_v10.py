@@ -13,15 +13,17 @@ TARGET_H = 2736
 SOURCE_W = 430
 SOURCE_H = 932
 
-FILES = [
-    "01_title.png",
-    "02_camp.png",
-    "03_fight_offer.png",
-    "04_scouting_game_plan.png",
-    "05_weigh_in.png",
-    "06_fight_opening.png",
-    "07_fight_after_jab.png",
-    "08_result.png",
+# App Store order is commercial, not chronological: lead with the strongest actual fight image,
+# then show fight presentation and the career-management depth behind it.
+OUTPUTS = [
+    ("01_fight_impact.png", "07_fight_after_jab.png"),
+    ("02_fight_opening.png", "06_fight_opening.png"),
+    ("03_camp.png", "02_camp.png"),
+    ("04_scouting_game_plan.png", "04_scouting_game_plan.png"),
+    ("05_fight_offer.png", "03_fight_offer.png"),
+    ("06_weigh_in.png", "05_weigh_in.png"),
+    ("07_result.png", "08_result.png"),
+    ("08_title.png", "01_title.png"),
 ]
 
 
@@ -42,7 +44,7 @@ def upscale_store_portrait(src: Image.Image) -> Image.Image:
 
 
 def main() -> int:
-    missing = [name for name in FILES if not (SOURCE_DIR / name).exists()]
+    missing = [source for _, source in OUTPUTS if not (SOURCE_DIR / source).exists()]
     if missing:
         raise SystemExit(f"missing actual Godot captures: {', '.join(missing)}")
 
@@ -50,13 +52,13 @@ def main() -> int:
     for old in OUT_DIR.glob("*.png"):
         old.unlink()
 
-    for name in FILES:
-        source = Image.open(SOURCE_DIR / name)
+    for output_name, source_name in OUTPUTS:
+        source = Image.open(SOURCE_DIR / source_name)
         final = upscale_store_portrait(source)
-        final.save(OUT_DIR / name, format="PNG", optimize=True)
-        print(f"built {name}: {final.size[0]}x{final.size[1]} RGB")
+        final.save(OUT_DIR / output_name, format="PNG", optimize=True)
+        print(f"built {output_name} <- {source_name}: {final.size[0]}x{final.size[1]} RGB")
 
-    print(f"built {len(FILES)} App Store screenshots from actual 430x932 Godot renders")
+    print(f"built {len(OUTPUTS)} commercially ordered App Store screenshots from actual 430x932 Godot renders")
     return 0
 
 
