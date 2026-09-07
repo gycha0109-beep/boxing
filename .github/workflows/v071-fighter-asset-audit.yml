@@ -29,7 +29,7 @@ jobs:
           count=$(find assets/visual/v0.7/fighters -type f -name '*.png' | wc -l | tr -d ' ')
           echo "fighter_png_count=$count"
           test "$count" -eq 40
-      - name: Clean full commercial fighter pack
+      - name: Clean and replace cropped commercial fighter poses
         run: python tools/clean_fighter_assets_v071.py
       - name: Verify cleanup and substitutions are canonical
         shell: bash
@@ -62,5 +62,5 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add assets/visual/v0.7/fighters
           git diff --cached --quiet && { echo 'no cleaned PNG changes'; exit 1; }
-          git commit -m 'assets: clean full commercial fighter pack v0.7.1'
+          git commit -m 'assets: replace cropped slugger and counter sprites v0.7.1'
           git push origin HEAD:feat/commercial-visual-integration-v0.7
