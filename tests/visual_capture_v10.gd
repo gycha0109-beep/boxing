@@ -81,10 +81,20 @@ func _run() -> void:
     _stabilize_fight_stage(false)
     await _capture("06_fight_opening.png")
 
-    # _choose_fight_action() resolves and renders synchronously. Freeze time before
-    # the first presentation frame so hit-stop/shake/tweens cannot advance to a
-    # scheduler-dependent intermediate pixel position.
+    # The exchange resolves and creates its real presentation synchronously.
+    # Before the renderer gets another frame, capture the stage's layout position,
+    # kill every newly-created presentation tween (impact + shake), then freeze the
+    # actual exchange on one deterministic impact pose.
     main_view._choose_fight_action("jab")
+    var impact_stage: Node = _active_fight_stage()
+    if impact_stage == null:
+        _fail("impact FightStage unavailable")
+        return
+    var stable_stage_position: Vector2 = impact_stage.position
+    for tween in get_processed_tweens():
+        if is_instance_valid(tween):
+            tween.kill()
+    impact_stage.position = stable_stage_position
     Engine.time_scale = 0.0
     _stabilize_fight_stage(true)
     await _capture("07_fight_after_jab.png")
