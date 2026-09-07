@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feat/ios-release-packaging-v0.9
+      - main
     paths:
       - .github/workflows/ios-export-link-v09.yml
       - export_presets.cfg
@@ -12,6 +13,8 @@ on:
       - scenes/**
       - assets/**
       - data/**
+      - tools/**
+      - docs/release/**
   pull_request:
     paths:
       - .github/workflows/ios-export-link-v09.yml
@@ -21,6 +24,8 @@ on:
       - scenes/**
       - assets/**
       - data/**
+      - tools/**
+      - docs/release/**
 
 permissions:
   contents: read
@@ -128,6 +133,26 @@ jobs:
           test -f build/ios/TwelveCount.xcodeproj/project.pbxproj
           find build/ios -maxdepth 2 -type f | sort | head -100
 
+      - name: Remove blank unused privacy usage descriptions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/sanitize_ios_xcode_project_v09.py build/ios | tee "$RUNNER_TEMP/ios-privacy-sanitize.log"
+          python3 - <<'PY'
+          from pathlib import Path
+          import plistlib
+          keys = ('NSCameraUsageDescription', 'NSMicrophoneUsageDescription', 'NSPhotoLibraryUsageDescription')
+          plists = list(Path('build/ios').rglob('*-Info.plist'))
+          if not plists:
+              raise SystemExit('no generated Info.plist found')
+          for path in plists:
+              data = plistlib.load(path.open('rb'))
+              for key in keys:
+                  if data.get(key) == '':
+                      raise SystemExit(f'{path}: blank {key} remains')
+              print(f'privacy-plist-ok: {path}')
+          PY
+
       - name: Inspect generated Xcode target
         shell: bash
         run: |
@@ -161,7 +186,7 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             build 2>&1 | tee "$RUNNER_TEMP/xcodebuild-ios.log"
 
-      - name: Reject known iOS linker regressions
+      - name: Reject iOS linker and privacy regressions
         if: always()
         shell: bash
         run: |
@@ -175,6 +200,10 @@ jobs:
             echo 'Godot 4.7.2 template was linked with an Apple SDK too old for its Metal symbols.' >&2
             exit 1
           fi
+          if test -f "$log" && grep -Ei 'NS(Camera|Microphone|PhotoLibrary)UsageDescription.*(non-empty|empty string|must be.*string)' "$log"; then
+            echo 'Unused iOS privacy usage description remained blank in the generated product.' >&2
+            exit 1
+          fi
 
       - name: Upload iOS export/link evidence
         if: always()
@@ -183,9 +212,12 @@ jobs:
           name: twelve-count-v09-ios-export-link-evidence
           path: |
             build/ios/TwelveCount.xcodeproj/project.pbxproj
+            build/ios/**/*-Info.plist
+            build/ios/**/InfoPlist.strings
             ${{ runner.temp }}/xcode-version.log
             ${{ runner.temp }}/iphoneos-sdk-version.log
             ${{ runner.temp }}/godot-ios-export.log
+            ${{ runner.temp }}/ios-privacy-sanitize.log
             ${{ runner.temp }}/xcode-list.json
             ${{ runner.temp }}/xcodebuild-ios.log
           if-no-files-found: warn
