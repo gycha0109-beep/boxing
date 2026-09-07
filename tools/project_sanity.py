@@ -4,7 +4,7 @@ import json
 
 ROOT = Path(__file__).resolve().parents[1]
 required = [
-    "project.godot", "scenes/Main.tscn", "scripts/main.gd", "scripts/main_v05.gd", "scripts/main_v06.gd", "scripts/main_v07.gd",
+    "project.godot", "scenes/Main.tscn", "scripts/main.gd", "scripts/main_v05.gd", "scripts/main_v06.gd", "scripts/main_v07.gd", "scripts/main_v08.gd",
     "scripts/core/game_state.gd", "scripts/core/combat_engine.gd", "scripts/core/save_service.gd",
     "scripts/ui/combat_presentation.gd", "scripts/ui/fight_stage.gd", "scripts/ui/impact_feedback.gd",
     "scripts/ui/fight_fx_director.gd", "scripts/ui/arena_audio.gd", "scripts/ui/safe_area_layout.gd", "scripts/ui/visual_asset_catalog.gd",
@@ -14,7 +14,7 @@ required = [
     "tools/validate_visual_assets_v07.py", "tools/import_visual_assets_v07.ps1",
     "tests/runtime_state_smoke.gd", "tests/v03_gameplan_smoke.gd", "tests/v04_combat_ux_smoke.gd",
     "tests/v04_fight_ui_smoke.gd", "tests/v05_fight_presentation_smoke.gd", "tests/v06_device_polish_smoke.gd",
-    "tests/v07_visual_integration_smoke.gd",
+    "tests/v07_visual_integration_smoke.gd", "tests/v08_first_five_minutes_smoke.gd",
 ]
 missing = [p for p in required if not (ROOT / p).exists()]
 if missing:
@@ -27,7 +27,7 @@ project = (ROOT / "project.godot").read_text()
 assert 'run/main_scene="res://scenes/Main.tscn"' in project
 assert 'GameState="*res://scripts/core/game_state.gd"' in project
 scene = (ROOT / "scenes/Main.tscn").read_text()
-assert 'res://scripts/main_v07.gd' in scene
+assert 'res://scripts/main_v08.gd' in scene
 
 main_v05 = (ROOT / "scripts/main_v05.gd").read_text()
 assert 'extends "res://scripts/main.gd"' in main_v05
@@ -47,6 +47,13 @@ main_v07 = (ROOT / "scripts/main_v07.gd").read_text()
 assert 'extends "res://scripts/main_v06.gd"' in main_v07
 assert "VisualAssetCatalog.portrait_texture" in main_v07
 assert "func _render_offers()" in main_v07 and "func _render_game_plan()" in main_v07
+
+main_v08 = (ROOT / "scripts/main_v08.gd").read_text()
+assert 'extends "res://scripts/main_v07.gd"' in main_v08
+assert "func _render_launch_title()" in main_v08
+assert "func _render_weigh_in()" in main_v08 and '"weigh_in_acknowledged"' in main_v08
+assert "func _render_result()" in main_v08
+assert "PRO DEBUT · CAMP 01" in main_v08 and "FIGHT WEEK · CONTRACT BOARD" in main_v08
 
 for name in ["balance.json","camp_actions.json","opponents.json","career_balance.json","traits.json","events.json","injuries.json","fighter_identities.json","game_plans.json"]:
     json.loads((ROOT / "data" / name).read_text())
