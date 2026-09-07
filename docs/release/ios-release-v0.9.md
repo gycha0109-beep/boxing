@@ -108,10 +108,16 @@ The following are the release binary-asset authorities and remaining submission 
    - 60px retains face + red-glove guard readability; 40px remains an immediately recognizable boxer silhouette.
    - No title text, UI chrome, transparency fringe, unrelated fragment, or baked rounded corners were accepted.
 
-3. **Store screenshots — HOLD**
-   - Use actual product renders, not mock gameplay.
-   - Candidate content comes from the already accepted release flow: Title, Camp, Fight Offer, Scouting/Game Plan, Weigh-in, Fight Night, Result.
-   - Final App Store sizes must be generated from the now-frozen UI/icon authority.
+3. **Store screenshots — GO**
+   - Final Korean package: `assets/release/screenshots/ko-KR/iphone-6.9/`.
+   - Device target: iPhone 6.9-inch portrait, 1260×2736.
+   - Count: 8 opaque PNG screenshots.
+   - Source authority: actual Godot 430×932 release captures; no mock gameplay, fake HUD, or device frame.
+   - Commercial order: Fight Impact → Fight Opening → Camp → Scouting/Game Plan → Fight Offer → Weigh-in → Result → Title.
+   - Automated authority: `tools/validate_app_store_screenshots_v10.py`.
+   - Direct visual review run: `34163264308`.
+   - Review artifact: `10033309140` / `twelve-count-app-store-screenshots-v10-ko-6.9`.
+   - Contact sheet, Fight Impact, and Result were directly inspected; no missing Korean glyphs, clipping, blank frame, stale debug ID, or interpolation damage was accepted.
 
 ## Metadata and privacy
 
@@ -201,9 +207,9 @@ Required before TestFlight:
 - bundled Korean font: GO
 - 430×932 bundled-font visual QA: GO
 - final app icon: GO
+- App Store screenshot package: GO
 - Apple Team ID: HOLD
 - Bundle ID: HOLD
-- App Store screenshot package: HOLD
 - physical iPhone: NOT VERIFIED
 - TestFlight: NOT VERIFIED
 - App Store submission: NOT SUBMITTED
