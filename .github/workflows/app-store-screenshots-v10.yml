@@ -1,0 +1,120 @@
+name: App Store Screenshots v1.0
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+    paths:
+      - '.github/workflows/app-store-screenshots-v10.yml'
+      - 'tools/build_app_store_screenshots_v10.py'
+      - 'tools/validate_app_store_screenshots_v10.py'
+      - 'tests/visual_capture_v10.gd'
+      - 'scenes/**'
+      - 'scripts/**'
+      - 'assets/**'
+      - 'data/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-store-screenshots:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      GODOT_VERSION: 4.7.2-stable
+      GODOT_ZIP_SHA256: cadd3204e728a35d3f13adb7fd0d7902636b79f6b95c40c265eb73b6c35329e4
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
+          fetch-depth: 0
+
+      - name: Install verified Godot 4.7.2 stable
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          curl --fail --location --retry 3 --output "$RUNNER_TEMP/godot.zip" "$url"
+          echo "${GODOT_ZIP_SHA256}  $RUNNER_TEMP/godot.zip" | sha256sum --check --strict
+          mkdir -p "$RUNNER_TEMP/godot"
+          unzip -q "$RUNNER_TEMP/godot.zip" -d "$RUNNER_TEMP/godot"
+          chmod +x "$RUNNER_TEMP/godot/Godot_v${GODOT_VERSION}_linux.x86_64"
+          echo "$RUNNER_TEMP/godot" >> "$GITHUB_PATH"
+
+      - name: Import release project
+        run: timeout 90s Godot_v${GODOT_VERSION}_linux.x86_64 --headless --editor --path . --quit
+
+      - name: Install render/build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y xvfb
+          python -m pip install --disable-pip-version-check pillow==11.3.0
+
+      - name: Capture actual product flow at 430x932
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf visual-captures/v1.0-font
+          mkdir -p visual-captures/v1.0-font
+          xvfb-run -a -s "-screen 0 430x932x24" \
+            Godot_v${GODOT_VERSION}_linux.x86_64 --path . --script res://tests/visual_capture_v10.gd
+          test "$(find visual-captures/v1.0-font -maxdepth 1 -name '*.png' | wc -l)" -eq 8
+
+      - name: Build iPhone 6.9-inch App Store package
+        run: python3 tools/build_app_store_screenshots_v10.py
+
+      - name: Validate App Store screenshot package
+        run: python3 tools/validate_app_store_screenshots_v10.py
+
+      - name: Build visual review sheet
+        run: |
+          python3 - <<'PY'
+          from PIL import Image, ImageDraw
+          from pathlib import Path
+          root = Path('assets/release/screenshots/ko-KR/iphone-6.9')
+          names = [
+              '01_title.png', '02_camp.png', '03_fight_offer.png', '04_scouting_game_plan.png',
+              '05_weigh_in.png', '06_fight_opening.png', '07_fight_after_jab.png', '08_result.png'
+          ]
+          thumb_w, thumb_h = 189, 410
+          gap, label_h = 18, 28
+          cols, rows = 4, 2
+          sheet = Image.new('RGB', (cols * thumb_w + (cols + 1) * gap, rows * (thumb_h + label_h) + (rows + 1) * gap), (9, 13, 20))
+          draw = ImageDraw.Draw(sheet)
+          for i, name in enumerate(names):
+              img = Image.open(root / name).convert('RGB').resize((thumb_w, thumb_h), Image.Resampling.LANCZOS)
+              col, row = i % cols, i // cols
+              x = gap + col * (thumb_w + gap)
+              y = gap + row * (thumb_h + label_h + gap)
+              sheet.paste(img, (x, y + label_h))
+              draw.text((x, y + 5), name.replace('.png', ''), fill=(235, 220, 187))
+          Path('build/app-store-review').mkdir(parents=True, exist_ok=True)
+          sheet.save('build/app-store-review/ko-KR-iphone-6.9-contact-sheet.png')
+          PY
+
+      - name: Commit canonical store screenshots
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add assets/release/screenshots/ko-KR/iphone-6.9/*.png
+          if git diff --cached --quiet; then
+            echo 'store screenshots already canonical'
+          else
+            git commit -m 'assets: build App Store screenshot package v1.0'
+            git push origin HEAD:${{ github.event.pull_request.head.ref || github.ref_name }}
+          fi
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: twelve-count-app-store-screenshots-v10-ko-6.9
+          path: |
+            visual-captures/v1.0-font/*.png
+            assets/release/screenshots/ko-KR/iphone-6.9/*.png
+            build/app-store-review/ko-KR-iphone-6.9-contact-sheet.png
+          if-no-files-found: error
+          retention-days: 30
