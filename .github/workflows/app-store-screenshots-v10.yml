@@ -1,5 +1,4 @@
 name: App Store Screenshots v1.0
-# Commercial order is locked; rerun from a human-authored head for final PR evidence.
 
 on:
   pull_request:
@@ -54,15 +53,23 @@ jobs:
           sudo apt-get install -y xvfb
           python -m pip install --disable-pip-version-check pillow==11.3.0
 
-      - name: Capture actual product flow at 430x932
+      - name: Capture actual product flow twice and prove determinism
         shell: bash
         run: |
           set -euo pipefail
-          rm -rf visual-captures/v1.0-font
-          mkdir -p visual-captures/v1.0-font
-          xvfb-run -a -s "-screen 0 430x932x24" \
-            Godot_v${GODOT_VERSION}_linux.x86_64 --path . --script res://tests/visual_capture_v10.gd
-          test "$(find visual-captures/v1.0-font -maxdepth 1 -name '*.png' | wc -l)" -eq 8
+          capture_once() {
+            rm -rf visual-captures/v1.0-font
+            mkdir -p visual-captures/v1.0-font
+            xvfb-run -a -s "-screen 0 430x932x24" \
+              Godot_v${GODOT_VERSION}_linux.x86_64 --path . --script res://tests/visual_capture_v10.gd
+            test "$(find visual-captures/v1.0-font -maxdepth 1 -name '*.png' | wc -l)" -eq 8
+          }
+          capture_once
+          (cd visual-captures/v1.0-font && sha256sum *.png) > "$RUNNER_TEMP/capture-a.sha256"
+          capture_once
+          (cd visual-captures/v1.0-font && sha256sum *.png) > "$RUNNER_TEMP/capture-b.sha256"
+          diff -u "$RUNNER_TEMP/capture-a.sha256" "$RUNNER_TEMP/capture-b.sha256"
+          echo 'two consecutive actual Godot capture sets are byte-identical'
 
       - name: Build iPhone 6.9-inch App Store package
         run: python3 tools/build_app_store_screenshots_v10.py
@@ -96,17 +103,27 @@ jobs:
           sheet.save('build/app-store-review/ko-KR-iphone-6.9-contact-sheet.png')
           PY
 
+      - name: Remove generated Godot screenshot sidecars
+        shell: bash
+        run: |
+          set -euo pipefail
+          find assets/release/screenshots/ko-KR/iphone-6.9 -type f -name '*.png.import' -delete
+          if find assets/release/screenshots/ko-KR/iphone-6.9 -type f -name '*.import' | grep -q .; then
+            echo 'generated Godot screenshot sidecar remains' >&2
+            exit 1
+          fi
+
       - name: Commit canonical store screenshots
         shell: bash
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A assets/release/screenshots/ko-KR/iphone-6.9
+          git add -A -- assets/release/screenshots/ko-KR/iphone-6.9
           if git diff --cached --quiet; then
             echo 'store screenshots already canonical'
           else
-            git commit -m 'assets: build App Store screenshot package v1.0'
+            git commit -m 'assets: build deterministic App Store screenshot package v1.0'
             git push origin HEAD:${{ github.event.pull_request.head.ref || github.ref_name }}
           fi
 
