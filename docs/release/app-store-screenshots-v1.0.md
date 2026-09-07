@@ -27,20 +27,22 @@ Every store image must originate from the real Godot release shell at the locked
 
 The package builder may only resize/crop the actual viewport capture to Apple's target aspect. It must not redraw gameplay or replace product content.
 
-## Final package order
+## Final commercial order
 
 Repository target directory:
 
 `assets/release/screenshots/ko-KR/iphone-6.9/`
 
-1. `01_title.png` — title / New Career entry
-2. `02_camp.png` — fighter career camp
-3. `03_fight_offer.png` — opponent/fight offer
+The App Store sequence is intentionally **commercial rather than chronological**. The strongest actual combat image leads, then the package shows the fight presentation and the career-management loop behind it.
+
+1. `01_fight_impact.png` — actual jab impact state
+2. `02_fight_opening.png` — Fight Night opening
+3. `03_camp.png` — fighter career camp
 4. `04_scouting_game_plan.png` — scouting + game plan
-5. `05_weigh_in.png` — weigh-in presentation
-6. `06_fight_opening.png` — Fight Night opening
-7. `07_fight_after_jab.png` — actual combat impact state
-8. `08_result.png` — fight result / career continuation
+5. `05_fight_offer.png` — opponent/fight offer
+6. `06_weigh_in.png` — weigh-in presentation
+7. `07_result.png` — fight result / career continuation
+8. `08_title.png` — title / New Career entry
 
 ## Build authority
 
@@ -49,6 +51,7 @@ Repository target directory:
 The builder:
 
 - requires all 8 actual 430×932 Godot captures;
+- maps those captures into the fixed commercial order above;
 - converts to opaque RGB;
 - scales by height using Lanczos;
 - center-crops only the tiny excess width necessary to reach 1260×2736;
@@ -60,7 +63,7 @@ The builder:
 
 PASS requires:
 
-- exactly 8 canonical PNG files;
+- exactly 8 canonical PNG files with the fixed commercial filenames;
 - each file exactly 1260×2736;
 - no RGBA/grayscale-alpha color type;
 - no PNG `tRNS` transparency;
@@ -68,7 +71,7 @@ PASS requires:
 
 ## Direct visual acceptance
 
-Automation does not establish sellable visual quality. Inspect the generated 8-shot contact sheet plus Fight Night and Result images at full target resolution.
+Automation does not establish sellable visual quality. Inspect the generated 8-shot contact sheet plus Fight Impact and Result images at full target resolution.
 
 PASS requires:
 
@@ -78,11 +81,13 @@ PASS requires:
 - no blank/partially rendered frame;
 - no stale development ID or debug text;
 - actual boxer/fight assets visible where expected;
-- the eight images tell a coherent Title → Career → Opponent → Plan → Weigh-in → Fight → Impact → Result story;
+- screenshot 1 immediately communicates boxing through actual gameplay;
+- the complete set communicates Fight → Career → Opponent/Plan → Weigh-in → Result → Title without inventing store-only gameplay;
 - no image contradicts the paid, offline, one-boxer career product boundary.
 
-## Status entering implementation
+## Current status
 
 - source 430×932 release flow: GO
 - final App Icon: GO
-- 1260×2736 generated package: HOLD until actual workflow artifact is directly inspected
+- first chronological 1260×2736 package: technically PASS, commercial order rejected
+- final commercial 1260×2736 package: HOLD until regenerated and directly inspected
