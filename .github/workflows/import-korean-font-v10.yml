@@ -38,7 +38,7 @@ jobs:
             'https://raw.githubusercontent.com/google/fonts/main/ofl/notosanskr/OFL.txt' \
             -o assets/fonts/OFL-NotoSansKR.txt
 
-      - name: Verify exact upstream Git blob and license
+      - name: Verify exact upstream Git blobs and OFL
         shell: bash
         run: |
           set -euo pipefail
@@ -46,27 +46,29 @@ jobs:
           from hashlib import sha1
           from pathlib import Path
 
+          def git_blob(path: Path) -> str:
+              data = path.read_bytes()
+              return sha1(f'blob {len(data)}\0'.encode() + data).hexdigest()
+
           font_path = Path('assets/fonts/NotoSansKR-VF.ttf')
-          data = font_path.read_bytes()
-          git_blob = sha1(f'blob {len(data)}\0'.encode() + data).hexdigest()
-          expected = 'b386890ba945e1f39448a6b59f20c5d194f58808'
-          if git_blob != expected:
-              raise SystemExit(f'Noto Sans KR upstream blob mismatch: {git_blob} != {expected}')
-          if len(data) < 1_000_000:
-              raise SystemExit(f'font unexpectedly small: {len(data)} bytes')
+          license_path = Path('assets/fonts/OFL-NotoSansKR.txt')
+          font_blob = git_blob(font_path)
+          license_blob = git_blob(license_path)
+          expected_font = 'b386890ba945e1f39448a6b59f20c5d194f58808'
+          expected_license = '1c9f43281b8f216c5461fe9ac729afbade7724e4'
+          if font_blob != expected_font:
+              raise SystemExit(f'Noto Sans KR upstream blob mismatch: {font_blob} != {expected_font}')
+          if license_blob != expected_license:
+              raise SystemExit(f'Noto Sans KR OFL blob mismatch: {license_blob} != {expected_license}')
+          if font_path.stat().st_size < 1_000_000:
+              raise SystemExit(f'font unexpectedly small: {font_path.stat().st_size} bytes')
+          license_text = license_path.read_text(encoding='utf-8')
+          if 'SIL OPEN FONT LICENSE Version 1.1' not in license_text:
+              raise SystemExit('OFL 1.1 marker missing')
 
-          license_text = Path('assets/fonts/OFL-NotoSansKR.txt').read_text(encoding='utf-8')
-          required = [
-              'SIL OPEN FONT LICENSE Version 1.1',
-              'may be bundled, embedded,',
-              'provided that each copy contains the above copyright notice and this license',
-          ]
-          missing = [text for text in required if text not in license_text]
-          if missing:
-              raise SystemExit(f'OFL verification failed: {missing}')
-
-          print(f'font-bytes={len(data)}')
-          print(f'font-git-blob={git_blob}')
+          print(f'font-bytes={font_path.stat().st_size}')
+          print(f'font-git-blob={font_blob}')
+          print(f'license-git-blob={license_blob}')
           print('font-license=OFL-1.1')
           PY
 
