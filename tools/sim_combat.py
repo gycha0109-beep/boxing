@@ -54,9 +54,12 @@ def _apply_global_plan(player, plan):
         out[stat] = max(1, min(100, int(out.get(stat, 50)) + int(delta)))
     return out
 
-def _apply_action_plan(actor, plan, action_id):
+def _apply_action_plan(actor, plan, action_id, target_action):
     mods = plan.get("action_modifiers", {}).get(action_id, {})
     if not mods:
+        return actor
+    required = mods.get("requires_target_actions", [])
+    if required and target_action not in required:
         return actor
     out = {**actor, "modifiers": dict(actor.get("modifiers", {}))}
     for stat in STATS:
@@ -114,7 +117,7 @@ def fight(seed, opponent, player, plan_id="balanced"):
             for is_player in order:
                 actor, target = (p, o) if is_player else (o, p)
                 act, tact = (pa, oa) if is_player else (oa, pa)
-                effective_actor = _apply_action_plan(actor, plan, act) if is_player else actor
+                effective_actor = _apply_action_plan(actor, plan, act, tact) if is_player else actor
                 sta = p_sta if is_player else o_sta
                 dmg, cost, body = _hit(rng, effective_actor, target, act, tact, sta)
                 if act == "guard":
