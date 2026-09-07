@@ -1,6 +1,7 @@
 extends SceneTree
 
 const Save = preload("res://scripts/core/save_service.gd")
+const Combat = preload("res://scripts/core/combat_engine.gd")
 const CAPTURE_DIR := "res://visual-captures/v1.0-font"
 const CAPTURE_SEED := 424242
 
@@ -81,15 +82,26 @@ func _run() -> void:
     _stabilize_fight_stage(false)
     await _capture("06_fight_opening.png")
 
-    # The exchange resolves and creates its real presentation synchronously.
-    # Before the renderer gets another frame, capture the stage's layout position,
-    # kill every newly-created presentation tween (impact + shake), then freeze the
-    # actual exchange on one deterministic impact pose.
-    main_view._choose_fight_action("jab")
+    # Find a deterministic RNG seed that produces a real, non-KO player power hit
+    # against the exact opponent action already telegraphed by the live engine.
+    # This keeps the store capture inside actual CombatEngine rules while ensuring
+    # the lead App Store image communicates a successful boxing impact, not a miss.
+    var impact_seed := _find_successful_power_seed()
+    if impact_seed < 0:
+        _fail("could not find deterministic successful power-hit seed")
+        return
+    main_view.combat.rng.seed = impact_seed
+    main_view._choose_fight_action("power")
+
     var impact_stage: Node = _active_fight_stage()
     if impact_stage == null:
         _fail("impact FightStage unavailable")
         return
+    var player_event: Dictionary = impact_stage.last_exchange.get("player_event", {})
+    if not bool(player_event.get("hit", false)) or bool(player_event.get("knockout", false)):
+        _fail("store impact fixture did not resolve to the required successful non-KO hit")
+        return
+
     var stable_stage_position: Vector2 = impact_stage.position
     for tween in get_processed_tweens():
         if is_instance_valid(tween):
@@ -97,7 +109,7 @@ func _run() -> void:
     impact_stage.position = stable_stage_position
     Engine.time_scale = 0.0
     _stabilize_fight_stage(true)
-    await _capture("07_fight_after_jab.png")
+    await _capture("07_fight_impact.png")
     Engine.time_scale = 1.0
 
     _seed_rng()
@@ -106,9 +118,35 @@ func _run() -> void:
     await process_frame
     await _capture("08_result.png")
 
-    print("visual-capture-v10-font: PASS seed=%d" % CAPTURE_SEED)
+    print("visual-capture-v10-font: PASS seed=%d impact_seed=%d" % [CAPTURE_SEED, impact_seed])
     _cleanup_save_files()
     quit(0)
+
+func _find_successful_power_seed() -> int:
+    if main_view.combat == null:
+        return -1
+    var live = main_view.combat
+    var pending_action := str(live.pending_opponent_action)
+    var pending_read: Dictionary = live.pending_telegraph.duplicate(true)
+    for candidate in range(1, 4097):
+        var probe = Combat.new(candidate)
+        probe.start(live.player, live.opponent)
+        if not pending_action.is_empty():
+            probe.pending_opponent_action = pending_action
+            probe.pending_telegraph = pending_read.duplicate(true)
+        var resolved: Dictionary = probe.resolve_exchange("power")
+        var exchange: Dictionary = resolved.get("exchange_result", {})
+        var player_event: Dictionary = exchange.get("player_event", {})
+        var opponent_event: Dictionary = exchange.get("opponent_event", {})
+        if (
+            str(exchange.get("first_actor", "")) == "player"
+            and bool(player_event.get("hit", false))
+            and not bool(player_event.get("knockout", false))
+            and not bool(opponent_event.get("hit", false))
+            and not bool(exchange.get("finished", false))
+        ):
+            return candidate
+    return -1
 
 func _seed_rng() -> void:
     game_state.rng.seed = CAPTURE_SEED
