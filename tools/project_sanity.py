@@ -4,14 +4,15 @@ import json
 
 ROOT = Path(__file__).resolve().parents[1]
 required = [
-    "project.godot", "scenes/Main.tscn", "scripts/main.gd", "scripts/main_v05.gd",
+    "project.godot", "scenes/Main.tscn", "scripts/main.gd", "scripts/main_v05.gd", "scripts/main_v06.gd",
     "scripts/core/game_state.gd", "scripts/core/combat_engine.gd", "scripts/core/save_service.gd",
     "scripts/ui/combat_presentation.gd", "scripts/ui/fight_stage.gd", "scripts/ui/impact_feedback.gd",
+    "scripts/ui/fight_fx_director.gd", "scripts/ui/arena_audio.gd", "scripts/ui/safe_area_layout.gd",
     "data/balance.json", "data/camp_actions.json", "data/opponents.json", "data/career_balance.json",
     "data/traits.json", "data/events.json", "data/injuries.json", "data/fighter_identities.json", "data/game_plans.json",
     "tools/sim_combat.py", "tools/simulate_careers.py", "tools/simulate_gameplans.py", "tools/test_gameplans.py",
     "tests/runtime_state_smoke.gd", "tests/v03_gameplan_smoke.gd", "tests/v04_combat_ux_smoke.gd",
-    "tests/v04_fight_ui_smoke.gd", "tests/v05_fight_presentation_smoke.gd",
+    "tests/v04_fight_ui_smoke.gd", "tests/v05_fight_presentation_smoke.gd", "tests/v06_device_polish_smoke.gd",
 ]
 missing = [p for p in required if not (ROOT / p).exists()]
 if missing:
@@ -24,11 +25,21 @@ project = (ROOT / "project.godot").read_text()
 assert 'run/main_scene="res://scenes/Main.tscn"' in project
 assert 'GameState="*res://scripts/core/game_state.gd"' in project
 scene = (ROOT / "scenes/Main.tscn").read_text()
-assert 'res://scripts/main_v05.gd' in scene
+assert 'res://scripts/main_v06.gd' in scene
+
 main_v05 = (ROOT / "scripts/main_v05.gd").read_text()
 assert 'extends "res://scripts/main.gd"' in main_v05
 assert "FightStage.new()" in main_v05 and "ImpactFeedback.new()" in main_v05
 assert "func _choose_fight_action(" in main_v05
+
+main_v06 = (ROOT / "scripts/main_v06.gd").read_text()
+assert 'extends "res://scripts/main_v05.gd"' in main_v06
+assert "MIN_TOUCH_TARGET := 56.0" in main_v06
+assert "SafeAreaLayout.current_insets" in main_v06
+assert "MainLoop.NOTIFICATION_APPLICATION_PAUSED" in main_v06
+assert "MainLoop.NOTIFICATION_APPLICATION_RESUMED" in main_v06
+assert "FightFxDirector.interaction_lock_seconds" in main_v06
+assert "ArenaAudio.new()" in main_v06 and "FightFxDirector.new()" in main_v06
 
 for name in ["balance.json","camp_actions.json","opponents.json","career_balance.json","traits.json","events.json","injuries.json","fighter_identities.json","game_plans.json"]:
     json.loads((ROOT / "data" / name).read_text())
@@ -74,7 +85,23 @@ assert 'player_pose = "down"' in stage and 'opponent_pose = "down"' in stage
 impact = (ROOT / "scripts/ui/impact_feedback.gd").read_text()
 assert "class_name ImpactFeedback" in impact
 assert "AudioStreamGenerator" in impact and "Input.vibrate_handheld" in impact
-assert '"knockdown"' in impact and '"counter"' in impact
+assert "haptic_amplitude" in impact and "hit_stop_seconds" in impact and "shake_strength" in impact
+assert "sfx_cue_for_exchange" in impact and '"body_hit"' in impact and '"head_crack"' in impact
+
+fx = (ROOT / "scripts/ui/fight_fx_director.gd").read_text()
+assert "class_name FightFxDirector" in fx
+assert "PROCESS_MODE_DISABLED" in fx and "create_timer" in fx
+assert "tween_method" in fx and "shake_duration_seconds" in fx
+
+arena = (ROOT / "scripts/ui/arena_audio.gd").read_text()
+assert "class_name ArenaAudio" in arena
+assert '"round_bell"' in arena and '"final_bell"' in arena and '"corner_call"' in arena
+assert "crowd_active" in arena and "AudioStreamGenerator" in arena
+
+safe = (ROOT / "scripts/ui/safe_area_layout.gd").read_text()
+assert "class_name SafeAreaLayout" in safe
+assert "DisplayServer.get_display_safe_area()" in safe
+assert "compute_insets" in safe
 
 save = (ROOT / "scripts/core/save_service.gd").read_text()
 assert "SCHEMA_VERSION := 2" in save and "_load_legacy_v1" in save
