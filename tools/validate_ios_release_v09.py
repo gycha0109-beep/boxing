@@ -41,6 +41,7 @@ def main() -> int:
 
     require_text(preset, 'name="iOS Release"', "release preset name")
     require_text(preset, 'platform="iOS"', "iOS platform")
+    require_text(preset, 'export_path="build/ios/TwelveCount.xcodeproj"', "Xcode project output path")
     require_text(preset, "architectures/arm64=true", "arm64 architecture")
     require_text(preset, "application/targeted_device_family=0", "iPhone-only target")
     require_text(preset, 'application/min_ios_version="15.0"', "minimum iOS version")
@@ -55,6 +56,7 @@ def main() -> int:
     require_text(preset, 'privacy/photolibrary_usage_description=""', "photo-library privacy boundary")
 
     require_text(project, 'config/name="Twelve Count"', "product name")
+    require_text(project, 'config/version="1.0.0"', "1.0 project version")
     require_text(project, "window/size/viewport_width=430", "portrait viewport width")
     require_text(project, "window/size/viewport_height=932", "portrait viewport height")
     require_text(project, "window/handheld/orientation=1", "portrait orientation")
