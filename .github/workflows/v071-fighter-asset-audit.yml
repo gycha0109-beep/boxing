@@ -1,0 +1,29 @@
+name: Fighter Asset Audit v0.7.1
+
+on:
+  push:
+    branches:
+      - chore/v071-fighter-asset-audit
+
+permissions:
+  contents: read
+
+jobs:
+  collect-fighter-assets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Verify fighter asset count
+        shell: bash
+        run: |
+          set -euo pipefail
+          count=$(find assets/visual/v0.7/fighters -type f -name '*.png' | wc -l | tr -d ' ')
+          echo "fighter_png_count=$count"
+          test "$count" -eq 40
+      - name: Upload exact-head fighter PNGs
+        uses: actions/upload-artifact@v6
+        with:
+          name: twelve-count-v071-fighter-audit
+          path: assets/visual/v0.7/fighters/**/*.png
+          if-no-files-found: error
+          retention-days: 1
