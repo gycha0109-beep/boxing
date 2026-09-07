@@ -3,6 +3,7 @@ extends "res://scripts/main_v05.gd"
 const MIN_TOUCH_TARGET := 56.0
 
 var arena_audio: ArenaAudio
+var fight_fx: FightFxDirector
 var safe_insets: Dictionary = SafeAreaLayout.zero_insets()
 var lifecycle_pause_saves: int = 0
 var lifecycle_resumes: int = 0
@@ -40,6 +41,9 @@ func _choose_fight_action(action: String) -> void:
     elif after_round != before_round:
         _arena().round_break(after_round)
     _render_fight(exchange)
+    var stage: FightStage = _find_fight_stage(body)
+    if stage != null:
+        _fx().trigger(stage, exchange)
     if not bool(after.finished):
         _lock_fight_input(exchange)
     call_deferred("_post_layout_polish")
@@ -48,7 +52,7 @@ func _lock_fight_input(exchange: Dictionary) -> void:
     fight_input_locked = true
     for button in _buttons_under(body):
         button.disabled = true
-    var duration: float = FightStage.interaction_lock_seconds(exchange)
+    var duration: float = FightFxDirector.interaction_lock_seconds(exchange)
     get_tree().create_timer(duration).timeout.connect(Callable(self, "_unlock_fight_input"))
 
 func _unlock_fight_input() -> void:
@@ -96,6 +100,17 @@ func _buttons_under(node: Node) -> Array[Button]:
         result.append_array(_buttons_under(child))
     return result
 
+func _find_fight_stage(node: Node) -> FightStage:
+    if node == null:
+        return null
+    for child in node.get_children():
+        if child is FightStage:
+            return child as FightStage
+        var nested: FightStage = _find_fight_stage(child)
+        if nested != null:
+            return nested
+    return null
+
 func _notification(what: int) -> void:
     if what == MainLoop.NOTIFICATION_APPLICATION_PAUSED:
         lifecycle_pause_saves += 1
@@ -121,3 +136,11 @@ func _arena() -> ArenaAudio:
     arena_audio.name = "ArenaAudio"
     add_child(arena_audio)
     return arena_audio
+
+func _fx() -> FightFxDirector:
+    if is_instance_valid(fight_fx):
+        return fight_fx
+    fight_fx = FightFxDirector.new()
+    fight_fx.name = "FightFxDirector"
+    add_child(fight_fx)
+    return fight_fx
