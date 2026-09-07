@@ -53,7 +53,7 @@ func _run() -> void:
     await process_frame
     await process_frame
 
-    _check(str(main_view.get_script().resource_path) == "res://scripts/main_v07.gd", "Main scene is not using v0.7 visual shell")
+    _check(str(main_view.get_script().resource_path) == "res://scripts/main_v08.gd", "Main scene is not using v0.8 shell while preserving v0.7 visual integration")
     var stage: FightStage = _find_stage(main_view)
     _check(is_instance_valid(stage), "v0.7 actual fight screen rendered no FightStage")
     if is_instance_valid(stage):
