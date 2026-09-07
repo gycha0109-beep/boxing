@@ -27,6 +27,8 @@ for identity in identities:
 
 for plan in plans:
     assert plan.get("name") and plan.get("description") and plan.get("risk")
+    initiative_bias = float(plan.get("initiative_bias", 0))
+    assert -20 <= initiative_bias <= 20, f"initiative bias too extreme: {plan['id']}={initiative_bias}"
     for stat, delta in plan.get("global_stats", {}).items():
         assert stat in STATS, f"unknown global plan stat {stat}"
         assert -8 <= int(delta) <= 8, f"global game-plan bonus too extreme: {plan['id']} {stat}"
@@ -40,7 +42,7 @@ for plan in plans:
             assert stat in STATS, f"unknown action modifier stat {stat}"
             assert -10 <= int(delta) <= 10, f"action modifier too extreme: {plan['id']} {action_id} {stat}"
     if plan["id"] != "balanced":
-        assert plan.get("global_stats") or plan.get("action_modifiers"), f"plan has no gameplay effect: {plan['id']}"
+        assert plan.get("global_stats") or plan.get("action_modifiers") or initiative_bias != 0, f"plan has no gameplay effect: {plan['id']}"
 
 for opponent in opponents:
     tendencies = opponent.get("tendencies", {})
