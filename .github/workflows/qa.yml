@@ -52,3 +52,5 @@ jobs:
         run: timeout 90s Godot_v${GODOT_VERSION}_linux.x86_64 --headless --editor --path . --quit
       - name: Boot main scene headlessly
         run: timeout 30s Godot_v${GODOT_VERSION}_linux.x86_64 --headless --path . --quit-after 5
+      - name: Verify save recovery and deterministic fight resume
+        run: timeout 60s Godot_v${GODOT_VERSION}_linux.x86_64 --headless --path . --script res://tests/runtime_state_smoke.gd
