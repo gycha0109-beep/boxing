@@ -1,0 +1,81 @@
+name: App Icon Build v1.0
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'tools/build_app_icon_v10.py'
+      - 'tools/validate_app_icon_v10.py'
+      - 'assets/visual/v0.7/portraits/portrait_player_a.png'
+      - 'assets/visual/v0.7/arena/arena_title_night.png'
+      - 'export_presets.cfg'
+      - '.github/workflows/app-icon-build-v10.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-icon:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Install Pillow
+        run: python -m pip install --disable-pip-version-check pillow==11.3.0
+      - name: Build deterministic icon set
+        run: python3 tools/build_app_icon_v10.py
+      - name: Validate generated icon set
+        run: python3 tools/validate_app_icon_v10.py
+      - name: Build visual review sheet
+        run: |
+          python3 - <<'PY'
+          from PIL import Image, ImageDraw
+          from pathlib import Path
+          root = Path('assets/release/icon')
+          items = [
+              ('1024', root/'app_store_1024.png', 320),
+              ('180', root/'iphone_180.png', 180),
+              ('120', root/'iphone_120.png', 120),
+              ('60', root/'notification_60.png', 60),
+              ('40', root/'notification_40.png', 40),
+          ]
+          sheet = Image.new('RGB', (960, 430), (10, 14, 20))
+          draw = ImageDraw.Draw(sheet)
+          x = 24
+          for label, path, display in items:
+              img = Image.open(path).convert('RGB').resize((display, display), Image.Resampling.NEAREST if display <= 60 else Image.Resampling.LANCZOS)
+              y = 52
+              sheet.paste(img, (x, y))
+              draw.text((x, 20), label, fill=(235, 221, 188))
+              x += display + 34
+          Path('build/icon-review').mkdir(parents=True, exist_ok=True)
+          sheet.save('build/icon-review/app-icon-size-review.png')
+          PY
+      - name: Commit generated icon assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add assets/release/icon/*.png
+          if git diff --cached --quiet; then
+            echo 'icon assets already canonical'
+          else
+            git commit -m 'assets: build final App Icon v1.0 set'
+            git push origin HEAD:${{ github.event.pull_request.head.ref || github.ref_name }}
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: twelve-count-app-icon-v10-review
+          path: |
+            assets/release/icon/*.png
+            build/icon-review/app-icon-size-review.png
+          if-no-files-found: error
