@@ -125,7 +125,7 @@ func _render_fight(animated_exchange: Dictionary = {}) -> void:
 
     var body_state: String = CombatPresentation.body_state_label(str(last_exchange.get("opponent_body_state", "stable"))) if not last_exchange.is_empty() else "안정"
     var tactical_note := Label.new()
-    tactical_note.text = "상대 몸통 상태: %s · 상대 스타일: %s" % [body_state, str(current_opponent.style)]
+    tactical_note.text = "상대 몸통 상태: %s · 상대 스타일: %s" % [body_state, _fight_style_label(str(current_opponent.style))]
     tactical_note.add_theme_color_override("font_color", V05_MUTED)
     body.add_child(tactical_note)
 
@@ -164,3 +164,11 @@ func _impact() -> ImpactFeedback:
     impact_feedback.name = "ImpactFeedback"
     add_child(impact_feedback)
     return impact_feedback
+
+func _fight_style_label(style_id: String) -> String:
+    match style_id:
+        "swarmer": return "인파이터"
+        "out_boxer": return "아웃복서"
+        "slugger": return "슬러거"
+        "counter", "counter_puncher": return "카운터 펀처"
+        _: return style_id.replace("_", " ").capitalize()
