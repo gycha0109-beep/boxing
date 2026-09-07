@@ -71,9 +71,9 @@ PASS requires:
 
 ## Direct visual acceptance
 
-Automation does not establish sellable visual quality. Inspect the generated 8-shot contact sheet plus Fight Impact and Result images at full target resolution.
+Automation does not establish sellable visual quality. The generated 8-shot contact sheet, `01_fight_impact.png`, and `07_result.png` were inspected directly at the generated target resolution.
 
-PASS requires:
+PASS requires and the accepted package satisfies:
 
 - no missing Korean glyphs/tofu;
 - no clipped buttons/cards/text;
@@ -85,9 +85,19 @@ PASS requires:
 - the complete set communicates Fight → Career → Opponent/Plan → Weigh-in → Result → Title without inventing store-only gameplay;
 - no image contradicts the paid, offline, one-boxer career product boundary.
 
+## Accepted evidence
+
+- commercial-order workflow: `34163264308` — **SUCCESS**
+- review artifact: `10033309140` / `twelve-count-app-store-screenshots-v10-ko-6.9`
+- generated asset commit: `6153b87c40f5865739d57cb5fd770683ed5bf99f`
+- inspected outputs: 8-shot contact sheet + full-size Fight Impact + full-size Result
+- direct visual verdict: **PASS**
+
+The workflow commit was authored by `github-actions[bot]`, so the subsequent PR-triggered runs were marked `action_required`. That is a GitHub Actions actor/approval boundary, not a product or screenshot failure. A human-authored follow-up head is required for the final exact-head CI evidence before merge.
+
 ## Current status
 
 - source 430×932 release flow: GO
 - final App Icon: GO
-- first chronological 1260×2736 package: technically PASS, commercial order rejected
-- final commercial 1260×2736 package: HOLD until regenerated and directly inspected
+- final commercial 1260×2736 package: **GO**
+- PR merge: HOLD only until human-authored exact-head QA/native/screenshot workflows pass
