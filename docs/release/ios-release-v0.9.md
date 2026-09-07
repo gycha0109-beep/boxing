@@ -31,13 +31,15 @@ Required structural settings:
 - targeted device family: `0` (iPhone)
 - minimum iOS: 15.0
 - portrait viewport authority: 430×932
+- ETC2/ASTC texture import enabled for Apple embedded export
 - export mode: Xcode project first (`application/export_project_only=true`)
+- export path: `build/ios/TwelveCount.xcodeproj`
 - Wi-Fi capability: disabled
 - Game Center: disabled
 - push notifications: disabled
 - Files app sharing: disabled
 - iTunes file sharing: disabled
-- camera/microphone/photo-library usage descriptions: blank because the product does not request those resources
+- camera/microphone/photo-library usage descriptions: blank in the committed preset because the product does not request those resources
 
 The App Store Team ID and Bundle ID intentionally remain blank until the signing gate. Godot requires both values for a real iOS export, so a blank value must fail before an accidental unsigned/reused-identifier release.
 
@@ -57,9 +59,32 @@ That stricter gate must fail until all of these are present:
 - final Bundle ID
 - final opaque 1024×1024 App Store icon path
 
+## Generated Xcode privacy sanitation
+
+Godot 4.7.2's Apple embedded export template always emits the camera, microphone, and photo-library usage-description placeholders into the generated iOS `Info.plist`. With the corresponding preset values intentionally blank, Xcode reports that these usage descriptions must be non-empty even though Twelve Count does not use those protected resources.
+
+Apple requires these purpose strings when an app accesses the associated protected resource. Twelve Count currently does not use camera, microphone, or photo-library APIs, so release packaging must omit the unused blank keys rather than invent a purpose string.
+
+Repository authority:
+
+`python3 tools/sanitize_ios_xcode_project_v09.py <generated-ios-root>`
+
+The sanitizer:
+
+- removes only blank `NSCameraUsageDescription`
+- removes only blank `NSMicrophoneUsageDescription`
+- removes only blank `NSPhotoLibraryUsageDescription`
+- preserves any non-empty purpose string if a future product change intentionally adds one
+- removes matching blank entries from generated `InfoPlist.strings`
+- fails if any blank protected-resource usage value remains
+
+The macOS native CI invokes this sanitizer immediately after Godot creates the Xcode project and rejects any recurrence of the blank-purpose-string warnings during Xcode build.
+
+Any future camera, microphone, or photo-library feature invalidates the current privacy boundary and requires both a real purpose string and a privacy review before submission.
+
 ## Binary asset gates
 
-The following cannot be represented by documentation alone and remain mandatory before submission:
+The following remain mandatory before submission:
 
 1. **Bundled Korean font**
    - Runtime must not depend solely on a system-font fallback for Korean text.
@@ -92,22 +117,36 @@ Before App Store submission:
 - complete App Privacy answers in App Store Connect
 - complete age rating and content-rights declarations
 
-## macOS / Xcode gate
+## macOS / Xcode native gate
 
-A real iOS export requires macOS, Xcode, and installed Godot iOS export templates.
+Linux/headless QA is necessary but not sufficient. The repository also owns `.github/workflows/ios-export-link-v09.yml`, which performs a real Godot iOS project export and unsigned arm64 iPhone Release link on macOS.
 
-Do not infer success from Linux/headless CI. The release must be exported and linked on macOS.
+### Empirical toolchain result — 2026-09-08
 
-### Godot 4.7 template risk to verify
+The release gate was exercised with the official Godot 4.7.2 macOS editor and official 4.7.2 export templates.
 
-As of 2026-09-08, upstream Godot issue `#122549` remains open for an iOS linker failure involving `_SDL_IsIPad` and `_SDL_IsAppleTV` in 4.7/4.7.1 templates. The repository currently uses 4.7.2. The issue report does not establish 4.7.2 as affected or fixed, so the release gate is empirical:
+1. `macos-15`, Xcode 16.4 / iPhoneOS 18.5:
+   - Godot Xcode project generation succeeded after enabling ETC2/ASTC import.
+   - arm64 iPhone link failed on Apple SDK symbols including `_CADynamicRangeAutomatic` and `_MTLTensorDomain`.
+   - the previously reported `_SDL_IsIPad` / `_SDL_IsAppleTV` signature was not the failure.
 
-1. install the official 4.7.2 iOS export templates
-2. export the Xcode project
-3. build an arm64 iPhone target
-4. if those undefined symbols appear, stop and decide between an upstream-fixed template/custom template or a validated engine/template fallback before changing production authority
+2. `macos-26`, Xcode 26.6 / iPhoneOS 26.5:
+   - Godot 4.7.2 editor checksum verification succeeded.
+   - official 4.7.2 export-template checksum verification succeeded.
+   - `TwelveCount.xcodeproj` generation succeeded.
+   - generated Xcode target/scheme `TwelveCount` was discovered successfully.
+   - Release build used `arm64-apple-ios15.0` against the iPhoneOS 26.5 SDK.
+   - unsigned arm64 iPhone link **BUILD SUCCEEDED**.
+   - `_SDL_IsIPad`, `_SDL_IsAppleTV`, `_CADynamicRangeAutomatic`, and `_MTLTensorDomain` were not unresolved linker blockers.
 
-No workaround is considered accepted until it builds and runs on the target iPhone.
+Successful native evidence:
+
+- workflow run: `34155384027`
+- artifact: `10030815549` / `twelve-count-v09-ios-export-link-evidence`
+
+Therefore the release toolchain authority for this Godot 4.7.2 line is **Xcode 26 or newer**. Do not validate a production archive with Xcode 16.x and interpret SDK-symbol linker failures as a Twelve Count game-code defect.
+
+A final native run must additionally pass the generated privacy-key sanitizer introduced after the above evidence run.
 
 ## Physical iPhone acceptance
 
@@ -140,7 +179,10 @@ Required before TestFlight:
 ## Current status
 
 - v0.8 product flow: GO
-- iOS export preset structure: GO after CI
+- iOS export preset structure: GO
+- Godot 4.7.2 → Xcode project generation: GO
+- unsigned arm64 iPhone link on Xcode 26+: GO
+- generated blank privacy purpose strings: remediation in exact-head native CI
 - App Store metadata draft: GO
 - privacy policy draft: GO
 - Apple Team ID: HOLD
