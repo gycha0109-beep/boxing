@@ -29,12 +29,29 @@ func _run() -> void:
 
     game_state.new_career("Presentation Boxer", "technician")
     game_state.state.boxer.weight_kg = 61.0
+    # Presentation QA must not depend on a random first-exchange KO. Keep both
+    # sides below the damage threshold used by CombatEngine's chance-based KO
+    # check and force the opponent to guard for this single presentation probe.
+    game_state.state.boxer.power = 1
+    game_state.state.boxer.technique = 1
+    game_state.state.boxer.defense = 100
+    game_state.state.boxer.conditioning = 100
     game_state.state.phase = "fight_offer"
-    var opponent: Dictionary = opponents[0]
+    var opponent: Dictionary = opponents[0].duplicate(true)
+    opponent.stats.power = 1
+    opponent.stats.technique = 1
+    opponent.tendencies = {
+        "jab": 0.0,
+        "power": 0.0,
+        "body": 0.0,
+        "guard": 1.0,
+        "counter": 0.0
+    }
     game_state.select_opponent(opponent)
     var selected: Dictionary = game_state.select_game_plan("counter_trap")
     _check(bool(selected.get("ok", false)), "v0.5 fixture could not select game plan")
     _check(str(game_state.state.phase) == "fight", "v0.5 fixture did not enter fight phase")
+    game_state.state.fight_seed = 1
 
     var packed: PackedScene = load("res://scenes/Main.tscn")
     _check(is_instance_valid(packed), "Main scene could not load for v0.5")
@@ -43,6 +60,7 @@ func _run() -> void:
         return
 
     main_view = packed.instantiate()
+    main_view.set("current_opponent", opponent)
     get_root().add_child(main_view)
     await process_frame
     await process_frame
@@ -57,20 +75,22 @@ func _run() -> void:
         _check(str(initial_stage.get("telegraph_action")) == str(pending_read.get("action_id", "")), "stage telegraph does not match saved opponent read")
 
     var locked_action: String = str(game_state.state.get("active_fight", {}).get("pending_opponent_action", ""))
-    _check(not locked_action.is_empty(), "v0.5 screen did not lock opponent action")
+    _check(locked_action == "guard", "v0.5 deterministic fixture did not lock guard")
 
     main_view._choose_fight_action("jab")
-    await process_frame
-    await process_frame
 
     var active: Dictionary = game_state.state.get("active_fight", {})
     var exchange: Dictionary = active.get("last_exchange", {})
     _check(not exchange.is_empty(), "v0.5 action did not persist exchange")
     _check(str(exchange.get("player_action", "")) == "jab", "v0.5 action persisted wrong player action")
     _check(str(exchange.get("opponent_action", "")) == locked_action, "v0.5 presentation changed locked opponent action")
+    _check(not bool(exchange.get("finished", true)), "v0.5 deterministic presentation fixture unexpectedly finished the fight")
 
-    var animated_stage: Node = _find_named(main_view, "FightStage")
-    _check(is_instance_valid(animated_stage), "fight stage disappeared after action")
+    # _clear_body() queue_frees the previous render, so the old idle FightStage
+    # can coexist with the newly rendered stage until the frame ends. Select the
+    # stage that actually consumed this exchange instead of the first node by name.
+    var animated_stage: Node = _find_stage_with_event(main_view, 1)
+    _check(is_instance_valid(animated_stage), "active fight stage did not register presentation event")
     if is_instance_valid(animated_stage):
         var expected_profile: String = Impact.profile(exchange)
         _check(str(animated_stage.get("last_animation_profile")) == expected_profile, "fight stage impact profile mismatch")
@@ -112,6 +132,15 @@ func _test_impact_profiles() -> void:
         "opponent_event": {}
     }
     _check(Impact.profile(heavy_exchange) == "heavy", "heavy hit profile mapping failed")
+
+func _find_stage_with_event(root: Node, event_id: int) -> Node:
+    if root is FightStage and int(root.get("presentation_event_id")) == event_id:
+        return root
+    for child in root.get_children():
+        var found: Node = _find_stage_with_event(child, event_id)
+        if is_instance_valid(found):
+            return found
+    return null
 
 func _find_named(root: Node, target_name: String) -> Node:
     if str(root.name) == target_name:

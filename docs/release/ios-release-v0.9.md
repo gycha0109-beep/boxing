@@ -84,22 +84,28 @@ Any future camera, microphone, or photo-library feature invalidates the current 
 
 ## Binary asset gates
 
-The following remain mandatory before submission:
+The following are the release binary-asset authorities and remaining submission gates:
 
-1. **Bundled Korean font**
-   - Runtime must not depend solely on a system-font fallback for Korean text.
-   - Final font license must allow redistribution in the app bundle.
-   - Re-run the 430×932 first-five-minutes capture after the bundled font becomes authority.
+1. **Bundled Korean font — GO**
+   - Runtime authority: `assets/fonts/NotoSansKR-VF.ttf`.
+   - License authority: bundled SIL Open Font License 1.1.
+   - Active `Main.tscn` routes through `scripts/main_v10.gd` and uses a bundled `FontFile`.
+   - `allow_system_fallback = false`; Korean release typography does not depend on iOS system-font availability.
+   - Actual Godot 430×932 captures were inspected for Title, Camp, Fight Offer, Scouting/Game Plan, Weigh-in, Fight Opening, Fight After Jab, and Result.
+   - No missing Korean glyphs/tofu, broken wrapping, or font-attributable card/button clipping was found.
+   - PR exact-head visual evidence: run `34157771577`, artifact `10031554482` / `twelve-count-v10-bundled-font-430x932`.
+   - Merged-main QA authority: `main@ae30d19d70ca6fa2bf717e01294355140197cec3`, QA run `34158029820` attempt 2 **SUCCESS**.
+   - Merged-main native iOS authority: run `34158029765` **SUCCESS**.
 
-2. **App icon**
+2. **App icon — HOLD**
    - Final 1024×1024 source must be opaque and contain no pre-rounded corners.
    - Smaller iPhone icon slots must be mapped from the approved source or supplied explicitly.
    - The icon must be inspected at actual small icon sizes, not only at 1024×1024.
 
-3. **Store screenshots**
+3. **Store screenshots — HOLD**
    - Use actual product renders, not mock gameplay.
-   - Candidate content comes from the already accepted v0.8 flow: Title, Camp, Fight Offer, Scouting/Game Plan, Weigh-in, Fight Night, Result.
-   - Final App Store sizes must be generated only after the release font/icon/UI authority is frozen.
+   - Candidate content comes from the already accepted release flow: Title, Camp, Fight Offer, Scouting/Game Plan, Weigh-in, Fight Night, Result.
+   - Final App Store sizes must be generated after final app-icon/UI authority freezes.
 
 ## Metadata and privacy
 
@@ -143,10 +149,11 @@ Successful native evidence:
 
 - workflow run: `34155384027`
 - artifact: `10030815549` / `twelve-count-v09-ios-export-link-evidence`
+- merged-main post-font workflow run: `34158029765` **SUCCESS**
 
 Therefore the release toolchain authority for this Godot 4.7.2 line is **Xcode 26 or newer**. Do not validate a production archive with Xcode 16.x and interpret SDK-symbol linker failures as a Twelve Count game-code defect.
 
-A final native run must additionally pass the generated privacy-key sanitizer introduced after the above evidence run.
+The generated privacy-key sanitizer is part of the native gate and has passed on merged main.
 
 ## Physical iPhone acceptance
 
@@ -182,14 +189,15 @@ Required before TestFlight:
 - iOS export preset structure: GO
 - Godot 4.7.2 → Xcode project generation: GO
 - unsigned arm64 iPhone link on Xcode 26+: GO
-- generated blank privacy purpose strings: remediation in exact-head native CI
+- generated blank privacy purpose strings: GO via generated-project sanitizer/native CI
 - App Store metadata draft: GO
 - privacy policy draft: GO
+- bundled Korean font: GO
+- 430×932 bundled-font visual QA: GO
 - Apple Team ID: HOLD
 - Bundle ID: HOLD
-- bundled Korean font: HOLD
 - final app icon: HOLD
-- App Store screenshot package: HOLD until font/icon authority freezes
+- App Store screenshot package: HOLD until app-icon/UI authority freezes
 - physical iPhone: NOT VERIFIED
 - TestFlight: NOT VERIFIED
 - App Store submission: NOT SUBMITTED
