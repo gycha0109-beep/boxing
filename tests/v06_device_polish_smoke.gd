@@ -51,7 +51,7 @@ func _run() -> void:
     await process_frame
     await process_frame
 
-    _check(str(main_view.get_script().resource_path) == "res://scripts/main_v07.gd", "Main scene is not using the v0.7 shell that inherits v0.6 device runtime")
+    _check(str(main_view.get_script().resource_path) == "res://scripts/main_v08.gd", "Main scene is not using the v0.8 shell that inherits v0.6 device runtime")
     var buttons: Array[Button] = _buttons_under(main_view)
     _check(not buttons.is_empty(), "v0.6 fight screen rendered no buttons")
     for button in buttons:
@@ -70,12 +70,12 @@ func _run() -> void:
     _check(int(main_view.get("lifecycle_resumes")) >= 1, "resume notification was not handled")
 
     main_view._choose_fight_action("jab")
+    _check(bool(main_view.get("fight_input_locked")), "fight input was not locked synchronously when presentation began")
     await process_frame
     var fx_node: Node = main_view.get_node_or_null("FightFxDirector")
     _check(is_instance_valid(fx_node), "fight FX director was not wired into actual Main fight action")
     if is_instance_valid(fx_node):
         _check(int(fx_node.get("presentation_event_id")) == 1, "actual fight action did not register FX event")
-    _check(bool(main_view.get("fight_input_locked")), "fight input was not locked during presentation window")
     await create_timer(0.50).timeout
     _check(not bool(main_view.get("fight_input_locked")), "fight input did not unlock after time-based presentation window")
 
