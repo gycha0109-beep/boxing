@@ -32,6 +32,14 @@ for action in ["jab","power","body","guard","counter"]:
     assert f'"{action}"' in combat
 assert "func export_state()" in combat and "func restore(" in combat
 assert "tendencies" in combat and "action_modifiers" in combat and "requires_target_actions" in combat
+assert "reactive_window" in combat
+assert 'if reactive_window and action_id == "counter"' in combat
+assert "not reactive_window or not target_action in required" in combat
+
+sim_combat = (ROOT / "tools/sim_combat.py").read_text()
+assert "reactive_window" in sim_combat
+assert 'if reactive_window and action_id == "counter"' in sim_combat
+assert "not reactive_window or target_action not in required" in sim_combat
 
 state = (ROOT / "scripts/core/game_state.gd").read_text()
 assert 'state.phase = "game_plan"' in state
