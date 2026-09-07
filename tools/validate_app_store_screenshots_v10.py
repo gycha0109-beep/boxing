@@ -8,14 +8,14 @@ ROOT = Path(__file__).resolve().parents[1]
 SCREENSHOT_DIR = ROOT / "assets" / "release" / "screenshots" / "ko-KR" / "iphone-6.9"
 TARGET = (1260, 2736)
 FILES = [
-    "01_title.png",
-    "02_camp.png",
-    "03_fight_offer.png",
+    "01_fight_impact.png",
+    "02_fight_opening.png",
+    "03_camp.png",
     "04_scouting_game_plan.png",
-    "05_weigh_in.png",
-    "06_fight_opening.png",
-    "07_fight_after_jab.png",
-    "08_result.png",
+    "05_fight_offer.png",
+    "06_weigh_in.png",
+    "07_result.png",
+    "08_title.png",
 ]
 
 
@@ -47,7 +47,6 @@ def main() -> int:
         width, height, color_type, has_trns = inspect_png(path)
         if (width, height) != TARGET:
             fail(f"{name} is {width}x{height}; expected {TARGET[0]}x{TARGET[1]}")
-        # RGB(2) or grayscale(0) are opaque. RGBA(6), grayscale+alpha(4), or tRNS are forbidden.
         if color_type in {4, 6} or has_trns:
             fail(f"{name} contains alpha/transparency")
         if color_type not in {0, 2}:
@@ -57,6 +56,7 @@ def main() -> int:
     print("locale=ko-KR")
     print("device=iPhone 6.9-inch")
     print("size=1260x2736")
+    print("order=fight-impact,fight-opening,camp,scouting,fight-offer,weigh-in,result,title")
     print(f"count={len(FILES)}")
     return 0
 
