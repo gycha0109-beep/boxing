@@ -6,17 +6,24 @@ on:
       - feat/bundled-korean-font-v1.0
     paths:
       - .github/workflows/import-korean-font-v10.yml
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/import-korean-font-v10.yml
 
 permissions:
   contents: write
 
 jobs:
   import-verified-font:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: feat/bundled-korean-font-v1.0
           fetch-depth: 1
 
       - name: Download upstream Noto Sans KR and OFL
