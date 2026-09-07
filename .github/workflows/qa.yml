@@ -22,6 +22,8 @@ jobs:
         run: python3 tools/test_gameplans.py
       - name: Validate project structure
         run: python3 tools/project_sanity.py
+      - name: Validate v0.7 visual asset contract
+        run: python3 tools/validate_visual_assets_v07.py
       - name: Validate career invariants
         run: python3 tools/test_career_logic.py
       - name: Simulate opponent ladder
@@ -84,3 +86,5 @@ jobs:
         run: timeout 60s Godot_v${GODOT_VERSION}_linux.x86_64 --headless --path . --script res://tests/v05_fight_presentation_smoke.gd
       - name: Verify hit-stop, shake, arena audio, safe area, touch targets, and lifecycle hooks
         run: timeout 60s Godot_v${GODOT_VERSION}_linux.x86_64 --headless --path . --script res://tests/v06_device_polish_smoke.gd
+      - name: Verify v0.7 commercial visual mapping and procedural fallback
+        run: timeout 60s Godot_v${GODOT_VERSION}_linux.x86_64 --headless --path . --script res://tests/v07_visual_integration_smoke.gd
