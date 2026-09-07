@@ -86,8 +86,11 @@ func _run() -> void:
     _check(str(exchange.get("opponent_action", "")) == locked_action, "v0.5 presentation changed locked opponent action")
     _check(not bool(exchange.get("finished", true)), "v0.5 deterministic presentation fixture unexpectedly finished the fight")
 
-    var animated_stage: Node = _find_named(main_view, "FightStage")
-    _check(is_instance_valid(animated_stage), "fight stage disappeared after action")
+    # _clear_body() queue_frees the previous render, so the old idle FightStage
+    # can coexist with the newly rendered stage until the frame ends. Select the
+    # stage that actually consumed this exchange instead of the first node by name.
+    var animated_stage: Node = _find_stage_with_event(main_view, 1)
+    _check(is_instance_valid(animated_stage), "active fight stage did not register presentation event")
     if is_instance_valid(animated_stage):
         var expected_profile: String = Impact.profile(exchange)
         _check(str(animated_stage.get("last_animation_profile")) == expected_profile, "fight stage impact profile mismatch")
@@ -129,6 +132,15 @@ func _test_impact_profiles() -> void:
         "opponent_event": {}
     }
     _check(Impact.profile(heavy_exchange) == "heavy", "heavy hit profile mapping failed")
+
+func _find_stage_with_event(root: Node, event_id: int) -> Node:
+    if root is FightStage and int(root.get("presentation_event_id")) == event_id:
+        return root
+    for child in root.get_children():
+        var found: Node = _find_stage_with_event(child, event_id)
+        if is_instance_valid(found):
+            return found
+    return null
 
 func _find_named(root: Node, target_name: String) -> Node:
     if str(root.name) == target_name:
