@@ -4,6 +4,7 @@ config_version=5
 
 [application]
 config/name="Twelve Count"
+config/version="1.0.0"
 run/main_scene="res://scenes/Main.tscn"
 config/features=PackedStringArray("4.7")
 
