@@ -80,3 +80,5 @@ jobs:
         run: timeout 60s Godot_v${GODOT_VERSION}_linux.x86_64 --headless --path . --script res://tests/v04_combat_ux_smoke.gd
       - name: Verify fight screen renders and consumes telegraphed action
         run: timeout 60s Godot_v${GODOT_VERSION}_linux.x86_64 --headless --path . --script res://tests/v04_fight_ui_smoke.gd
+      - name: Verify fight stage animation, impact SFX routing, and haptic profile
+        run: timeout 60s Godot_v${GODOT_VERSION}_linux.x86_64 --headless --path . --script res://tests/v05_fight_presentation_smoke.gd
