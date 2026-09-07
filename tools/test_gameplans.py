@@ -32,7 +32,11 @@ for plan in plans:
         assert -8 <= int(delta) <= 8, f"global game-plan bonus too extreme: {plan['id']} {stat}"
     for action_id, modifiers in plan.get("action_modifiers", {}).items():
         assert action_id in ACTIONS, f"unknown action in plan {plan['id']}: {action_id}"
+        required = modifiers.get("requires_target_actions", [])
+        assert all(action in ACTIONS for action in required), f"unknown conditional target action in {plan['id']}:{action_id}"
         for stat, delta in modifiers.items():
+            if stat == "requires_target_actions":
+                continue
             assert stat in STATS, f"unknown action modifier stat {stat}"
             assert -10 <= int(delta) <= 10, f"action modifier too extreme: {plan['id']} {action_id} {stat}"
     if plan["id"] != "balanced":
