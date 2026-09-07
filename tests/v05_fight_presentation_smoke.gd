@@ -59,9 +59,12 @@ func _run() -> void:
     var locked_action: String = str(game_state.state.get("active_fight", {}).get("pending_opponent_action", ""))
     _check(not locked_action.is_empty(), "v0.5 screen did not lock opponent action")
 
+    # _choose_fight_action resolves the exchange, persists active fight state,
+    # routes impact feedback, rerenders the stage, and triggers FX synchronously.
+    # Waiting additional frames here can allow deferred cleanup from the old
+    # fight body to run and makes this smoke test nondeterministic without
+    # exercising any additional product behavior.
     main_view._choose_fight_action("jab")
-    await process_frame
-    await process_frame
 
     var active: Dictionary = game_state.state.get("active_fight", {})
     var exchange: Dictionary = active.get("last_exchange", {})
