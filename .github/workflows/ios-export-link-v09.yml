@@ -27,7 +27,7 @@ permissions:
 
 jobs:
   ios-export-and-link:
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 35
     env:
       GODOT_VERSION: 4.7.2-stable
@@ -37,12 +37,19 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Verify Xcode toolchain
+      - name: Verify Xcode 26 toolchain
         shell: bash
         run: |
           set -euo pipefail
-          xcodebuild -version
-          xcrun --sdk iphoneos --show-sdk-version
+          xcodebuild -version | tee "$RUNNER_TEMP/xcode-version.log"
+          xcrun --sdk iphoneos --show-sdk-version | tee "$RUNNER_TEMP/iphoneos-sdk-version.log"
+          python3 - <<'PY'
+          import os, re
+          text = open(os.environ['RUNNER_TEMP'] + '/xcode-version.log', encoding='utf-8').read()
+          match = re.search(r'Xcode\s+(\d+)', text)
+          if not match or int(match.group(1)) < 26:
+              raise SystemExit(f'Xcode 26+ required for Godot 4.7.2 official iOS templates; got: {text.strip()}')
+          PY
 
       - name: Install verified Godot 4.7.2 editor
         shell: bash
@@ -154,7 +161,7 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             build 2>&1 | tee "$RUNNER_TEMP/xcodebuild-ios.log"
 
-      - name: Reject known Godot 4.7 SDL linker regression
+      - name: Reject known iOS linker regressions
         if: always()
         shell: bash
         run: |
@@ -162,6 +169,10 @@ jobs:
           log="$RUNNER_TEMP/xcodebuild-ios.log"
           if test -f "$log" && grep -Eq '_SDL_IsIPad|_SDL_IsAppleTV' "$log"; then
             echo 'Known Godot 4.7-family iOS SDL linker regression detected.' >&2
+            exit 1
+          fi
+          if test -f "$log" && grep -Eq '_CADynamicRangeAutomatic|_MTLTensorDomain' "$log"; then
+            echo 'Godot 4.7.2 template was linked with an Apple SDK too old for its Metal symbols.' >&2
             exit 1
           fi
 
@@ -172,6 +183,8 @@ jobs:
           name: twelve-count-v09-ios-export-link-evidence
           path: |
             build/ios/TwelveCount.xcodeproj/project.pbxproj
+            ${{ runner.temp }}/xcode-version.log
+            ${{ runner.temp }}/iphoneos-sdk-version.log
             ${{ runner.temp }}/godot-ios-export.log
             ${{ runner.temp }}/xcode-list.json
             ${{ runner.temp }}/xcodebuild-ios.log
