@@ -35,8 +35,14 @@ for plan in plans:
         assert action_id in ACTIONS, f"unknown action in plan {plan['id']}: {action_id}"
         required = modifiers.get("requires_target_actions", [])
         assert all(action in ACTIONS for action in required), f"unknown conditional target action in {plan['id']}:{action_id}"
+        miss_read = modifiers.get("miss_read_stats", {})
+        if miss_read:
+            assert required, f"miss-read modifiers require a conditional action: {plan['id']}:{action_id}"
+            for stat, delta in miss_read.items():
+                assert stat in STATS, f"unknown miss-read stat {stat} in {plan['id']}:{action_id}"
+                assert -10 <= int(delta) <= 0, f"miss-read modifier must be a bounded penalty: {plan['id']}:{action_id}:{stat}"
         for stat, delta in modifiers.items():
-            if stat == "requires_target_actions":
+            if stat in {"requires_target_actions", "miss_read_stats"}:
                 continue
             assert stat in STATS, f"unknown action modifier stat {stat}"
             assert -10 <= int(delta) <= 10, f"action modifier too extreme: {plan['id']} {action_id} {stat}"
