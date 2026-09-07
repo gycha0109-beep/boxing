@@ -45,7 +45,7 @@ func _render_status() -> void:
         ]
         return
 
-    status.text = "%s · %s #%d · %s · %s\n체중 %.1fkg · 피로 %d%% · 건강 %d%% · 보유금 %,d원%s" % [
+    status.text = "%s · %s #%d · %s · %s\n체중 %.1fkg · 피로 %d%% · 건강 %d%% · 보유금 %d원%s" % [
         str(boxer.get("name", "BOXER")), GameState.tier_label(), int(career.get("rank", 0)), record, GameState.age_text(),
         float(boxer.get("weight_kg", 0.0)), int(boxer.get("fatigue", 0)), int(boxer.get("health", 0)), int(career.get("money", 0)), injury_text
     ]
@@ -71,7 +71,7 @@ func _render_launch_title() -> void:
     var portrait := VisualAssetCatalog.portrait_texture(true)
     if portrait != null:
         var hero_portrait := _portrait_view(portrait, 248.0)
-        hero_portrait.custom_minimum_size.y = 260.0
+        hero_portrait.custom_minimum_size = Vector2(248.0, 260.0)
         hero.add_child(hero_portrait)
 
     var copy := Label.new()
@@ -278,7 +278,7 @@ func _render_result() -> void:
 
     var plan: Dictionary = GameState.get_game_plan(str(summary.get("game_plan", "balanced")))
     var meta := Label.new()
-    meta.text = "%s · 수입 %,d원" % [str(plan.get("name", "균형 운영")), int(summary.get("purse", 0))]
+    meta.text = "%s · 수입 %d원" % [str(plan.get("name", "균형 운영")), int(summary.get("purse", 0))]
     meta.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
     meta.add_theme_color_override("font_color", V08_MUTED)
     hero.add_child(meta)
