@@ -36,13 +36,10 @@ func _render_camp() -> void:
     _section("이번 캠프", "한 번의 선택만 할 수 있습니다. 성장, 회복, 체중 중 무엇을 포기할지 결정합니다.%s" % injury_note)
 
     for action in camp_actions:
-        var details: Array[String] = []
-        for key in action.effects.keys():
-            details.append("%s %s" % [str(key), _signed_value(action.effects[key])])
         var affordable: bool = int(GameState.state.career.money) >= int(action.cost)
         var card := _card_box(str(action.name))
         _add_wrapped_label(card, "비용 %d원 · 부상 위험 %.1f%%" % [int(action.cost), float(action.risk) * 100.0], true)
-        _add_wrapped_label(card, ", ".join(details), false)
+        _add_wrapped_label(card, _camp_effect_text(action.get("effects", {})), false)
         if not affordable:
             _add_wrapped_label(card, "자금 부족", true)
         var choose := Button.new()
@@ -74,7 +71,7 @@ func _render_game_plan() -> void:
     var tendencies: Dictionary = current_opponent.get("tendencies", {})
     _section("상대 스카우팅 · %s" % current_opponent.name,
         "스타일: %s · 랭킹 #%d\n강점: %s\n약점: %s\n텔: %s\n\n행동 경향: %s" % [
-            str(current_opponent.style), int(current_opponent.rank),
+            _style_label(str(current_opponent.style)), int(current_opponent.rank),
             str(scouting.get("strength", "정보 부족")),
             str(scouting.get("weakness", "정보 부족")),
             str(scouting.get("tell", "정보 부족")),
@@ -135,8 +132,8 @@ func _render_offer_card(opponent: Dictionary) -> void:
     info.add_child(name_label)
 
     var style_label := Label.new()
-    var title_mark := " · TITLE" if bool(opponent.get("title_fight", false)) else ""
-    style_label.text = "%s · %s%s" % [str(opponent.get("tier", "")), str(opponent.get("style", "")), title_mark]
+    var title_mark := " · 타이틀전" if bool(opponent.get("title_fight", false)) else ""
+    style_label.text = "%s · %s%s" % [_tier_label(str(opponent.get("tier", ""))), _style_label(str(opponent.get("style", ""))), title_mark]
     style_label.add_theme_color_override("font_color", V07_ACCENT)
     info.add_child(style_label)
 
@@ -152,7 +149,7 @@ func _render_offer_card(opponent: Dictionary) -> void:
 
     var stats: Dictionary = opponent.get("stats", {})
     var stats_label := Label.new()
-    stats_label.text = "P%d  S%d  T%d  D%d  C%d" % [
+    stats_label.text = "파워 %d · 스피드 %d · 테크닉 %d\n수비 %d · 체력 %d" % [
         int(stats.get("power", 0)), int(stats.get("speed", 0)), int(stats.get("technique", 0)),
         int(stats.get("defense", 0)), int(stats.get("conditioning", 0))
     ]
@@ -215,7 +212,7 @@ func _render_opponent_visual_card(opponent: Dictionary, title: String) -> void:
     name_label.add_theme_font_size_override("font_size", 21)
     info.add_child(name_label)
     var meta := Label.new()
-    meta.text = "%s · #%d" % [str(opponent.get("style", "")), int(opponent.get("rank", 0))]
+    meta.text = "%s · #%d" % [_style_label(str(opponent.get("style", ""))), int(opponent.get("rank", 0))]
     meta.add_theme_color_override("font_color", V07_ACCENT)
     info.add_child(meta)
     var scouting: Dictionary = opponent.get("scouting", {})
@@ -235,3 +232,39 @@ func _portrait_view(texture: Texture2D, extent: float) -> TextureRect:
     view.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
     view.mouse_filter = Control.MOUSE_FILTER_IGNORE
     return view
+
+func _style_label(style_id: String) -> String:
+    match style_id:
+        "swarmer": return "인파이터"
+        "out_boxer": return "아웃복서"
+        "slugger": return "슬러거"
+        "counter", "counter_puncher": return "카운터 펀처"
+        _: return style_id.replace("_", " ").capitalize()
+
+func _tier_label(tier_id: String) -> String:
+    match tier_id:
+        "prospect": return "프로스펙트"
+        "regional": return "지역 랭커"
+        "contender": return "컨텐더"
+        "title": return "타이틀"
+        _: return tier_id.replace("_", " ").capitalize()
+
+func _camp_effect_text(effects: Dictionary) -> String:
+    var order := ["power", "speed", "technique", "defense", "conditioning", "fatigue", "health", "weight", "injury_camps"]
+    var labels := {
+        "power":"파워", "speed":"스피드", "technique":"테크닉", "defense":"수비", "conditioning":"체력",
+        "fatigue":"피로", "health":"건강", "weight":"체중", "injury_camps":"부상 기간"
+    }
+    var parts: Array[String] = []
+    for key in order:
+        if not effects.has(key):
+            continue
+        var value: float = float(effects[key])
+        var sign := "+" if value > 0.0 else ""
+        if key == "weight":
+            parts.append("%s %s%.2fkg" % [labels[key], sign, value])
+        elif key == "injury_camps":
+            parts.append("%s %s%d캠프" % [labels[key], sign, int(value)])
+        else:
+            parts.append("%s %s%d" % [labels[key], sign, int(value)])
+    return " · ".join(parts)
