@@ -24,6 +24,8 @@ jobs:
         run: python3 tools/project_sanity.py
       - name: Validate iOS release packaging contract
         run: python3 tools/validate_ios_release_v09.py
+      - name: Validate bundled Korean release font
+        run: python3 tools/validate_release_font_v10.py
       - name: Validate v0.7 visual asset contract
         run: python3 tools/validate_visual_assets_v07.py
       - name: Validate career invariants
@@ -92,3 +94,5 @@ jobs:
         run: timeout 60s Godot_v${GODOT_VERSION}_linux.x86_64 --headless --path . --script res://tests/v07_visual_integration_smoke.gd
       - name: Verify v0.8 first-five-minutes release flow
         run: timeout 60s Godot_v${GODOT_VERSION}_linux.x86_64 --headless --path . --script res://tests/v08_first_five_minutes_smoke.gd
+      - name: Verify v1.0 bundled Korean release font
+        run: timeout 60s Godot_v${GODOT_VERSION}_linux.x86_64 --headless --path . --script res://tests/v10_release_font_smoke.gd

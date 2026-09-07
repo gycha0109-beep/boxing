@@ -1,0 +1,73 @@
+name: Visual Capture v1.0
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/visual-capture-v10.yml
+      - scenes/**
+      - scripts/**
+      - assets/**
+      - data/**
+      - tests/visual_capture_v10.gd
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  capture-release-flow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GODOT_VERSION: 4.7.2-stable
+      GODOT_ZIP_SHA256: cadd3204e728a35d3f13adb7fd0d7902636b79f6b95c40c265eb73b6c35329e4
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install verified Godot 4.7.2 stable
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          curl --fail --location --retry 3 --output "$RUNNER_TEMP/godot.zip" "$url"
+          echo "${GODOT_ZIP_SHA256}  $RUNNER_TEMP/godot.zip" | sha256sum --check --strict
+          mkdir -p "$RUNNER_TEMP/godot"
+          unzip -q "$RUNNER_TEMP/godot.zip" -d "$RUNNER_TEMP/godot"
+          chmod +x "$RUNNER_TEMP/godot/Godot_v${GODOT_VERSION}_linux.x86_64"
+          echo "$RUNNER_TEMP/godot" >> "$GITHUB_PATH"
+
+      - name: Import project and bundled font
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 90s Godot_v${GODOT_VERSION}_linux.x86_64 --headless --editor --path . --quit
+
+      - name: Install virtual display
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y xvfb
+
+      - name: Capture release flow at 430x932
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf visual-captures/v1.0-font
+          mkdir -p visual-captures/v1.0-font
+          xvfb-run -a -s "-screen 0 430x932x24" \
+            Godot_v${GODOT_VERSION}_linux.x86_64 --path . --script res://tests/visual_capture_v10.gd
+          test "$(find visual-captures/v1.0-font -maxdepth 1 -name '*.png' | wc -l)" -eq 8
+          file visual-captures/v1.0-font/*.png | tee "$RUNNER_TEMP/capture-files.log"
+          if grep -v 'PNG image data, 430 x 932' "$RUNNER_TEMP/capture-files.log"; then
+            echo 'one or more release captures are not 430x932 PNGs' >&2
+            exit 1
+          fi
+
+      - name: Upload release visual captures
+        uses: actions/upload-artifact@v6
+        with:
+          name: twelve-count-v10-bundled-font-430x932
+          path: visual-captures/v1.0-font/*.png
+          if-no-files-found: error
+          retention-days: 3
