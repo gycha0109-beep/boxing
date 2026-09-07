@@ -17,6 +17,8 @@ var telegraph: Dictionary = {}
 var last_exchange: Dictionary = {}
 var player_name: String = "PLAYER"
 var opponent_name: String = "OPPONENT"
+var opponent_style: String = "swarmer"
+var title_fight: bool = false
 
 var player_pose: String = "guard"
 var opponent_pose: String = "guard"
@@ -25,6 +27,7 @@ var telegraph_action: String = ""
 var animation_progress: float = 0.0
 var impact_flash: float = 0.0
 var presentation_event_id: int = 0
+var commercial_assets_active: bool = false
 
 func _ready() -> void:
     name = "FightStage"
@@ -36,6 +39,9 @@ func _ready() -> void:
 func configure(player_label: String, opponent_label: String, combat_snapshot: Dictionary, opponent_read: Dictionary) -> void:
     player_name = player_label
     opponent_name = opponent_label
+    opponent_style = VisualAssetCatalog.opponent_style_for_name(opponent_label)
+    title_fight = VisualAssetCatalog.is_title_opponent(opponent_label)
+    commercial_assets_active = VisualAssetCatalog.asset_pack_available()
     snapshot = combat_snapshot.duplicate(true)
     telegraph = opponent_read.duplicate(true)
     telegraph_action = str(telegraph.get("action_id", ""))
@@ -90,20 +96,16 @@ func _draw() -> void:
     if w < 80.0:
         return
 
-    draw_rect(Rect2(Vector2.ZERO, Vector2(w, h)), BG, true)
-    var floor_rect := Rect2(Vector2(12.0, h * 0.48), Vector2(w - 24.0, h * 0.40))
-    draw_rect(floor_rect, RING_FLOOR, true)
+    var arena_texture := VisualAssetCatalog.arena_texture(title_fight)
+    if arena_texture != null:
+        draw_texture_rect(arena_texture, Rect2(Vector2.ZERO, Vector2(w, h)), false, Color(0.82, 0.82, 0.86, 1.0))
+    else:
+        _draw_procedural_arena(w, h)
 
-    var rope_y := [h * 0.28, h * 0.39, h * 0.50]
-    for y in rope_y:
-        draw_line(Vector2(10.0, y), Vector2(w - 10.0, y), ROPE, 2.0)
-    draw_line(Vector2(14.0, h * 0.22), Vector2(14.0, h * 0.88), Color(0.75, 0.76, 0.80), 4.0)
-    draw_line(Vector2(w - 14.0, h * 0.22), Vector2(w - 14.0, h * 0.88), Color(0.75, 0.76, 0.80), 4.0)
-
-    var player_center := Vector2(w * 0.32, h * 0.78) + _fighter_motion(true)
-    var opponent_center := Vector2(w * 0.68, h * 0.78) + _fighter_motion(false)
-    _draw_fighter(player_center, 1.0, PLAYER, player_pose)
-    _draw_fighter(opponent_center, -1.0, OPPONENT, opponent_pose)
+    var player_center := Vector2(w * 0.32, h * 0.82) + _fighter_motion(true)
+    var opponent_center := Vector2(w * 0.68, h * 0.82) + _fighter_motion(false)
+    _draw_fighter_asset_or_fallback(player_center, 1.0, true, "", PLAYER, player_pose)
+    _draw_fighter_asset_or_fallback(opponent_center, -1.0, false, opponent_style, OPPONENT, opponent_pose)
 
     if not telegraph_action.is_empty():
         var read_center := opponent_center + Vector2(0.0, -116.0)
@@ -114,17 +116,49 @@ func _draw() -> void:
     if not last_exchange.is_empty() and impact_flash > 0.01:
         var impact_center := (player_center + opponent_center) * 0.5
         if bool(last_exchange.get("player_event", {}).get("hit", false)):
-            impact_center = opponent_center + Vector2(-22.0, -58.0)
+            impact_center = opponent_center + Vector2(-22.0, -62.0)
         elif bool(last_exchange.get("opponent_event", {}).get("hit", false)):
-            impact_center = player_center + Vector2(22.0, -58.0)
-        var flash_color := COUNTER if last_animation_profile == "counter" else IMPACT
-        flash_color.a = clamp(impact_flash, 0.0, 1.0)
-        draw_circle(impact_center, 16.0 + 18.0 * impact_flash, flash_color)
-        draw_line(impact_center + Vector2(-28, 0), impact_center + Vector2(28, 0), flash_color, 3.0)
-        draw_line(impact_center + Vector2(0, -28), impact_center + Vector2(0, 28), flash_color, 3.0)
-        if last_animation_profile in ["counter", "knockdown"]:
-            draw_line(impact_center + Vector2(-20, -20), impact_center + Vector2(20, 20), flash_color, 3.0)
-            draw_line(impact_center + Vector2(-20, 20), impact_center + Vector2(20, -20), flash_color, 3.0)
+            impact_center = player_center + Vector2(22.0, -62.0)
+        var fx_texture := VisualAssetCatalog.fx_texture(last_exchange)
+        if fx_texture != null:
+            var fx_size := 92.0 + 52.0 * impact_flash
+            var fx_rect := Rect2(impact_center - Vector2(fx_size, fx_size) * 0.5, Vector2(fx_size, fx_size))
+            var modulate := Color(1.0, 1.0, 1.0, clamp(impact_flash, 0.0, 1.0))
+            draw_texture_rect(fx_texture, fx_rect, false, modulate)
+        else:
+            _draw_procedural_impact(impact_center)
+
+func _draw_procedural_arena(w: float, h: float) -> void:
+    draw_rect(Rect2(Vector2.ZERO, Vector2(w, h)), BG, true)
+    var floor_rect := Rect2(Vector2(12.0, h * 0.48), Vector2(w - 24.0, h * 0.40))
+    draw_rect(floor_rect, RING_FLOOR, true)
+    var rope_y := [h * 0.28, h * 0.39, h * 0.50]
+    for y in rope_y:
+        draw_line(Vector2(10.0, y), Vector2(w - 10.0, y), ROPE, 2.0)
+    draw_line(Vector2(14.0, h * 0.22), Vector2(14.0, h * 0.88), Color(0.75, 0.76, 0.80), 4.0)
+    draw_line(Vector2(w - 14.0, h * 0.22), Vector2(w - 14.0, h * 0.88), Color(0.75, 0.76, 0.80), 4.0)
+
+func _draw_fighter_asset_or_fallback(center: Vector2, facing: float, is_player: bool, style_id: String, tint: Color, pose: String) -> void:
+    var texture := VisualAssetCatalog.fighter_texture(is_player, style_id, pose)
+    if texture == null:
+        _draw_fighter(center, facing, tint, pose)
+        return
+    var sprite_size := Vector2(154.0, 194.0)
+    if pose == "down":
+        sprite_size = Vector2(180.0, 138.0)
+    draw_set_transform(center, 0.0, Vector2(facing, 1.0))
+    draw_texture_rect(texture, Rect2(-sprite_size.x * 0.5, -sprite_size.y, sprite_size.x, sprite_size.y), false)
+    draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+func _draw_procedural_impact(impact_center: Vector2) -> void:
+    var flash_color := COUNTER if last_animation_profile == "counter" else IMPACT
+    flash_color.a = clamp(impact_flash, 0.0, 1.0)
+    draw_circle(impact_center, 16.0 + 18.0 * impact_flash, flash_color)
+    draw_line(impact_center + Vector2(-28, 0), impact_center + Vector2(28, 0), flash_color, 3.0)
+    draw_line(impact_center + Vector2(0, -28), impact_center + Vector2(0, 28), flash_color, 3.0)
+    if last_animation_profile in ["counter", "knockdown"]:
+        draw_line(impact_center + Vector2(-20, -20), impact_center + Vector2(20, 20), flash_color, 3.0)
+        draw_line(impact_center + Vector2(-20, 20), impact_center + Vector2(20, -20), flash_color, 3.0)
 
 func _fighter_motion(is_player: bool) -> Vector2:
     if last_exchange.is_empty() or animation_progress <= 0.0:
