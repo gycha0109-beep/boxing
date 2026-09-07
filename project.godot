@@ -4,6 +4,7 @@ config_version=5
 
 [application]
 config/name="Twelve Count"
+config/version="1.0.0"
 run/main_scene="res://scenes/Main.tscn"
 config/features=PackedStringArray("4.7")
 
@@ -18,6 +19,7 @@ window/handheld/orientation=1
 [rendering]
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
+textures/vram_compression/import_etc2_astc=true
 environment/defaults/default_clear_color=Color(0.055, 0.06, 0.075, 1)
 
 [autoload]
