@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  clean-vertical-slice:
+  clean-commercial-pack:
     runs-on: ubuntu-latest
     steps:
       - name: Check out current feature head
@@ -29,9 +29,9 @@ jobs:
           count=$(find assets/visual/v0.7/fighters -type f -name '*.png' | wc -l | tr -d ' ')
           echo "fighter_png_count=$count"
           test "$count" -eq 40
-      - name: Clean Player + Swarmer vertical slice
+      - name: Clean full commercial fighter pack
         run: python tools/clean_fighter_assets_v071.py
-      - name: Verify cleanup is idempotent
+      - name: Verify cleanup and substitutions are canonical
         shell: bash
         run: |
           set -euo pipefail
@@ -47,10 +47,10 @@ jobs:
           mapfile -t changed < <(git diff --name-only -- assets/visual/v0.7/fighters)
           printf '%s\n' "${changed[@]}"
           test "${#changed[@]}" -gt 0
-          test "${#changed[@]}" -le 16
+          test "${#changed[@]}" -le 40
           for path in "${changed[@]}"; do
             case "$path" in
-              assets/visual/v0.7/fighters/player/*.png|assets/visual/v0.7/fighters/opponents/swarmer/*.png) ;;
+              assets/visual/v0.7/fighters/player/*.png|assets/visual/v0.7/fighters/opponents/swarmer/*.png|assets/visual/v0.7/fighters/opponents/outboxer/*.png|assets/visual/v0.7/fighters/opponents/slugger/*.png|assets/visual/v0.7/fighters/opponents/counter/*.png) ;;
               *) echo "unexpected changed path: $path"; exit 1 ;;
             esac
           done
@@ -60,7 +60,7 @@ jobs:
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add assets/visual/v0.7/fighters/player assets/visual/v0.7/fighters/opponents/swarmer
+          git add assets/visual/v0.7/fighters
           git diff --cached --quiet && { echo 'no cleaned PNG changes'; exit 1; }
-          git commit -m 'assets: clean vertical slice fighter sprites v0.7.1'
+          git commit -m 'assets: clean full commercial fighter pack v0.7.1'
           git push origin HEAD:feat/commercial-visual-integration-v0.7
