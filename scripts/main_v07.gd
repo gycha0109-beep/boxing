@@ -2,13 +2,6 @@ extends "res://scripts/main_v06.gd"
 
 const V07_MUTED := Color(0.68, 0.70, 0.75, 1.0)
 const V07_ACCENT := Color(0.92, 0.70, 0.34, 1.0)
-const V07_FONT_NAMES := PackedStringArray([
-    "Apple SD Gothic Neo",
-    "Malgun Gothic",
-    "Noto Sans CJK KR",
-    "Noto Sans KR",
-    "sans-serif",
-])
 
 func _ready() -> void:
     _apply_v07_system_font()
@@ -16,7 +9,13 @@ func _ready() -> void:
 
 func _apply_v07_system_font() -> void:
     var system_font := SystemFont.new()
-    system_font.font_names = V07_FONT_NAMES
+    system_font.font_names = PackedStringArray([
+        "Apple SD Gothic Neo",
+        "Malgun Gothic",
+        "Noto Sans CJK KR",
+        "Noto Sans KR",
+        "sans-serif",
+    ])
     system_font.allow_system_fallback = true
     var ui_theme := Theme.new()
     ui_theme.default_font = system_font
