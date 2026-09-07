@@ -11,7 +11,7 @@ The icon must read as **Twelve Count / premium boxing career** before it reads a
 Locked direction:
 
 - one boxer only
-- close 3/4 head-and-upper-torso composition
+- close head-and-upper-torso composition
 - high boxing guard with red gloves
 - stern, focused expression
 - dark navy / near-black fight-night background
@@ -37,6 +37,12 @@ Do not use:
 Final master path:
 
 `assets/release/icon/app_store_1024.png`
+
+The release image is generated deterministically from already accepted product art, not from an independent store-only illustration:
+
+- boxer source: `assets/visual/v0.7/fighters/player/player_base_guard.png`
+- arena source: `assets/visual/v0.7/arena/arena_title_night.png`
+- builder: `tools/build_app_icon_v10.py`
 
 Requirements:
 
@@ -68,7 +74,7 @@ The smaller files must be resized from the accepted 1024 master; they are not in
 
 `python3 tools/validate_app_icon_v10.py`
 
-The validator must reject:
+The validator rejects:
 
 - missing slot wiring in `export_presets.cfg`
 - missing files
@@ -97,6 +103,16 @@ PASS requires all of the following:
 - consistent premium fight-night palette with the actual product
 
 If the 1024 image looks attractive but the 60/40px versions collapse into noise, the icon is **FAIL**.
+
+## Accepted release evidence
+
+- App Icon build/review workflow: `34160941499`
+- review artifact: `10032566715` / `twelve-count-app-icon-v10-review`
+- generated binary commit: `bd159457505e5db1e426e29eb1cdf59a2a57fdee`
+- inspected sizes: 1024 / 180 / 120 / 60 / 40
+- visual verdict: **PASS**
+
+Direct review confirmed that the final composition keeps the player's high guard and red gloves readable at 60px and remains recognizable as a boxer at 40px. No text, rounded mask, transparent fringe, duplicate limb, or unrelated fragment is present.
 
 ## Release boundary
 
