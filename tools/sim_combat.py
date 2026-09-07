@@ -19,6 +19,7 @@ PLAN_POLICIES = {
     "counter_trap": [("counter",.46),("jab",.28),("guard",.14),("body",.08),("power",.04)],
 }
 STATS = ("power", "speed", "technique", "defense", "conditioning")
+COMMITTED_ATTACKS = {"power", "body"}
 
 
 def weighted(rng, items):
@@ -115,13 +116,17 @@ def fight(seed, opponent, player, plan_id="balanced"):
     p_sta = max(42.0, min(100.0, 100.0 - p_fatigue * .55 - max(0.0, 100.0 - p_health) * .25))
     o_sta = 100.0; cards = []
     opponent_weights = _opponent_weights(opponent)
-    initiative_bias = float(plan.get("initiative_bias", 0.0))
     for _rnd in range(BAL["fight"]["rounds"]):
         ps = os = 0.0
         for _ in range(BAL["fight"]["exchanges_per_round"]):
             pa = player_policy(rng, opponent["style"], p_sta, o_sta, plan_id)
             oa = weighted(rng, opponent_weights)
-            order = [True, False] if p["speed"] + initiative_bias + rng.uniform(-10,10) >= o["speed"] + rng.uniform(-10,10) else [False, True]
+            if pa == "counter" and oa in COMMITTED_ATTACKS:
+                order = [False, True]
+            elif oa == "counter" and pa in COMMITTED_ATTACKS:
+                order = [True, False]
+            else:
+                order = [True, False] if p["speed"] + rng.uniform(-10,10) >= o["speed"] + rng.uniform(-10,10) else [False, True]
             for order_index, is_player in enumerate(order):
                 actor, target = (p, o) if is_player else (o, p)
                 act, tact = (pa, oa) if is_player else (oa, pa)
