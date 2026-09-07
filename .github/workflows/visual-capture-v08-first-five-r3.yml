@@ -1,0 +1,62 @@
+name: Visual Capture v0.8 First Five Minutes R3
+
+on:
+  push:
+    branches:
+      - chore/visual-capture-v08-first-five-r3
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GODOT_VERSION: 4.7.2-stable
+      GODOT_ZIP_SHA256: cadd3204e728a35d3f13adb7fd0d7902636b79f6b95c40c265eb73b6c35329e4
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install verified Godot 4.7.2 stable
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          curl --fail --location --retry 3 --output "$RUNNER_TEMP/godot.zip" "$url"
+          echo "${GODOT_ZIP_SHA256}  $RUNNER_TEMP/godot.zip" | sha256sum --check --strict
+          mkdir -p "$RUNNER_TEMP/godot"
+          unzip -q "$RUNNER_TEMP/godot.zip" -d "$RUNNER_TEMP/godot"
+          chmod +x "$RUNNER_TEMP/godot/Godot_v${GODOT_VERSION}_linux.x86_64"
+          echo "$RUNNER_TEMP/godot" >> "$GITHUB_PATH"
+      - name: Install virtual display and Korean system font
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y xvfb fonts-noto-cjk
+          fc-match 'Noto Sans CJK KR'
+      - name: Import project and fail on script errors
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 90s Godot_v${GODOT_VERSION}_linux.x86_64 --headless --editor --path . --quit 2>&1 | tee /tmp/godot-import.log
+          if grep -Eq 'SCRIPT ERROR:|Parse Error:|Failed to load script' /tmp/godot-import.log; then
+            echo 'Godot import reported a script error'
+            exit 1
+          fi
+      - name: Capture v0.8 first-five flow at 430x932
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf visual-captures
+          mkdir -p visual-captures
+          xvfb-run -a -s "-screen 0 430x932x24" Godot_v${GODOT_VERSION}_linux.x86_64 --path . --script res://tests/visual_capture_v08_first_five.gd
+          count=$(find visual-captures -maxdepth 1 -type f -name '*.png' | wc -l | tr -d ' ')
+          echo "v08_capture_count=$count"
+          test "$count" -eq 9
+          file visual-captures/*.png
+      - name: Upload v0.8 visual captures
+        uses: actions/upload-artifact@v6
+        with:
+          name: twelve-count-v08-first-five-r3-visuals
+          path: visual-captures/*.png
+          if-no-files-found: error
+          retention-days: 1
