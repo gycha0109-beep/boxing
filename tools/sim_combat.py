@@ -5,12 +5,22 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 BAL = json.loads((ROOT / "data/balance.json").read_text())
+PLANS = {p["id"]: p for p in json.loads((ROOT / "data/game_plans.json").read_text())} if (ROOT / "data/game_plans.json").exists() else {}
 STYLE_WEIGHTS = {
     "swarmer": [("body",.34),("jab",.30),("power",.20),("guard",.10),("counter",.06)],
     "out_boxer": [("jab",.48),("guard",.19),("counter",.16),("body",.10),("power",.07)],
     "slugger": [("power",.48),("body",.22),("jab",.12),("guard",.10),("counter",.08)],
     "counter": [("counter",.38),("jab",.26),("guard",.16),("body",.11),("power",.09)],
 }
+PLAN_POLICIES = {
+    "outside_boxing": [("jab",.48),("counter",.20),("guard",.17),("body",.10),("power",.05)],
+    "body_breakdown": [("body",.48),("jab",.20),("guard",.14),("counter",.10),("power",.08)],
+    "pressure": [("power",.38),("body",.34),("jab",.16),("guard",.07),("counter",.05)],
+    "counter_trap": [("counter",.46),("jab",.28),("guard",.14),("body",.08),("power",.04)],
+}
+STATS = ("power", "speed", "technique", "defense", "conditioning")
+COMMITTED_ATTACKS = {"power", "body"}
+
 
 def weighted(rng, items):
     x = rng.random(); acc = 0.0
@@ -20,9 +30,20 @@ def weighted(rng, items):
             return name
     return items[-1][0]
 
-def player_policy(rng, opp_style, p_sta, _o_sta):
+
+def _opponent_weights(opponent):
+    tendencies = opponent.get("tendencies", {})
+    if tendencies:
+        order = ("jab", "power", "body", "guard", "counter")
+        return [(name, float(tendencies.get(name, 0.0))) for name in order]
+    return STYLE_WEIGHTS[opponent["style"]]
+
+
+def player_policy(rng, opp_style, p_sta, _o_sta, plan_id="balanced"):
     if p_sta < 28:
         return "guard"
+    if plan_id in PLAN_POLICIES:
+        return weighted(rng, PLAN_POLICIES[plan_id])
     if opp_style == "slugger":
         return weighted(rng, [("counter",.42),("jab",.30),("guard",.18),("body",.10)])
     if opp_style == "counter":
@@ -31,7 +52,32 @@ def player_policy(rng, opp_style, p_sta, _o_sta):
         return weighted(rng, [("body",.38),("jab",.30),("power",.18),("guard",.14)])
     return weighted(rng, [("jab",.32),("body",.30),("guard",.18),("counter",.12),("power",.08)])
 
-def _hit(rng, actor, target, action_id, target_action, stamina):
+
+def _apply_global_plan(player, plan):
+    out = {**player, "modifiers": dict(player.get("modifiers", {}))}
+    for stat, delta in plan.get("global_stats", {}).items():
+        out[stat] = max(1, min(100, int(out.get(stat, 50)) + int(delta)))
+    return out
+
+
+def _apply_action_plan(actor, plan, action_id, target_action, reactive_window):
+    mods = plan.get("action_modifiers", {}).get(action_id, {})
+    if not mods:
+        return actor
+    required = mods.get("requires_target_actions", [])
+    source = mods
+    if required and (not reactive_window or target_action not in required):
+        source = mods.get("miss_read_stats", {})
+        if not source:
+            return actor
+    out = {**actor, "modifiers": dict(actor.get("modifiers", {}))}
+    for stat in STATS:
+        if stat in source:
+            out[stat] = max(1, min(100, int(out.get(stat, 50)) + int(source[stat])))
+    return out
+
+
+def _hit(rng, actor, target, action_id, target_action, stamina, reactive_window):
     action = BAL["actions"][action_id]
     if action_id == "guard":
         return 0.0, action["stamina"], 0.0
@@ -41,9 +87,9 @@ def _hit(rng, actor, target, action_id, target_action, stamina):
     acc += actor.get("modifiers", {}).get("accuracy_bonus", 0.0)
     acc -= max(0.0, 45 - stamina) * BAL["fight"]["fatigue_accuracy_penalty"]
     mult = 1.0; matchups = BAL["matchups"]
-    if action_id == "counter" and target_action == "power":
+    if reactive_window and action_id == "counter" and target_action == "power":
         acc += matchups["counter_vs_power"]["accuracy"]; mult *= matchups["counter_vs_power"]["damage"]
-    elif action_id == "counter" and target_action == "body":
+    elif reactive_window and action_id == "counter" and target_action == "body":
         acc += matchups["counter_vs_body"]["accuracy"]; mult *= matchups["counter_vs_body"]["damage"]
     elif action_id == "jab" and target_action == "counter":
         acc += matchups["jab_vs_counter"]["accuracy"]; mult *= matchups["jab_vs_counter"]["damage"]
@@ -60,9 +106,11 @@ def _hit(rng, actor, target, action_id, target_action, stamina):
         dmg *= BAL["fight"]["guard_mitigation"]
     return max(0.0, dmg), cost, action["body_stamina_damage"]
 
-def fight(seed, opponent, player):
+
+def fight(seed, opponent, player, plan_id="balanced"):
     rng = random.Random(seed)
-    p = {**player}
+    plan = PLANS.get(plan_id, PLANS.get("balanced", {}))
+    p = _apply_global_plan(player, plan)
     p.setdefault("modifiers", {})
     o = {**opponent["stats"], "modifiers": {}}
     p_health = float(p.get("health", 100)); p_fatigue = float(p.get("fatigue", 0))
@@ -70,17 +118,25 @@ def fight(seed, opponent, player):
     o_hp = 100.0
     p_sta = max(42.0, min(100.0, 100.0 - p_fatigue * .55 - max(0.0, 100.0 - p_health) * .25))
     o_sta = 100.0; cards = []
+    opponent_weights = _opponent_weights(opponent)
     for _rnd in range(BAL["fight"]["rounds"]):
         ps = os = 0.0
         for _ in range(BAL["fight"]["exchanges_per_round"]):
-            pa = player_policy(rng, opponent["style"], p_sta, o_sta)
-            oa = weighted(rng, STYLE_WEIGHTS[opponent["style"]])
-            order = [True, False] if p["speed"] + rng.uniform(-10,10) >= o["speed"] + rng.uniform(-10,10) else [False, True]
-            for is_player in order:
+            pa = player_policy(rng, opponent["style"], p_sta, o_sta, plan_id)
+            oa = weighted(rng, opponent_weights)
+            if pa == "counter" and oa in COMMITTED_ATTACKS:
+                order = [False, True]
+            elif oa == "counter" and pa in COMMITTED_ATTACKS:
+                order = [True, False]
+            else:
+                order = [True, False] if p["speed"] + rng.uniform(-10,10) >= o["speed"] + rng.uniform(-10,10) else [False, True]
+            for order_index, is_player in enumerate(order):
                 actor, target = (p, o) if is_player else (o, p)
                 act, tact = (pa, oa) if is_player else (oa, pa)
+                reactive_window = order_index == 1
+                effective_actor = _apply_action_plan(actor, plan, act, tact, reactive_window) if is_player else actor
                 sta = p_sta if is_player else o_sta
-                dmg, cost, body = _hit(rng, actor, target, act, tact, sta)
+                dmg, cost, body = _hit(rng, effective_actor, target, act, tact, sta, reactive_window)
                 if act == "guard":
                     if is_player: p_sta = min(100.0, p_sta - cost); ps += BAL["actions"][act]["score"]
                     else: o_sta = min(100.0, o_sta - cost); os += BAL["actions"][act]["score"]

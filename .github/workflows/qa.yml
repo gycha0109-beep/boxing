@@ -12,18 +12,22 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.13'
       - name: Validate content data
         run: python3 tools/test_data.py
+      - name: Validate fighter identity, scouting, and game-plan data
+        run: python3 tools/test_gameplans.py
       - name: Validate project structure
         run: python3 tools/project_sanity.py
       - name: Validate career invariants
         run: python3 tools/test_career_logic.py
       - name: Simulate opponent ladder
         run: python3 tools/simulate_balance.py
+      - name: Simulate game-plan matchups
+        run: python3 tools/simulate_gameplans.py
       - name: Simulate 10,000 careers
         run: python3 tools/simulate_careers.py
 
@@ -34,7 +38,7 @@ jobs:
       GODOT_VERSION: 4.7.2-stable
       GODOT_ZIP_SHA256: cadd3204e728a35d3f13adb7fd0d7902636b79f6b95c40c265eb73b6c35329e4
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install verified Godot 4.7.2 stable
         shell: bash
         run: |
@@ -49,8 +53,26 @@ jobs:
       - name: Verify engine version
         run: Godot_v${GODOT_VERSION}_linux.x86_64 --version
       - name: Parse and import project headlessly
-        run: timeout 90s Godot_v${GODOT_VERSION}_linux.x86_64 --headless --editor --path . --quit
+        shell: bash
+        run: |
+          set -euo pipefail
+          log="$RUNNER_TEMP/godot-import.log"
+          timeout 90s Godot_v${GODOT_VERSION}_linux.x86_64 --headless --editor --path . --quit 2>&1 | tee "$log"
+          if grep -Eq 'SCRIPT ERROR:|Failed to load script|Failed to create an autoload|Failed to instantiate an autoload|does not inherit from' "$log"; then
+            echo "Godot import emitted a script/autoload failure" >&2
+            exit 1
+          fi
       - name: Boot main scene headlessly
-        run: timeout 30s Godot_v${GODOT_VERSION}_linux.x86_64 --headless --path . --quit-after 5
+        shell: bash
+        run: |
+          set -euo pipefail
+          log="$RUNNER_TEMP/godot-boot.log"
+          timeout 30s Godot_v${GODOT_VERSION}_linux.x86_64 --headless --path . --quit-after 5 2>&1 | tee "$log"
+          if grep -Eq 'SCRIPT ERROR:|Failed to load script|Failed to instantiate an autoload|does not inherit from' "$log"; then
+            echo "Godot boot emitted a script/autoload failure" >&2
+            exit 1
+          fi
       - name: Verify save recovery and deterministic fight resume
         run: timeout 60s Godot_v${GODOT_VERSION}_linux.x86_64 --headless --path . --script res://tests/runtime_state_smoke.gd
+      - name: Verify fighter identity, scouting, and game-plan flow
+        run: timeout 60s Godot_v${GODOT_VERSION}_linux.x86_64 --headless --path . --script res://tests/v03_gameplan_smoke.gd

@@ -16,21 +16,21 @@ func _run() -> void:
     if failures.is_empty():
         print("runtime-state-smoke: PASS")
         quit(0)
-    else:
-        for failure in failures:
-            push_error(failure)
-        quit(1)
+        return
+    for failure in failures:
+        push_error(failure)
+    quit(1)
 
 func _test_save_round_trip_and_backup() -> void:
     _cleanup_save_files()
-    var first := _valid_state(111000, "첫 세이브")
+    var first: Dictionary = _valid_state(111000, "첫 세이브")
     _check(Save.save_game(first), "primary save write failed")
-    var loaded := Save.load_game()
+    var loaded: Dictionary = Save.load_game()
     _check(int(loaded.get("career", {}).get("money", -1)) == 111000, "primary save round-trip failed")
 
-    var second := _valid_state(222000, "두 번째 세이브")
+    var second: Dictionary = _valid_state(222000, "두 번째 세이브")
     _check(Save.save_game(second), "second save write failed")
-    var file := FileAccess.open(Save.SAVE_PATH, FileAccess.WRITE)
+    var file: FileAccess = FileAccess.open(Save.SAVE_PATH, FileAccess.WRITE)
     _check(file != null, "could not open primary save for corruption fixture")
     if file:
         file.store_string("{corrupt-primary")
@@ -40,7 +40,7 @@ func _test_save_round_trip_and_backup() -> void:
 
 func _test_legacy_v1_migration() -> void:
     _cleanup_save_files()
-    var old_payload := {
+    var old_payload: Dictionary = {
         "boxer": {
             "name": "Legacy Boxer",
             "power": 51, "speed": 52, "technique": 53, "defense": 54, "conditioning": 55,
@@ -51,29 +51,29 @@ func _test_legacy_v1_migration() -> void:
             "wins": 2, "losses": 1, "draws": 0, "fights": 3, "rank": 41
         }
     }
-    var payload_text := JSON.stringify(old_payload)
-    var envelope := {"schema": 1, "payload_text": payload_text, "checksum": _sha256(payload_text)}
-    var legacy := FileAccess.open("user://career_v1.json", FileAccess.WRITE)
+    var payload_text: String = JSON.stringify(old_payload)
+    var envelope: Dictionary = {"schema": 1, "payload_text": payload_text, "checksum": _sha256(payload_text)}
+    var legacy: FileAccess = FileAccess.open("user://career_v1.json", FileAccess.WRITE)
     _check(legacy != null, "could not create legacy fixture")
     if legacy:
         legacy.store_string(JSON.stringify(envelope))
         legacy.close()
-    var migrated := Save.load_game()
+    var migrated: Dictionary = Save.load_game()
     _check(int(migrated.get("career", {}).get("age_months", -1)) == 228, "legacy age migration failed")
     _check(str(migrated.get("boxer", {}).get("trait_id", "")) == "workhorse", "legacy default trait migration failed")
     _check(FileAccess.file_exists(Save.SAVE_PATH), "migrated v2 save was not persisted")
 
 func _test_combat_resume_rng_round_trip() -> void:
-    var opponents = JSON.parse_string(FileAccess.get_file_as_string("res://data/opponents.json"))
+    var opponents: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/opponents.json"))
     _check(typeof(opponents) == TYPE_ARRAY and opponents.size() > 0, "opponent fixture missing")
     if typeof(opponents) != TYPE_ARRAY or opponents.is_empty():
         return
     var opponent: Dictionary = opponents[0]
-    var player := {
+    var player: Dictionary = {
         "power": 55, "speed": 58, "technique": 57, "defense": 90, "conditioning": 90,
-        "fatigue": 0, "health": 100, "modifiers": {}
+        "fatigue": 0, "health": 100, "modifiers": {}, "game_plan": {}
     }
-    var uninterrupted = Combat.new(24681357)
+    var uninterrupted: RefCounted = Combat.new(24681357)
     uninterrupted.start(player, opponent)
     uninterrupted.resolve_exchange("guard")
     _check(not uninterrupted.finished, "resume fixture ended before checkpoint")
@@ -82,9 +82,8 @@ func _test_combat_resume_rng_round_trip() -> void:
     var checkpoint: Dictionary = uninterrupted.export_state()
     _check(typeof(checkpoint.get("rng_state", 0)) == TYPE_STRING, "RNG state must serialize as a string")
 
-    # Force a JSON round-trip so this matches the on-disk save path, including numeric/string conversion.
-    var checkpoint_json := JSON.stringify(checkpoint)
-    var disk_checkpoint = JSON.parse_string(checkpoint_json)
+    var checkpoint_json: String = JSON.stringify(checkpoint)
+    var disk_checkpoint: Variant = JSON.parse_string(checkpoint_json)
     _check(typeof(disk_checkpoint) == TYPE_DICTIONARY, "checkpoint JSON round-trip failed")
     if typeof(disk_checkpoint) != TYPE_DICTIONARY:
         return
@@ -92,7 +91,7 @@ func _test_combat_resume_rng_round_trip() -> void:
     uninterrupted.resolve_exchange("jab")
     var expected: Dictionary = uninterrupted.export_state()
 
-    var resumed = Combat.new(24681357)
+    var resumed: RefCounted = Combat.new(24681357)
     resumed.restore(player, opponent, disk_checkpoint)
     resumed.resolve_exchange("jab")
     var actual: Dictionary = resumed.export_state()
@@ -111,7 +110,8 @@ func _valid_state(money: int, label: String) -> Dictionary:
             "name": label,
             "power": 50, "speed": 50, "technique": 50, "defense": 50, "conditioning": 50,
             "fatigue": 0, "health": 100, "weight_kg": 61.8,
-            "trait_id": "workhorse", "trait_name": "훈련광", "modifiers": {}, "injury": {}
+            "trait_id": "workhorse", "trait_name": "훈련광", "modifiers": {}, "injury": {},
+            "identity_id": "balanced", "identity_name": "균형형", "identity_description": "", "identity_signature": ""
         },
         "career": {
             "age_months": 228, "money": money, "reputation": 0,
@@ -119,7 +119,7 @@ func _valid_state(money: int, label: String) -> Dictionary:
             "career_points": 0, "tier": "prospect", "rank": 50,
             "champion": false, "finished": false, "ending": ""
         },
-        "last_camp_action": "", "selected_opponent": "", "last_result": "",
+        "last_camp_action": "", "selected_opponent": "", "selected_game_plan": "", "last_result": "",
         "last_fight_summary": {}, "last_weigh_in": {}, "pending_event": {},
         "fight_seed": 0, "active_fight": {}
     }
@@ -127,11 +127,11 @@ func _valid_state(money: int, label: String) -> Dictionary:
 func _cleanup_save_files() -> void:
     for path in [Save.SAVE_PATH, Save.BACKUP_PATH, "user://career_v1.json", "user://career_v1.backup.json"]:
         if FileAccess.file_exists(path):
-            var err := DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+            var err: Error = DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
             _check(err == OK, "failed to remove fixture file: %s" % path)
 
 func _sha256(text: String) -> String:
-    var context := HashingContext.new()
+    var context: HashingContext = HashingContext.new()
     context.start(HashingContext.HASH_SHA256)
     context.update(text.to_utf8_buffer())
     return context.finish().hex_encode()
