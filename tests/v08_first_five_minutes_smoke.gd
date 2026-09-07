@@ -43,7 +43,7 @@ func _run() -> void:
     await process_frame
     await process_frame
 
-    _check(str(main_view.get_script().resource_path) == "res://scripts/main_v08.gd", "Main scene is not using v0.8 first-five-minutes shell")
+    _check(str(main_view.get_script().resource_path) == "res://scripts/main_v10.gd", "Main scene is not using the v1.0 shell that preserves v0.8 first-five-minutes flow")
     var title_text := "\n".join(_collect_text(main_view))
     _check(title_text.contains("ONE FIGHTER. ONE CAREER."), "fresh career did not show launch title gate")
     _check(title_text.contains("프로 커리어 시작"), "launch title missing start CTA")
