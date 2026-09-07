@@ -60,6 +60,7 @@ def main() -> int:
     require_text(project, "window/size/viewport_width=430", "portrait viewport width")
     require_text(project, "window/size/viewport_height=932", "portrait viewport height")
     require_text(project, "window/handheld/orientation=1", "portrait orientation")
+    require_text(project, "textures/vram_compression/import_etc2_astc=true", "iOS ETC2/ASTC texture import")
 
     for path in REQUIRED_DOCS:
         if not path.exists():
