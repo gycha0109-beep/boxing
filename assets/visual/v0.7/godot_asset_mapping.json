@@ -1,0 +1,62 @@
+{
+  "player": {
+    "idle": "fighters/player/player_base_idle.png",
+    "jab": "fighters/player/player_base_jab.png",
+    "power": "fighters/player/player_base_power.png",
+    "body": "fighters/player/player_base_body.png",
+    "guard": "fighters/player/player_base_guard.png",
+    "counter": "fighters/player/player_base_counter.png",
+    "hurt": "fighters/player/player_base_hurt.png",
+    "knockdown": "fighters/player/player_base_knockdown.png"
+  },
+  "opponents": {
+    "swarmer": {
+      "idle": "fighters/opponents/swarmer/op_swarmer_a_idle.png",
+      "jab": "fighters/opponents/swarmer/op_swarmer_a_jab.png",
+      "power": "fighters/opponents/swarmer/op_swarmer_a_power.png",
+      "body": "fighters/opponents/swarmer/op_swarmer_a_body.png",
+      "guard": "fighters/opponents/swarmer/op_swarmer_a_guard.png",
+      "counter": "fighters/opponents/swarmer/op_swarmer_a_counter.png",
+      "hurt": "fighters/opponents/swarmer/op_swarmer_a_hurt.png",
+      "knockdown": "fighters/opponents/swarmer/op_swarmer_a_knockdown.png"
+    },
+    "outboxer": {
+      "idle": "fighters/opponents/outboxer/op_outboxer_a_idle.png",
+      "jab": "fighters/opponents/outboxer/op_outboxer_a_jab.png",
+      "power": "fighters/opponents/outboxer/op_outboxer_a_power.png",
+      "body": "fighters/opponents/outboxer/op_outboxer_a_body.png",
+      "guard": "fighters/opponents/outboxer/op_outboxer_a_guard.png",
+      "counter": "fighters/opponents/outboxer/op_outboxer_a_counter.png",
+      "hurt": "fighters/opponents/outboxer/op_outboxer_a_hurt.png",
+      "knockdown": "fighters/opponents/outboxer/op_outboxer_a_knockdown.png"
+    },
+    "slugger": {
+      "idle": "fighters/opponents/slugger/op_slugger_a_idle.png",
+      "jab": "fighters/opponents/slugger/op_slugger_a_jab.png",
+      "power": "fighters/opponents/slugger/op_slugger_a_power.png",
+      "body": "fighters/opponents/slugger/op_slugger_a_body.png",
+      "guard": "fighters/opponents/slugger/op_slugger_a_guard.png",
+      "counter": "fighters/opponents/slugger/op_slugger_a_counter.png",
+      "hurt": "fighters/opponents/slugger/op_slugger_a_hurt.png",
+      "knockdown": "fighters/opponents/slugger/op_slugger_a_knockdown.png"
+    },
+    "counter": {
+      "idle": "fighters/opponents/counter/op_counter_a_idle.png",
+      "jab": "fighters/opponents/counter/op_counter_a_jab.png",
+      "power": "fighters/opponents/counter/op_counter_a_power.png",
+      "body": "fighters/opponents/counter/op_counter_a_body.png",
+      "guard": "fighters/opponents/counter/op_counter_a_guard.png",
+      "counter": "fighters/opponents/counter/op_counter_a_counter.png",
+      "hurt": "fighters/opponents/counter/op_counter_a_hurt.png",
+      "knockdown": "fighters/opponents/counter/op_counter_a_knockdown.png"
+    }
+  },
+  "fx": {
+    "jab": "fx/fx_hit_jab_01.png",
+    "power": "fx/fx_hit_power_01.png",
+    "body": "fx/fx_hit_body_01.png",
+    "guard": "fx/fx_block_01.png",
+    "counter": "fx/fx_counter_flash_01.png",
+    "knockdown": "fx/fx_knockdown_burst_01.png"
+  }
+}
