@@ -51,7 +51,9 @@ func resolve_exchange(player_action: String) -> Dictionary:
     player_round_score = 0.0 if exchange_no % int(balance.fight.exchanges_per_round) == 1 else player_round_score
     opponent_round_score = 0.0 if exchange_no % int(balance.fight.exchanges_per_round) == 1 else opponent_round_score
 
-    var p_speed: float = float(player.speed) + rng.randf_range(-10.0, 10.0)
+    var plan: Dictionary = player.get("game_plan", {})
+    var initiative_bias: float = float(plan.get("initiative_bias", 0.0))
+    var p_speed: float = float(player.speed) + initiative_bias + rng.randf_range(-10.0, 10.0)
     var o_speed: float = float(opponent.stats.speed) + rng.randf_range(-10.0, 10.0)
     var first_is_player: bool = p_speed >= o_speed
 
