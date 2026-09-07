@@ -29,12 +29,29 @@ func _run() -> void:
 
     game_state.new_career("Presentation Boxer", "technician")
     game_state.state.boxer.weight_kg = 61.0
+    # Presentation QA must not depend on a random first-exchange KO. Keep both
+    # sides below the damage threshold used by CombatEngine's chance-based KO
+    # check and force the opponent to guard for this single presentation probe.
+    game_state.state.boxer.power = 1
+    game_state.state.boxer.technique = 1
+    game_state.state.boxer.defense = 100
+    game_state.state.boxer.conditioning = 100
     game_state.state.phase = "fight_offer"
-    var opponent: Dictionary = opponents[0]
+    var opponent: Dictionary = opponents[0].duplicate(true)
+    opponent.stats.power = 1
+    opponent.stats.technique = 1
+    opponent.tendencies = {
+        "jab": 0.0,
+        "power": 0.0,
+        "body": 0.0,
+        "guard": 1.0,
+        "counter": 0.0
+    }
     game_state.select_opponent(opponent)
     var selected: Dictionary = game_state.select_game_plan("counter_trap")
     _check(bool(selected.get("ok", false)), "v0.5 fixture could not select game plan")
     _check(str(game_state.state.phase) == "fight", "v0.5 fixture did not enter fight phase")
+    game_state.state.fight_seed = 1
 
     var packed: PackedScene = load("res://scenes/Main.tscn")
     _check(is_instance_valid(packed), "Main scene could not load for v0.5")
@@ -43,6 +60,7 @@ func _run() -> void:
         return
 
     main_view = packed.instantiate()
+    main_view.set("current_opponent", opponent)
     get_root().add_child(main_view)
     await process_frame
     await process_frame
@@ -57,13 +75,8 @@ func _run() -> void:
         _check(str(initial_stage.get("telegraph_action")) == str(pending_read.get("action_id", "")), "stage telegraph does not match saved opponent read")
 
     var locked_action: String = str(game_state.state.get("active_fight", {}).get("pending_opponent_action", ""))
-    _check(not locked_action.is_empty(), "v0.5 screen did not lock opponent action")
+    _check(locked_action == "guard", "v0.5 deterministic fixture did not lock guard")
 
-    # _choose_fight_action resolves the exchange, persists active fight state,
-    # routes impact feedback, rerenders the stage, and triggers FX synchronously.
-    # Waiting additional frames here can allow deferred cleanup from the old
-    # fight body to run and makes this smoke test nondeterministic without
-    # exercising any additional product behavior.
     main_view._choose_fight_action("jab")
 
     var active: Dictionary = game_state.state.get("active_fight", {})
@@ -71,6 +84,7 @@ func _run() -> void:
     _check(not exchange.is_empty(), "v0.5 action did not persist exchange")
     _check(str(exchange.get("player_action", "")) == "jab", "v0.5 action persisted wrong player action")
     _check(str(exchange.get("opponent_action", "")) == locked_action, "v0.5 presentation changed locked opponent action")
+    _check(not bool(exchange.get("finished", true)), "v0.5 deterministic presentation fixture unexpectedly finished the fight")
 
     var animated_stage: Node = _find_named(main_view, "FightStage")
     _check(is_instance_valid(animated_stage), "fight stage disappeared after action")
