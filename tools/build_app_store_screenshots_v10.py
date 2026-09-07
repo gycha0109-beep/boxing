@@ -16,7 +16,7 @@ SOURCE_H = 932
 # App Store order is commercial, not chronological: lead with the strongest actual fight image,
 # then show fight presentation and the career-management depth behind it.
 OUTPUTS = [
-    ("01_fight_impact.png", "07_fight_after_jab.png"),
+    ("01_fight_impact.png", "07_fight_impact.png"),
     ("02_fight_opening.png", "06_fight_opening.png"),
     ("03_camp.png", "02_camp.png"),
     ("04_scouting_game_plan.png", "04_scouting_game_plan.png"),
