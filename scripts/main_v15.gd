@@ -37,8 +37,7 @@ func _sync_music_for_phase() -> void:
     if GameState == null:
         return
     var phase := str(GameState.state.get("phase", "")) if not GameState.state.is_empty() else ""
-    var launch_blocked := bool(launch_gate_active) if "launch_gate_active" in self else false
-    _music().set_mode(MusicDirector.mode_for_phase(phase, launch_blocked))
+    _music().set_mode(MusicDirector.mode_for_phase(phase, launch_gate_active))
 
 func _music() -> MusicDirector:
     if is_instance_valid(music_director):
