@@ -78,7 +78,7 @@ func _render_tactical_preparation() -> void:
         SaveService.save_game(GameState.state)
         _render_phase()
         return
-    _v16_heading("TACTICAL PREP", "이번 상대를 위한 전술 하나만 준비합니다.")
+    _v16_heading("TACTICAL PREP", "이번 상대 전용 전술 · 영구 스탯 성장 없음")
     _render_player_visual_card()
     _v16_opponent_card(current_opponent, "OPPONENT")
     var grid: GridContainer = _v16_grid(2)
@@ -101,7 +101,7 @@ func _render_condition_preparation() -> void:
         SaveService.save_game(GameState.state)
         _render_phase()
         return
-    _v16_heading("FIGHT WEEK PREP", "마지막 몸 상태만 정리합니다.")
+    _v16_heading("FIGHT WEEK PREP", "마지막 몸 상태 · 추가 영구 성장 없음")
     _render_player_visual_card()
     _v16_opponent_card(current_opponent, "NEXT FIGHT")
     var tactical: Dictionary = GameState.preparation_definition("tactical", str(GameState.state.get("selected_tactical_prep", "")))
