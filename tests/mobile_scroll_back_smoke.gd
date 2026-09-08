@@ -15,10 +15,23 @@ func _run() -> void:
         return
 
     var opponents: Array = _load_array("res://data/opponents.json")
+    var camps: Array = _load_array("res://data/camp_actions.json")
     _check(not opponents.is_empty(), "mobile UX fixture has no opponents")
-    if opponents.is_empty():
+    _check(not camps.is_empty(), "mobile UX fixture has no camp actions")
+    if opponents.is_empty() or camps.is_empty():
         _finish()
         return
+
+    var speed_routes := 0
+    var max_speed_gain := 0
+    for action_value in camps:
+        var action: Dictionary = action_value
+        var speed_gain := int(action.get("effects", {}).get("speed", 0))
+        if speed_gain >= 2:
+            speed_routes += 1
+        max_speed_gain = max(max_speed_gain, speed_gain)
+    _check(max_speed_gain >= 3, "speed training still has no primary +3 route")
+    _check(speed_routes >= 3, "speed training does not offer enough meaningful routes")
 
     game_state.new_career("Touch Boxer", "technician")
     game_state.state["first_launch_acknowledged"] = true
@@ -51,6 +64,14 @@ func _run() -> void:
 
     _check_fighter_profile("game-plan")
 
+    for plan_value in game_state.game_plans:
+        var plan: Dictionary = plan_value
+        var visible_effect := str(main_view._plan_effect_text(plan))
+        _check(not visible_effect.contains("%"), "game-plan UI exposes internal percent: %s" % visible_effect)
+        _check(not visible_effect.contains("파워+") and not visible_effect.contains("스피드+") and not visible_effect.contains("테크닉+"), "game-plan UI exposes internal stat modifier: %s" % visible_effect)
+    var tendency_text := str(main_view._tendency_text(opponents[0].get("tendencies", {})))
+    _check(not tendency_text.contains("%"), "scouting tendency still exposes internal probability")
+
     var back_button := _button_with_text(main_view, "← 상대 다시 선택")
     _check(is_instance_valid(back_button), "game-plan screen has no opponent back button")
 
@@ -66,6 +87,45 @@ func _run() -> void:
             _check(button.mouse_filter == Control.MOUSE_FILTER_PASS, "fight-offer button blocks parent touch drag after rerender: %s" % button.text)
 
     _check_fighter_profile("fight-offer")
+
+    var limit := float(game_state.career_balance.weight_class.limit_kg)
+    var soft_over := float(game_state.career_balance.weigh_in.soft_over_kg)
+    var test_over := 0.05
+    if soft_over > 0.0:
+        test_over = max(0.01, soft_over * 0.5)
+    game_state.state.boxer.weight_kg = limit + test_over
+    game_state.state.boxer.fatigue = 17
+    game_state.state.boxer.health = 91
+    game_state.state.career.reputation = 6
+    var before_weight := float(game_state.state.boxer.weight_kg)
+    var before_fatigue := int(game_state.state.boxer.fatigue)
+    var before_health := int(game_state.state.boxer.health)
+    var before_reputation := int(game_state.state.career.reputation)
+
+    game_state.select_opponent(opponents[0])
+    main_view.current_opponent = opponents[0]
+    main_view._render_phase()
+    await process_frame
+    main_view._choose_game_plan("outside_boxing")
+    await process_frame
+    await process_frame
+
+    _check(str(game_state.state.get("phase", "")) == "fight", "game plan selection did not advance to fight/weigh-in")
+    _check(not game_state.state.get("pre_game_plan_snapshot", {}).is_empty(), "game plan selection did not persist rollback snapshot")
+    var plan_back_button := _button_with_text(main_view, "← 게임플랜 다시 선택")
+    _check(is_instance_valid(plan_back_button), "weigh-in screen has no game-plan back button")
+
+    main_view._return_to_game_plan_selection()
+    await process_frame
+    _check(str(game_state.state.get("phase", "")) == "game_plan", "game-plan back navigation did not return to scouting")
+    _check(str(game_state.state.get("selected_game_plan", "")).is_empty(), "game-plan back navigation did not clear selected plan")
+    _check(game_state.state.get("last_weigh_in", {}).is_empty(), "game-plan back navigation did not clear resolved weigh-in")
+    _check(game_state.state.get("pre_game_plan_snapshot", {}).is_empty(), "game-plan rollback snapshot was not consumed")
+    _check(abs(float(game_state.state.boxer.weight_kg) - before_weight) < 0.001, "game-plan back did not restore pre-weigh-in weight")
+    _check(int(game_state.state.boxer.fatigue) == before_fatigue, "game-plan back did not restore pre-weigh-in fatigue")
+    _check(int(game_state.state.boxer.health) == before_health, "game-plan back did not restore pre-weigh-in health")
+    _check(int(game_state.state.career.reputation) == before_reputation, "game-plan back did not restore pre-weigh-in reputation")
+
     _finish()
 
 func _check_fighter_profile(context: String) -> void:
