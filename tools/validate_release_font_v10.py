@@ -12,7 +12,8 @@ RELEASE_SHELL = ROOT / "scripts/main_v10.gd"
 LEGACY_SHELL = ROOT / "scripts/main_v12.gd"
 PREPARATION_SHELL = ROOT / "scripts/main_v13.gd"
 ECONOMY_SHELL = ROOT / "scripts/main_v14.gd"
-ACTIVE_SHELL = ROOT / "scripts/main_v15.gd"
+AUDIO_SHELL = ROOT / "scripts/main_v15.gd"
+ACTIVE_SHELL = ROOT / "scripts/main_v16.gd"
 IMPORT_WORKFLOW = ROOT / ".github/workflows/import-korean-font-v10.yml"
 
 EXPECTED_FONT_BLOB = "b386890ba945e1f39448a6b59f20c5d194f58808"
@@ -44,9 +45,11 @@ def main() -> None:
     legacy_shell_text = LEGACY_SHELL.read_text(encoding="utf-8")
     preparation_shell_text = PREPARATION_SHELL.read_text(encoding="utf-8")
     economy_shell_text = ECONOMY_SHELL.read_text(encoding="utf-8")
+    audio_shell_text = AUDIO_SHELL.read_text(encoding="utf-8")
     active_shell_text = ACTIVE_SHELL.read_text(encoding="utf-8")
-    require('res://scripts/main_v15.gd' in scene_text, "Main scene is not routed through the active audio/economy shell")
-    require('extends "res://scripts/main_v14.gd"' in active_shell_text, "active audio shell no longer preserves economy flow")
+    require('res://scripts/main_v16.gd' in scene_text, "Main scene is not routed through the active v16 UI shell")
+    require('extends "res://scripts/main_v15.gd"' in active_shell_text, "active v16 shell no longer preserves audio flow")
+    require('extends "res://scripts/main_v14.gd"' in audio_shell_text, "audio shell no longer preserves economy flow")
     require('extends "res://scripts/main_v13.gd"' in economy_shell_text, "economy shell no longer preserves preparation flow")
     require('extends "res://scripts/main_v12.gd"' in preparation_shell_text, "preparation shell no longer preserves Legacy shell")
     require('extends "res://scripts/main_v10.gd"' in legacy_shell_text, "Legacy shell no longer preserves the v1.0 release shell")
