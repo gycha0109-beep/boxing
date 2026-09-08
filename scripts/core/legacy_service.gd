@@ -273,13 +273,13 @@ static func apply_camp_growth_bonus(state: Dictionary, action: Dictionary) -> Di
             if str(action.get("id", "")) == "mitts":
                 flat_bonus += int(round(effect_value(state, "jab_training_bonus", context)))
 
-        var requested_bonus := max(0, percent_bonus + flat_bonus)
+        var requested_bonus: int = max(0, percent_bonus + flat_bonus)
         if requested_bonus <= 0:
             continue
-        var before := int(state.get("boxer", {}).get(stat, 50))
-        var after := clamp(before + requested_bonus, 1, 100)
+        var before: int = int(state.get("boxer", {}).get(stat, 50))
+        var after: int = int(clamp(before + requested_bonus, 1, 100))
         state.boxer[stat] = after
-        var actual := after - before
+        var actual: int = after - before
         if actual > 0:
             bonuses[stat] = actual
 
