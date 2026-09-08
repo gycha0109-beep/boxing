@@ -43,8 +43,8 @@ func _run() -> void:
     await process_frame
     await process_frame
 
-    if str(main_view.get_script().resource_path) != "res://scripts/main_v13.gd":
-        _fail("capture is not using the preparation shell above the Legacy/v1.0 release runtime")
+    if str(main_view.get_script().resource_path) != "res://scripts/main_v14.gd":
+        _fail("capture is not using the economy shell above the preparation/Legacy/v1.0 runtime")
         return
 
     await _capture("01_title.png")
@@ -57,12 +57,16 @@ func _run() -> void:
     await process_frame
     await _capture("02_camp.png")
 
+    main_view._open_equipment_shop()
+    await process_frame
+    await _capture("03_equipment_shop.png")
+    main_view._return_from_equipment_shop()
+    await process_frame
+
     main_view._choose_camp_action(camps[0])
     await process_frame
-    await _capture("03_fight_offer.png")
+    await _capture("04_fight_offer.png")
 
-    # Preserve the established eight-shot release baseline while traversing the
-    # deliberate preparation flow before the scouting/game-plan checkpoint.
     var opponent: Dictionary = opponents[0]
     main_view._choose_opponent(opponent)
     await process_frame
@@ -70,27 +74,27 @@ func _run() -> void:
     await process_frame
     main_view._choose_condition_preparation("sharpness")
     await process_frame
-    await _capture("04_scouting_game_plan.png")
+    await _capture("05_scouting_game_plan.png")
 
     main_view._choose_game_plan("balanced")
     await process_frame
     await process_frame
-    await _capture("05_weigh_in.png")
+    await _capture("06_weigh_in.png")
 
     main_view._acknowledge_weigh_in()
     await process_frame
     await process_frame
-    await _capture("06_fight_opening.png")
+    await _capture("07_fight_opening.png")
 
     main_view._choose_fight_action("jab")
     await create_timer(0.18).timeout
-    await _capture("07_fight_after_jab.png")
+    await _capture("08_fight_after_jab.png")
     await create_timer(0.40).timeout
 
     game_state.apply_fight_result("WIN_DEC", opponent, {"player_hp": 72.0, "opponent_hp": 44.0})
     main_view._render_phase()
     await process_frame
-    await _capture("08_result.png")
+    await _capture("09_result.png")
 
     print("visual-capture-v10-font: PASS")
     _cleanup_save_files()
