@@ -137,11 +137,11 @@ static func _ensure_foundation(payload: Dictionary) -> void:
         meta = payload.get("meta_state", {}).duplicate(true)
     meta["generation"] = max(1, int(meta.get("generation", 1)))
     meta["legacy_capacity"] = clamp(int(meta.get("legacy_capacity", DEFAULT_LEGACY_CAPACITY)), DEFAULT_LEGACY_CAPACITY, MAX_LEGACY_CAPACITY)
-    if typeof(meta.get("legacy_slots", [])) != TYPE_ARRAY:
+    if not meta.has("legacy_slots") or typeof(meta.get("legacy_slots")) != TYPE_ARRAY:
         meta["legacy_slots"] = []
-    if typeof(meta.get("achievements", [])) != TYPE_ARRAY:
+    if not meta.has("achievements") or typeof(meta.get("achievements")) != TYPE_ARRAY:
         meta["achievements"] = []
-    if typeof(meta.get("lineage_history", [])) != TYPE_ARRAY:
+    if not meta.has("lineage_history") or typeof(meta.get("lineage_history")) != TYPE_ARRAY:
         meta["lineage_history"] = []
     payload["meta_state"] = meta
 
@@ -155,11 +155,11 @@ static func _ensure_foundation(payload: Dictionary) -> void:
     world_date["month"] = clamp(int(world_date.get("month", 1)), 1, 12)
     world["world_date"] = world_date
     world["champion_boxer_id"] = str(world.get("champion_boxer_id", ""))
-    if typeof(world.get("opponents", [])) != TYPE_ARRAY:
+    if not world.has("opponents") or typeof(world.get("opponents")) != TYPE_ARRAY:
         world["opponents"] = []
-    if typeof(world.get("gyms", [])) != TYPE_ARRAY:
+    if not world.has("gyms") or typeof(world.get("gyms")) != TYPE_ARRAY:
         world["gyms"] = []
-    if typeof(world.get("title_history", [])) != TYPE_ARRAY:
+    if not world.has("title_history") or typeof(world.get("title_history")) != TYPE_ARRAY:
         world["title_history"] = []
     world["world_seed"] = int(world.get("world_seed", 0))
     payload["world_state"] = world
@@ -167,10 +167,10 @@ static func _ensure_foundation(payload: Dictionary) -> void:
     var career_state: Dictionary = {}
     if typeof(payload.get("career_state", {})) == TYPE_DICTIONARY:
         career_state = payload.get("career_state", {}).duplicate(true)
-    if typeof(career_state.get("injuries", [])) != TYPE_ARRAY:
+    if not career_state.has("injuries") or typeof(career_state.get("injuries")) != TYPE_ARRAY:
         career_state["injuries"] = []
     career_state["career_damage"] = max(0, int(career_state.get("career_damage", 0)))
-    if typeof(career_state.get("fight_history", [])) != TYPE_ARRAY:
+    if not career_state.has("fight_history") or typeof(career_state.get("fight_history")) != TYPE_ARRAY:
         career_state["fight_history"] = []
     career_state["boxer"] = payload.get("boxer", {}).duplicate(true)
     career_state["rank"] = int(payload.get("career", {}).get("rank", 50))
