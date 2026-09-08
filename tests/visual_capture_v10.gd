@@ -51,15 +51,18 @@ func _run() -> void:
 
     main_view._start_new_career_from_title()
     await process_frame
+    main_view._choose_boxing_style("out_boxer")
+    await process_frame
+    main_view._confirm_talent()
+    await process_frame
     await _capture("02_camp.png")
 
     main_view._choose_camp_action(camps[0])
     await process_frame
     await _capture("03_fight_offer.png")
 
-    # Preserve the established eight-shot release baseline. The new tactical and
-    # condition screens have their own headless/mobile coverage; here we travel
-    # through them before capturing the existing scouting/game-plan checkpoint.
+    # Preserve the established eight-shot release baseline while traversing the
+    # deliberate preparation flow before the scouting/game-plan checkpoint.
     var opponent: Dictionary = opponents[0]
     main_view._choose_opponent(opponent)
     await process_frame
@@ -112,7 +115,7 @@ func _load_array(path: String) -> Array:
     return parsed if typeof(parsed) == TYPE_ARRAY else []
 
 func _cleanup_save_files() -> void:
-    for path in [Save.SAVE_PATH, Save.BACKUP_PATH, "user://career_v1.json", "user://career_v1.backup.json"]:
+    for path in [Save.SAVE_PATH, Save.BACKUP_PATH, Save.PREVIOUS_SAVE_PATH, Save.PREVIOUS_BACKUP_PATH, "user://career_v1.json", "user://career_v1.backup.json"]:
         if FileAccess.file_exists(path):
             DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 
