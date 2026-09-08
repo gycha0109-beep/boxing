@@ -1,0 +1,137 @@
+[
+  {
+    "id": "fundamentals_handbook",
+    "name": "기본기 지도",
+    "tier": "early_pro",
+    "category": "early_growth",
+    "stacking": "diminishing",
+    "description": "첫 캠프들의 기본 훈련 효율을 끌어올리는 체육관 지도법.",
+    "effect": {"early_camp_growth_percent": 10, "camp_limit": 3}
+  },
+  {
+    "id": "recovery_routine",
+    "name": "회복 관리",
+    "tier": "early_pro",
+    "category": "recovery",
+    "stacking": "capped",
+    "description": "초기 커리어의 피로 누적을 줄이는 회복 루틴.",
+    "effect": {"cycle_recovery_bonus": 3, "cap": 8}
+  },
+  {
+    "id": "calm_debut",
+    "name": "데뷔의 침착함",
+    "tier": "early_pro",
+    "category": "survival",
+    "stacking": "additive",
+    "description": "첫 경기들에서 무리한 준비로 몸이 망가지는 것을 줄이는 경험.",
+    "effect": {"early_fatigue_reduction": 2, "fight_limit": 3}
+  },
+  {
+    "id": "power_drills",
+    "name": "철권 훈련법",
+    "tier": "mid_pro",
+    "category": "training_power",
+    "stacking": "diminishing",
+    "description": "파워 훈련을 한 방향으로 밀어붙이는 전문 드릴.",
+    "effect": {"training_power_percent": 10}
+  },
+  {
+    "id": "precise_jab",
+    "name": "정확한 잽",
+    "tier": "mid_pro",
+    "category": "training_technique",
+    "stacking": "additive",
+    "description": "잽과 테크닉 중심의 성장 방향을 선명하게 만드는 지도법.",
+    "effect": {"training_technique_bonus": 1, "jab_training_bonus": 1}
+  },
+  {
+    "id": "conditioned_engine",
+    "name": "끝없는 엔진",
+    "tier": "mid_pro",
+    "category": "training_conditioning",
+    "stacking": "diminishing",
+    "description": "컨디셔닝 캠프의 성장을 강화하는 반복 훈련 체계.",
+    "effect": {"training_conditioning_percent": 10}
+  },
+  {
+    "id": "scouting_notebook",
+    "name": "스카우팅 노트",
+    "tier": "ranked",
+    "category": "read",
+    "stacking": "capped",
+    "description": "랭커 시절 축적한 상대 분석 기록. READ 신뢰도를 보조한다.",
+    "effect": {"read_bonus": 6, "cap": 14}
+  },
+  {
+    "id": "body_work_school",
+    "name": "바디 워크",
+    "tier": "ranked",
+    "category": "action_body",
+    "stacking": "additive",
+    "description": "상위권에서 통했던 몸통 공략의 세부 노하우.",
+    "effect": {"body_technique_bonus": 2}
+  },
+  {
+    "id": "counter_timing",
+    "name": "카운터 타이밍",
+    "tier": "ranked",
+    "category": "action_counter",
+    "stacking": "capped",
+    "description": "상대의 반복 공격을 읽고 카운터 타이밍을 잡는 감각.",
+    "effect": {"counter_technique_bonus": 2, "cap": 5}
+  },
+  {
+    "id": "title_composure",
+    "name": "타이틀전의 침착함",
+    "tier": "title_contender",
+    "category": "title_fight",
+    "stacking": "capped",
+    "description": "타이틀전의 압박에서 초반 운영을 안정시키는 경험.",
+    "effect": {"title_first_round_defense_bonus": 3, "cap": 6}
+  },
+  {
+    "id": "iron_recovery",
+    "name": "무너지지 않는 회복",
+    "tier": "title_contender",
+    "category": "survival",
+    "stacking": "diminishing",
+    "description": "큰 충격을 받은 뒤에도 전투를 이어가기 위한 생존 노하우.",
+    "effect": {"post_heavy_damage_recovery": 5}
+  },
+  {
+    "id": "tired_guard",
+    "name": "지친 몸의 가드",
+    "tier": "title_contender",
+    "category": "fatigue_defense",
+    "stacking": "capped",
+    "description": "피로가 쌓인 상위권 경기에서 수비 손실을 줄이는 운영법.",
+    "effect": {"high_fatigue_defense_bonus": 3, "cap": 6}
+  },
+  {
+    "id": "champion_eye",
+    "name": "챔피언의 눈",
+    "tier": "world_class",
+    "category": "title_fight",
+    "stacking": "capped",
+    "description": "왕좌에서 얻은 분석법. READ가 확보됐을 때 판단을 더 날카롭게 만든다.",
+    "effect": {"read_bonus": 12, "requires_read": 60, "cap": 18}
+  },
+  {
+    "id": "late_round_craft",
+    "name": "12카운트의 기술",
+    "tier": "world_class",
+    "category": "late_round",
+    "stacking": "capped",
+    "description": "후반 라운드에도 테크닉과 수비를 유지하는 챔피언의 운영.",
+    "effect": {"late_round_technique_bonus": 3, "late_round_defense_bonus": 2, "cap": 5}
+  },
+  {
+    "id": "pattern_breaker",
+    "name": "패턴 브레이커",
+    "tier": "world_class",
+    "category": "adaptation",
+    "stacking": "capped",
+    "description": "같은 공격을 반복하는 상대를 읽고 응징하는 고급 대응법.",
+    "effect": {"repeat_action_counter_bonus": 4, "cap": 7}
+  }
+]
