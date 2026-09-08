@@ -24,7 +24,7 @@ func _render_camp() -> void:
     var recovery_bonus := int(GameState.state.get("career_state", {}).get("last_legacy_cycle_recovery", 0))
     if recovery_bonus > 0:
         var recovery := Label.new()
-        recovery.text = "LEGACY RECOVERY · 지난 사이클 피로 %d 추가 회복" % recovery_bonus
+        recovery.text = "LEGACY RECOVERY · 회복이 한결 빨라졌습니다."
         recovery.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
         recovery.add_theme_color_override("font_color", LEGACY_ACCENT)
         body.add_child(recovery)
@@ -35,7 +35,7 @@ func _render_offers() -> void:
     if bonuses.is_empty():
         return
     var effect_box := _card_box("LEGACY EFFECT")
-    _add_wrapped_label(effect_box, "이번 캠프에서 계승된 체육관 노하우가 실제 성장에 반영되었습니다.", true)
+    _add_wrapped_label(effect_box, "계승된 노하우가 이번 훈련에 반영됐습니다.", true)
     var parts: Array[String] = []
     for stat in ["power", "speed", "technique", "defense", "conditioning"]:
         if bonuses.has(stat) and int(bonuses[stat]) > 0:
@@ -88,7 +88,7 @@ func _render_career_summary() -> void:
         _render_legacy_candidates(profile)
 
 func _render_legacy_candidates(profile: Dictionary) -> void:
-    _section("남길 유산을 하나 선택하십시오", "한 선수는 정확히 하나의 복싱 철학만 다음 세대에 남깁니다. 선택한 유산은 현재 체육관의 활성 Legacy 슬롯에 저장됩니다.")
+    _section("남길 유산을 하나 선택하십시오", "한 선수는 하나의 복싱 철학만 다음 세대에 남깁니다.")
 
     var candidates: Array = GameState.retirement_legacy_candidates()
     if candidates.is_empty():
@@ -119,7 +119,7 @@ func _render_legacy_candidates(profile: Dictionary) -> void:
 
 func _render_legacy_slot_decision(pending: Dictionary) -> void:
     var definition: Dictionary = GameState.legacy_definition(str(pending.get("definition_id", "")))
-    _section("Legacy 슬롯이 가득 찼습니다", "이번 선수의 유산은 이미 선택되었습니다. 활성 슬롯 하나를 교체하거나, 새 유산을 포기해야 다음 세대로 넘어갈 수 있습니다.")
+    _section("Legacy 슬롯이 가득 찼습니다", "기존 하나를 교체하거나 새 유산을 포기해야 합니다.")
 
     var pending_card := _card_box("NEW LEGACY · %s" % str(definition.get("name", pending.get("definition_id", "LEGACY"))))
     _add_wrapped_label(pending_card, str(definition.get("description", "")), false)
@@ -153,9 +153,9 @@ func _render_selected_legacy(selected: Dictionary) -> void:
     var definition: Dictionary = GameState.legacy_definition(str(selected.get("definition_id", "")))
     var legacy_status := str(selected.get("legacy_status", "active"))
     if legacy_status == "abandoned":
-        _section("유산 기록 완료", "이 선수는 하나의 유산을 남겼지만 활성 슬롯에는 보관하지 않았습니다. 계보 기록에는 그대로 남습니다.")
+        _section("유산 기록 완료", "계보에는 남지만 현재 체육관에는 보관하지 않습니다.")
     else:
-        _section("유산 확정", "이 선수의 커리어에서 선택할 수 있는 Legacy는 이것으로 확정되었습니다.")
+        _section("유산 확정", "이 선수의 유산이 다음 세대로 이어집니다.")
 
     var selected_card := _card_box(str(definition.get("name", selected.get("definition_id", "LEGACY"))))
     _add_wrapped_label(selected_card, str(definition.get("description", "")), false)
@@ -238,45 +238,41 @@ func _legacy_tier_label(tier_id: String) -> String:
 
 func _stacking_label(stacking: String) -> String:
     match stacking:
-        "diminishing": return "중첩 효율 감소"
-        "capped": return "중첩 상한"
-        _: return "중첩 가능"
+        "diminishing": return "겹칠수록 약해짐"
+        "capped": return "효과 상한 있음"
+        _: return "함께 사용 가능"
 
 func _legacy_effect_text(effect: Dictionary) -> String:
     if effect.is_empty():
-        return "효과 데이터 없음"
+        return "체육관의 경험이 다음 세대에 이어집니다."
     var parts: Array[String] = []
     for key_value in effect.keys():
         var key := str(key_value)
-        if key in ["cap", "camp_limit", "fight_limit", "requires_read"]:
-            continue
-        var value = effect[key]
+        var text := ""
         match key:
-            "early_camp_growth_percent": parts.append("초기 캠프 성장 +%d%%" % int(value))
-            "cycle_recovery_bonus": parts.append("사이클 피로 회복 +%d" % int(value))
-            "early_fatigue_reduction": parts.append("초반 경기 피로 획득 -%d" % int(value))
-            "training_power_percent": parts.append("파워 훈련 성장 +%d%%" % int(value))
-            "training_conditioning_percent": parts.append("컨디셔닝 성장 +%d%%" % int(value))
-            "training_technique_bonus": parts.append("테크닉 훈련 +%d" % int(value))
-            "jab_training_bonus": parts.append("미트 집중 테크닉 +%d" % int(value))
-            "read_bonus": parts.append("READ +%d" % int(value))
-            "body_technique_bonus": parts.append("바디 테크닉 +%d" % int(value))
-            "counter_technique_bonus": parts.append("카운터 테크닉 +%d" % int(value))
-            "title_first_round_defense_bonus": parts.append("타이틀전 1R 수비 +%d" % int(value))
-            "post_heavy_damage_recovery": parts.append("강한 피격 후 회복 +%d" % int(value))
-            "high_fatigue_defense_bonus": parts.append("고피로 수비 +%d" % int(value))
-            "late_round_technique_bonus": parts.append("후반 테크닉 +%d" % int(value))
-            "late_round_defense_bonus": parts.append("후반 수비 +%d" % int(value))
-            "repeat_action_counter_bonus": parts.append("반복 패턴 대응 +%d" % int(value))
-            _: parts.append("%s %s" % [key.replace("_", " "), str(value)])
-    var condition := ""
-    if effect.has("camp_limit"):
-        condition = " · 첫 %d캠프" % int(effect.get("camp_limit", 0))
-    elif effect.has("fight_limit"):
-        condition = " · 첫 %d경기" % int(effect.get("fight_limit", 0))
-    elif effect.has("requires_read"):
-        condition = " · READ %d+" % int(effect.get("requires_read", 0))
-    return "효과 · %s%s" % [" · ".join(parts), condition]
+            "early_camp_growth_percent": text = "초반 훈련이 더 잘 붙습니다"
+            "cycle_recovery_bonus": text = "회복이 조금 더 빠릅니다"
+            "early_fatigue_reduction": text = "초반 경기의 피로 부담이 줄어듭니다"
+            "training_power_percent": text = "파워 훈련 성과가 좋아집니다"
+            "training_conditioning_percent": text = "체력 훈련 성과가 좋아집니다"
+            "training_technique_bonus": text = "기술 훈련이 더 잘 붙습니다"
+            "jab_training_bonus": text = "미트 훈련에서 잽 감각을 빨리 익힙니다"
+            "read_bonus": text = "상대 움직임을 읽기 쉬워집니다"
+            "body_technique_bonus": text = "바디 공략이 더 정교해집니다"
+            "counter_technique_bonus": text = "카운터 타이밍이 날카로워집니다"
+            "title_first_round_defense_bonus": text = "타이틀전 초반 수비가 안정됩니다"
+            "post_heavy_damage_recovery": text = "큰 충격 뒤 회복이 빨라집니다"
+            "high_fatigue_defense_bonus": text = "지쳐도 수비가 쉽게 무너지지 않습니다"
+            "late_round_technique_bonus": text = "후반에도 기술이 흐트러지지 않습니다"
+            "late_round_defense_bonus": text = "후반 수비가 단단해집니다"
+            "repeat_action_counter_bonus": text = "반복되는 패턴을 더 잘 받아칩니다"
+            _:
+                continue
+        if not text.is_empty() and not parts.has(text):
+            parts.append(text)
+    if parts.is_empty():
+        return "체육관의 경험이 다음 세대에 이어집니다."
+    return " · ".join(parts)
 
 func _stat_label(stat: String) -> String:
     match stat:
@@ -286,3 +282,101 @@ func _stat_label(stat: String) -> String:
         "defense": return "수비"
         "conditioning": return "컨디셔닝"
         _: return stat
+
+func _plan_effect_text(plan: Dictionary) -> String:
+    match str(plan.get("id", "balanced")):
+        "outside_boxing": return "잽과 거리 유지에 강함 · 난타전에는 약함"
+        "body_breakdown": return "몸통을 쌓아 후반을 노림 · 초반 결정력은 낮음"
+        "pressure": return "계속 몰아붙여 교환을 강제 · 카운터와 체력 소모에 취약"
+        "counter_trap": return "큰 공격을 읽으면 강력 · 읽기가 틀리면 크게 손해"
+        _: return "기본기에 집중해 빈틈 없이 대응"
+
+func _tendency_text(tendencies: Dictionary) -> String:
+    var top_id := ""
+    var second_id := ""
+    var top_value := -1.0
+    var second_value := -1.0
+    for action_id in ["jab", "body", "power", "guard", "counter"]:
+        var probability := float(tendencies.get(action_id, 0.0))
+        if probability > top_value:
+            second_value = top_value
+            second_id = top_id
+            top_value = probability
+            top_id = action_id
+        elif probability > second_value:
+            second_value = probability
+            second_id = action_id
+    if top_id.is_empty() or top_value <= 0.0:
+        return "뚜렷한 습관 없음"
+    var text := "%s 중심" % _action_label(top_id)
+    if not second_id.is_empty() and second_value > 0.0:
+        text += " · %s도 섞음" % _action_label(second_id)
+    return text
+
+func _choose_game_plan(plan_id: String) -> void:
+    if str(GameState.state.get("phase", "")) != "game_plan":
+        return
+    var boxer: Dictionary = GameState.state.get("boxer", {})
+    var career: Dictionary = GameState.state.get("career", {})
+    GameState.state["pre_game_plan_snapshot"] = {
+        "weight_kg": float(boxer.get("weight_kg", 0.0)),
+        "fatigue": int(boxer.get("fatigue", 0)),
+        "health": int(boxer.get("health", 0)),
+        "reputation": int(career.get("reputation", 0))
+    }
+    var plan_result: Dictionary = GameState.select_game_plan(plan_id)
+    if not bool(plan_result.get("ok", false)):
+        GameState.state.erase("pre_game_plan_snapshot")
+        return
+    GameState.state["weigh_in_acknowledged"] = false
+    SaveService.save_game(GameState.state)
+    _render_phase()
+
+func _render_weigh_in() -> void:
+    super._render_weigh_in()
+    if str(GameState.state.get("phase", "")) != "fight":
+        return
+    if bool(GameState.state.get("weigh_in_acknowledged", true)):
+        return
+    if not GameState.state.get("active_fight", {}).is_empty():
+        return
+    if GameState.state.get("pre_game_plan_snapshot", {}).is_empty():
+        return
+    var back := Button.new()
+    back.text = "← 게임플랜 다시 선택"
+    back.custom_minimum_size = Vector2(0, 58)
+    back.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    back.mouse_filter = Control.MOUSE_FILTER_PASS
+    back.pressed.connect(Callable(self, "_return_to_game_plan_selection"))
+    body.add_child(back)
+    body.move_child(back, 0)
+
+func _return_to_game_plan_selection() -> void:
+    if str(GameState.state.get("phase", "")) != "fight":
+        return
+    if bool(GameState.state.get("weigh_in_acknowledged", true)):
+        return
+    if not GameState.state.get("active_fight", {}).is_empty():
+        return
+    var snapshot: Dictionary = GameState.state.get("pre_game_plan_snapshot", {})
+    if snapshot.is_empty():
+        return
+    var boxer: Dictionary = GameState.state.get("boxer", {})
+    var career: Dictionary = GameState.state.get("career", {})
+    boxer["weight_kg"] = float(snapshot.get("weight_kg", boxer.get("weight_kg", 0.0)))
+    boxer["fatigue"] = int(snapshot.get("fatigue", boxer.get("fatigue", 0)))
+    boxer["health"] = int(snapshot.get("health", boxer.get("health", 0)))
+    career["reputation"] = int(snapshot.get("reputation", career.get("reputation", 0)))
+    GameState.state["selected_game_plan"] = ""
+    GameState.state["last_weigh_in"] = {}
+    GameState.state["fight_seed"] = 0
+    GameState.state["active_fight"] = {}
+    GameState.state["phase"] = "game_plan"
+    GameState.state["weigh_in_acknowledged"] = true
+    GameState.state.erase("pre_game_plan_snapshot")
+    SaveService.save_game(GameState.state)
+    _render_phase()
+
+func _acknowledge_weigh_in() -> void:
+    GameState.state.erase("pre_game_plan_snapshot")
+    super._acknowledge_weigh_in()
