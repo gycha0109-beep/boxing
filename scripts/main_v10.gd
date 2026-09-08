@@ -18,10 +18,9 @@ func _render_phase() -> void:
     super._render_phase()
 
     if _should_insert_persistent_fighter_profile():
-        var insert_index := body.get_child_count()
         _render_player_visual_card()
         if is_instance_valid(fighter_profile_root) and fighter_profile_root.get_parent() == body:
-            body.move_child(fighter_profile_root, min(insert_index, 0))
+            body.move_child(fighter_profile_root, 0)
 
     _configure_mobile_scroll()
 
@@ -71,7 +70,7 @@ func _render_player_visual_card() -> void:
     if boxer.is_empty() or career.is_empty():
         return
 
-    var box := _card_box("내 복서 · MY BOXER")
+    var box := _card_box("내 복서 · YOUR FIGHTER")
     fighter_profile_root = box.get_parent() as Control
 
     var identity_row := HBoxContainer.new()
