@@ -61,7 +61,7 @@ for marker in ["func begin_boxer_creation()", "func select_boxing_style(", "func
 
 state_v15 = (ROOT / "scripts/core/game_state_v15.gd").read_text()
 assert 'extends "res://scripts/core/game_state_v14.gd"' in state_v15
-for marker in ["STARTING_BASE_STAT := 40", "EQUIPMENT_PATH", "func purchase_equipment(", "func next_equipment_upgrade(", "func gym_training_percent(", "func apply_camp_action(", 'career_state["equipment_state"]']:
+for marker in ["STARTING_BASE_STAT := 44", "EQUIPMENT_PATH", "func purchase_equipment(", "func next_equipment_upgrade(", "func gym_training_percent(", "func apply_camp_action(", 'career_state["equipment_state"]']:
     assert marker in state_v15
 
 for name in ["balance.json","camp_actions.json","opponents.json","career_balance.json","traits.json","events.json","injuries.json","fighter_identities.json","game_plans.json","legacy_definitions.json","fight_preparations.json","equipment.json"]:
