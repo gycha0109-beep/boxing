@@ -20,7 +20,7 @@ func _run() -> void:
     await process_frame
     await process_frame
 
-    _check(str(main_view.get_script().resource_path) == "res://scripts/main_v15.gd", "Main scene is not using the active audio/economy shell that preserves the v1.0 bundled-font runtime")
+    _check(str(main_view.get_script().resource_path) == "res://scripts/main_v16.gd", "Main scene is not using the active v16 UI shell that preserves the bundled-font runtime")
     _check(main_view.theme != null, "Main view has no release Theme")
     if main_view.theme == null:
         _finish()
