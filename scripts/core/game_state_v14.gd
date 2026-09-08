@@ -35,12 +35,12 @@ func boxing_styles() -> Array:
 func select_boxing_style(identity_id: String) -> Dictionary:
     if str(state.get("phase", "")) != "style_select":
         return {"ok": false, "reason": "wrong_phase"}
-    var selected := _identity_by_id(identity_id)
+    var selected: Dictionary = _identity_by_id(identity_id)
     if selected.is_empty():
         return {"ok": false, "reason": "unknown_style"}
 
     var boxer: Dictionary = state.get("boxer", {})
-    var current := _identity_by_id(str(boxer.get("identity_id", "balanced")))
+    var current: Dictionary = _identity_by_id(str(boxer.get("identity_id", "balanced")))
     var current_bonus: Dictionary = current.get("stat_bonus", {})
     var selected_bonus: Dictionary = selected.get("stat_bonus", {})
     for stat in TRAINABLE_STATS:
@@ -59,9 +59,9 @@ func select_boxing_style(identity_id: String) -> Dictionary:
 func talent_definition() -> Dictionary:
     var trait_id := str(state.get("boxer", {}).get("trait_id", ""))
     for value in traits:
-        var trait: Dictionary = value
-        if str(trait.get("id", "")) == trait_id:
-            return trait.duplicate(true)
+        var talent_data: Dictionary = value
+        if str(talent_data.get("id", "")) == trait_id:
+            return talent_data.duplicate(true)
     return {}
 
 func confirm_talent() -> Dictionary:
@@ -81,21 +81,21 @@ func career_ladder_stage() -> Dictionary:
     var wins := int(career.get("wins", 0))
     var resolved: Dictionary = CAREER_LADDER[0].duplicate(true)
     for value in CAREER_LADDER:
-        var stage: Dictionary = value
-        if fights >= int(stage.get("min_fights", 0)) and wins >= int(stage.get("min_wins", 0)):
-            resolved = stage.duplicate(true)
+        var stage_data: Dictionary = value
+        if fights >= int(stage_data.get("min_fights", 0)) and wins >= int(stage_data.get("min_wins", 0)):
+            resolved = stage_data.duplicate(true)
         else:
             break
     return resolved
 
 func career_ladder_next_stage() -> Dictionary:
-    var current := career_ladder_stage()
+    var current: Dictionary = career_ladder_stage()
     var found_current := false
     for value in CAREER_LADDER:
-        var stage: Dictionary = value
+        var stage_data: Dictionary = value
         if found_current:
-            return stage.duplicate(true)
-        if str(stage.get("id", "")) == str(current.get("id", "")):
+            return stage_data.duplicate(true)
+        if str(stage_data.get("id", "")) == str(current.get("id", "")):
             found_current = true
     return {}
 
