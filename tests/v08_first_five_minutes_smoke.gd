@@ -52,16 +52,37 @@ func _run() -> void:
     main_view._start_new_career_from_title()
     await process_frame
     _check(bool(game_state.state.get("first_launch_acknowledged", false)), "title acknowledgement was not persisted")
-    _check(str(game_state.state.phase) == "camp", "title CTA did not enter camp")
+    _check(str(game_state.state.phase) == "style_select", "title CTA did not enter boxer style selection")
+    var style_text := "\n".join(_collect_text(main_view))
+    _check(style_text.contains("BOXER CREATION · BOXING STYLE"), "style selection missing creation framing")
+    _check(style_text.contains("어떤 복서로 시작하시겠습니까?"), "style selection missing player-choice prompt")
+    _check(style_text.contains("능력치가 하는 일"), "style selection missing stat explanation")
+    _check(style_text.contains("아웃복서"), "style selection missing out-boxer option")
+
+    main_view._choose_boxing_style("out_boxer")
+    await process_frame
+    _check(str(game_state.state.phase) == "talent_reveal", "style choice did not enter natural-talent reveal")
+    _check(str(game_state.state.boxer.get("identity_id", "")) == "out_boxer", "chosen boxing style was not persisted")
+    _check(str(game_state.state.boxer.get("trait_id", "")) == "technician", "style choice changed the predetermined natural talent")
+    var talent_text := "\n".join(_collect_text(main_view))
+    _check(talent_text.contains("NATURAL TALENT"), "talent reveal missing creation framing")
+    _check(talent_text.contains("타고난 재능 · 테크니션"), "talent reveal does not identify the natural talent")
+    _check(talent_text.contains("TECHNIQUE +6"), "talent reveal hides direct stat bonus")
+    _check(not talent_text.contains("0.025"), "talent reveal exposes internal accuracy coefficient")
+
+    main_view._confirm_talent()
+    await process_frame
+    _check(str(game_state.state.phase) == "camp", "talent confirmation did not enter camp")
     var camp_text := "\n".join(_collect_text(main_view))
     _check(camp_text.contains("PRO DEBUT · CAMP 01"), "first camp missing debut framing")
-    _check(camp_text.contains("YOUR FIGHTER"), "first camp missing fighter identity card")
+    _check(camp_text.contains("CAREER LADDER"), "first camp missing career ladder framing")
 
     main_view._choose_camp_action(camps[0])
     await process_frame
     _check(str(game_state.state.phase) == "fight_offer", "camp choice did not enter fight offers")
     var offer_text := "\n".join(_collect_text(main_view))
     _check(offer_text.contains("FIGHT WEEK · CONTRACT BOARD"), "fight offers missing fight-week framing")
+    _check(offer_text.contains("CAREER LADDER"), "fight offers missing visible career ladder")
 
     var opponent: Dictionary = opponents[0]
     main_view._choose_opponent(opponent)
@@ -138,7 +159,7 @@ func _load_array(path: String) -> Array:
     return parsed if typeof(parsed) == TYPE_ARRAY else []
 
 func _cleanup_save_files() -> void:
-    for path in [Save.SAVE_PATH, Save.BACKUP_PATH, "user://career_v1.json", "user://career_v1.backup.json"]:
+    for path in [Save.SAVE_PATH, Save.BACKUP_PATH, Save.PREVIOUS_SAVE_PATH, Save.PREVIOUS_BACKUP_PATH, "user://career_v1.json", "user://career_v1.backup.json"]:
         if FileAccess.file_exists(path):
             DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 
