@@ -3,7 +3,7 @@ name: Android QA Playtest
 on:
   push:
     branches:
-      - fix/mobile-scroll-and-back-v1.1
+      - feat/legacy-state-foundation-v1.2
     paths:
       - .github/workflows/android-qa-playtest.yml
       - project.godot
@@ -135,8 +135,8 @@ jobs:
           architectures/arm64-v8a=true
           architectures/x86=false
           architectures/x86_64=false
-          version/code=3
-          version/name="1.0.0-fixedhud"
+          version/code=4
+          version/name="1.2.0-legacy"
           package/unique_name="com.twelvecount.qaplaytest"
           package/name="Twelve Count QA"
           package/signed=true
@@ -185,7 +185,7 @@ jobs:
       - name: Upload Android QA APK
         uses: actions/upload-artifact@v6
         with:
-          name: TwelveCount-Android-QA-FixedHUD
+          name: TwelveCount-Android-QA-Legacy-v12
           path: |
             build/android-qa/TwelveCount-QA.apk
             build/android-qa/SHA256SUMS.txt
