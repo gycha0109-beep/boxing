@@ -116,13 +116,23 @@ for spec in "reaction_win_01.ogg|0.97|-1" "reaction_win_02.ogg|1.03|-1"; do
 done
 
 # ---------------------------------------------------------------------------
-# Punches — select distinct originals; category-specific EQ makes them read
-# correctly on a phone speaker without synthesizing any transient.
+# Punches — select distinct originals by probing audio streams rather than
+# trusting archive filename extensions. The legacy Independent.nu pack uses
+# extension conventions that vary across mirrors.
 # ---------------------------------------------------------------------------
 7z x -y "$WORK/src/hits_and_punches.7z" "-o$WORK/extract/punch" >/dev/null
-mapfile -d '' PUNCH_FILES < <(find "$WORK/extract/punch" -type f \( -iname '*.wav' -o -iname '*.ogg' -o -iname '*.mp3' \) -print0 | sort -z)
+mapfile -d '' PUNCH_FILES < <(
+  while IFS= read -r -d '' candidate; do
+    if ffprobe -v error -select_streams a:0 -show_entries stream=codec_type \
+      -of default=nw=1:nk=1 "$candidate" 2>/dev/null | grep -qx 'audio'; then
+      printf '%s\0' "$candidate"
+    fi
+  done < <(find "$WORK/extract/punch" -type f -print0 | sort -z)
+)
 if (( ${#PUNCH_FILES[@]} < 16 )); then
   echo "Expected at least 16 distinct punch files, found ${#PUNCH_FILES[@]}" >&2
+  echo "Extracted archive inventory:" >&2
+  find "$WORK/extract/punch" -type f -printf '%P\n' | sort >&2
   exit 1
 fi
 
