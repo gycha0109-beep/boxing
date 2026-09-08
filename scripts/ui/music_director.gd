@@ -3,6 +3,8 @@ extends Node
 
 const MIX_RATE: float = 22050.0
 const VALID_MODES: Array[String] = ["silent", "menu", "career", "fight_week", "fight", "legacy"]
+const MUSIC_VOLUME_DB: float = -19.0
+const UI_VOLUME_DB: float = -13.0
 
 var current_mode: String = "silent"
 var last_ui_cue: String = ""
@@ -19,9 +21,11 @@ var music_playback: AudioStreamGeneratorPlayback
 var ui_player: AudioStreamPlayer
 var ui_generator: AudioStreamGenerator
 var ui_playback: AudioStreamGeneratorPlayback
+var ui_rng: RandomNumberGenerator = RandomNumberGenerator.new()
 
 func _ready() -> void:
     process_mode = Node.PROCESS_MODE_ALWAYS
+    ui_rng.seed = 12062026
 
 func set_mode(mode_id: String) -> void:
     var resolved: String = mode_id if mode_id in VALID_MODES else "career"
@@ -42,7 +46,7 @@ func set_suspended(value: bool) -> void:
         ui_player.stream_paused = value
 
 func duck(strength: float = 0.45) -> void:
-    duck_gain = float(clamp(1.0 - strength, 0.28, 1.0))
+    duck_gain = float(clamp(1.0 - strength, 0.18, 1.0))
 
 func play_ui(cue_id: String = "click") -> void:
     last_ui_cue = cue_id
@@ -54,8 +58,8 @@ func _process(delta: float) -> void:
     if suspended or current_mode == "silent":
         return
     _ensure_music_audio()
-    current_gain = float(move_toward(current_gain, 1.0, delta * 3.6))
-    duck_gain = float(move_toward(duck_gain, 1.0, delta * 4.8))
+    current_gain = float(move_toward(current_gain, 1.0, delta * 2.4))
+    duck_gain = float(move_toward(duck_gain, 1.0, delta * 3.8))
     _feed_music()
 
 func _ensure_music_audio() -> void:
@@ -67,7 +71,7 @@ func _ensure_music_audio() -> void:
     music_generator.mix_rate = MIX_RATE
     music_generator.buffer_length = 0.45
     music_player.stream = music_generator
-    music_player.volume_db = -5.0
+    music_player.volume_db = MUSIC_VOLUME_DB
     add_child(music_player)
     music_player.play()
     music_playback = music_player.get_stream_playback() as AudioStreamGeneratorPlayback
@@ -79,9 +83,9 @@ func _ensure_ui_audio() -> void:
     ui_player.name = "UISound"
     ui_generator = AudioStreamGenerator.new()
     ui_generator.mix_rate = MIX_RATE
-    ui_generator.buffer_length = 0.16
+    ui_generator.buffer_length = 0.12
     ui_player.stream = ui_generator
-    ui_player.volume_db = -4.0
+    ui_player.volume_db = UI_VOLUME_DB
     add_child(ui_player)
     ui_player.play()
     ui_playback = ui_player.get_stream_playback() as AudioStreamGeneratorPlayback
@@ -95,110 +99,105 @@ func _feed_music() -> void:
         return
     var bpm: float = float(spec.get("bpm", 82.0))
     var root: float = float(spec.get("root", 98.0))
-    var intensity: float = float(spec.get("intensity", 0.55))
-    var pad_level: float = float(spec.get("pad", 0.30))
+    var intensity: float = float(spec.get("intensity", 0.45))
+    var pad_level: float = float(spec.get("pad", 0.35))
     var beat_seconds: float = 60.0 / bpm
     var progression: Array = spec.get("progression", [0, -3, -5, -7])
 
     for _i in range(frames):
         var t: float = float(sample_cursor) / MIX_RATE
         var beat_pos: float = t / beat_seconds
-        var beat_index: int = int(floor(beat_pos))
         var beat_phase: float = fmod(beat_pos, 1.0)
-        var eighth_phase: float = fmod(beat_pos * 2.0, 1.0)
+        var half_phase: float = fmod(beat_pos * 0.5, 1.0)
         var chord_index: int = int(floor(beat_pos / 4.0)) % progression.size()
         var chord_root: float = root * pow(2.0, float(progression[chord_index]) / 12.0)
 
-        var pad: float = _triad(chord_root, t) * 0.025 * pad_level
-        var bass_env: float = exp(-beat_phase * 5.5)
-        var bass: float = sin(TAU * chord_root * 0.5 * t) * bass_env * 0.034 * intensity
+        # Keep the placeholder score deliberately dark and low-mid. The old
+        # high sine pulses/metallic hats read as arcade laser sounds on phones.
+        var pad: float = _soft_chord(chord_root, t) * 0.018 * pad_level
+        var bass_env: float = 0.42 + 0.58 * exp(-beat_phase * 4.0)
+        var bass: float = sin(TAU * chord_root * 0.5 * t) * bass_env * 0.026 * intensity
 
-        var kick_env: float = exp(-beat_phase * 13.0)
-        var kick_freq: float = 48.0 + 34.0 * kick_env
-        var kick: float = sin(TAU * kick_freq * t) * kick_env * 0.052 * intensity
+        var thump_env: float = exp(-beat_phase * 11.0)
+        var thump: float = sin(TAU * (72.0 + 18.0 * thump_env) * t) * thump_env * 0.028 * intensity
 
-        var pulse_env: float = exp(-eighth_phase * 9.0)
-        var pulse_note: float = chord_root * (2.0 if (beat_index % 4) in [0, 3] else 1.5)
-        var pulse: float = sin(TAU * pulse_note * t) * pulse_env * 0.017 * intensity
-
-        var hat: float = 0.0
+        var second_thump: float = 0.0
         if current_mode in ["fight_week", "fight"]:
-            var metallic: float = sin(TAU * 4210.0 * t) + sin(TAU * 6170.0 * t) * 0.55
-            hat = metallic * exp(-eighth_phase * 24.0) * 0.0045 * intensity
+            var second_phase: float = fmod(beat_pos + 0.5, 1.0)
+            var second_env: float = exp(-second_phase * 13.0)
+            second_thump = sin(TAU * 126.0 * t) * second_env * 0.012 * intensity
 
-        var tension: float = 0.0
+        var pressure: float = 0.0
         if current_mode == "fight":
-            var sixteenth_phase: float = fmod(beat_pos * 4.0, 1.0)
-            tension = sin(TAU * chord_root * 2.0 * t) * exp(-sixteenth_phase * 7.0) * 0.009
+            var pressure_env: float = exp(-half_phase * 5.0)
+            pressure = sin(TAU * chord_root * 1.5 * t) * pressure_env * 0.006
 
-        var attack: float = min(1.0, t / 0.22)
+        var attack: float = min(1.0, t / 0.45)
         var gain: float = current_gain * duck_gain * attack
-        var sample: float = float(clamp((pad + bass + kick + pulse + hat + tension) * gain, -0.38, 0.38))
-        var stereo_wobble: float = sin(TAU * 0.17 * t) * 0.07
-        music_playback.push_frame(Vector2(sample * (1.0 - stereo_wobble), sample * (1.0 + stereo_wobble)))
+        var sample: float = float(clamp((pad + bass + thump + second_thump + pressure) * gain, -0.22, 0.22))
+        music_playback.push_frame(Vector2(sample, sample))
         sample_cursor += 1
 
 func _feed_ui_cue(cue_id: String) -> void:
     if ui_playback == null or ui_generator == null:
         return
-    var frequency: float = 720.0
-    var second_frequency: float = 960.0
-    var duration: float = 0.035
-    var amplitude: float = 0.10
+    var frequency: float = 220.0
+    var duration: float = 0.024
+    var amplitude: float = 0.12
+    var noise_mix: float = 0.24
     match cue_id:
         "confirm":
-            frequency = 620.0
-            second_frequency = 930.0
-            duration = 0.075
-            amplitude = 0.13
+            frequency = 250.0
+            duration = 0.040
+            amplitude = 0.15
+            noise_mix = 0.18
         "purchase":
-            frequency = 760.0
-            second_frequency = 1140.0
-            duration = 0.09
-            amplitude = 0.14
+            frequency = 285.0
+            duration = 0.048
+            amplitude = 0.16
+            noise_mix = 0.20
         "back":
-            frequency = 510.0
-            second_frequency = 390.0
-            duration = 0.045
-            amplitude = 0.08
-        "fight_select":
-            frequency = 390.0
-            second_frequency = 520.0
+            frequency = 185.0
             duration = 0.028
-            amplitude = 0.07
+            amplitude = 0.10
+            noise_mix = 0.22
+        "fight_select":
+            frequency = 170.0
+            duration = 0.018
+            amplitude = 0.075
+            noise_mix = 0.26
         _:
             pass
 
+    ui_playback.clear_buffer()
     var frame_count: int = int(min(ui_playback.get_frames_available(), int(MIX_RATE * duration)))
     for i in range(frame_count):
         var t: float = float(i) / MIX_RATE
         var progress: float = t / duration
-        var envelope: float = pow(max(0.0, 1.0 - progress), 2.2)
-        var sweep: float = lerp(frequency, second_frequency, progress)
-        var carrier: float = sin(TAU * sweep * t)
-        var overtone: float = sin(TAU * sweep * 2.0 * t) * 0.24
-        var sample: float = float(clamp((carrier + overtone) * envelope * amplitude, -0.6, 0.6))
+        var envelope: float = pow(max(0.0, 1.0 - progress), 3.4)
+        var knock: float = sin(TAU * frequency * t) * 0.72
+        var grit: float = ui_rng.randf_range(-1.0, 1.0) * noise_mix
+        var sample: float = float(clamp((knock + grit) * envelope * amplitude, -0.35, 0.35))
         ui_playback.push_frame(Vector2(sample, sample))
 
-static func _triad(root: float, t: float) -> float:
-    var third: float = root * pow(2.0, 3.0 / 12.0)
+static func _soft_chord(root: float, t: float) -> float:
     var fifth: float = root * pow(2.0, 7.0 / 12.0)
-    return sin(TAU * root * t) * 0.56 + sin(TAU * third * t) * 0.28 + sin(TAU * fifth * t) * 0.22
+    return sin(TAU * root * t) * 0.62 + sin(TAU * root * 0.5 * t) * 0.42 + sin(TAU * fifth * t) * 0.16
 
 static func track_profile(mode_id: String) -> Dictionary:
     match mode_id:
         "menu":
-            return {"bpm": 72.0, "root": 110.0, "intensity": 0.36, "pad": 0.75, "progression": [0, -3, -5, -7]}
+            return {"bpm": 66.0, "root": 98.0, "intensity": 0.26, "pad": 0.62, "progression": [0, -3, -5, -7]}
         "career":
-            return {"bpm": 82.0, "root": 98.0, "intensity": 0.48, "pad": 0.55, "progression": [0, 3, -2, -5]}
+            return {"bpm": 74.0, "root": 87.31, "intensity": 0.34, "pad": 0.48, "progression": [0, 3, -2, -5]}
         "fight_week":
-            return {"bpm": 96.0, "root": 82.41, "intensity": 0.66, "pad": 0.38, "progression": [0, -2, -5, -7]}
+            return {"bpm": 84.0, "root": 82.41, "intensity": 0.46, "pad": 0.30, "progression": [0, -2, -5, -7]}
         "fight":
-            return {"bpm": 118.0, "root": 73.42, "intensity": 0.92, "pad": 0.18, "progression": [0, -2, -3, -5]}
+            return {"bpm": 96.0, "root": 73.42, "intensity": 0.58, "pad": 0.16, "progression": [0, -2, -3, -5]}
         "legacy":
-            return {"bpm": 68.0, "root": 110.0, "intensity": 0.30, "pad": 0.85, "progression": [0, 3, -5, -2]}
+            return {"bpm": 62.0, "root": 98.0, "intensity": 0.22, "pad": 0.72, "progression": [0, 3, -5, -2]}
         _:
-            return {"bpm": 80.0, "root": 98.0, "intensity": 0.40, "pad": 0.50, "progression": [0, -3, -5, -7]}
+            return {"bpm": 72.0, "root": 87.31, "intensity": 0.30, "pad": 0.42, "progression": [0, -3, -5, -7]}
 
 static func mode_for_phase(phase: String, launch_gate: bool = false) -> String:
     if launch_gate or phase.is_empty():
