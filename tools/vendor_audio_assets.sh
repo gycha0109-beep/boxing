@@ -42,6 +42,19 @@ ff() {
   ffmpeg -hide_banner -loglevel error -nostdin -y "$@"
 }
 
+collect_audio_files() {
+  local root="$1"
+  while IFS= read -r -d '' candidate; do
+    case "$(basename "$candidate")" in
+      ._*) continue ;;
+    esac
+    if ffprobe -v error -select_streams a:0 -show_entries stream=codec_type \
+      -of default=nw=1:nk=1 "$candidate" 2>/dev/null | grep -qx 'audio'; then
+      printf '%s\0' "$candidate"
+    fi
+  done < <(find "$root" -type f -print0 | sort -z)
+}
+
 # ---------------------------------------------------------------------------
 # Originals — URLs are intentionally pinned in source control for provenance.
 # ---------------------------------------------------------------------------
@@ -121,14 +134,7 @@ done
 # extension conventions that vary across mirrors.
 # ---------------------------------------------------------------------------
 7z x -y "$WORK/src/hits_and_punches.7z" "-o$WORK/extract/punch" >/dev/null
-mapfile -d '' PUNCH_FILES < <(
-  while IFS= read -r -d '' candidate; do
-    if ffprobe -v error -select_streams a:0 -show_entries stream=codec_type \
-      -of default=nw=1:nk=1 "$candidate" 2>/dev/null | grep -qx 'audio'; then
-      printf '%s\0' "$candidate"
-    fi
-  done < <(find "$WORK/extract/punch" -type f -print0 | sort -z)
-)
+mapfile -d '' PUNCH_FILES < <(collect_audio_files "$WORK/extract/punch")
 if (( ${#PUNCH_FILES[@]} < 16 )); then
   echo "Expected at least 16 distinct punch files, found ${#PUNCH_FILES[@]}" >&2
   echo "Extracted archive inventory:" >&2
@@ -163,7 +169,7 @@ done
 # Blocks — cardboard recordings, softened toward glove/forearm impacts.
 # ---------------------------------------------------------------------------
 unzip -q -o "$WORK/src/impact_starninjas.zip" -d "$WORK/extract/block"
-mapfile -d '' BLOCK_FILES < <(find "$WORK/extract/block" -type f \( -iname '*.wav' -o -iname '*.ogg' -o -iname '*.mp3' \) -print0 | sort -z)
+mapfile -d '' BLOCK_FILES < <(collect_audio_files "$WORK/extract/block")
 if (( ${#BLOCK_FILES[@]} < 5 )); then
   echo "Expected at least 5 block files, found ${#BLOCK_FILES[@]}" >&2
   exit 1
@@ -179,7 +185,7 @@ done
 # Miss swings — use distinct recorded swishes, attenuated below contact SFX.
 # ---------------------------------------------------------------------------
 unzip -q -o "$WORK/src/swishes.zip" -d "$WORK/extract/swing"
-mapfile -d '' SWING_FILES < <(find "$WORK/extract/swing" -type f \( -iname '*.wav' -o -iname '*.ogg' -o -iname '*.mp3' \) -print0 | sort -z)
+mapfile -d '' SWING_FILES < <(collect_audio_files "$WORK/extract/swing")
 if (( ${#SWING_FILES[@]} < 3 )); then
   echo "Expected at least 3 swish files, found ${#SWING_FILES[@]}" >&2
   exit 1
@@ -206,7 +212,7 @@ while IFS= read -r -d '' src; do
   if [[ -n "$duration" ]]; then
     printf '%012.6f\t%s\n' "$duration" "$src" >> "$VOICE_LIST"
   fi
-done < <(find "$WORK/extract/voice" -type f \( -iname '*.wav' -o -iname '*.ogg' -o -iname '*.mp3' \) -print0)
+done < <(collect_audio_files "$WORK/extract/voice")
 mapfile -t VOICE_FILES < <(sort -n "$VOICE_LIST" | cut -f2-)
 if (( ${#VOICE_FILES[@]} < 11 )); then
   echo "Expected at least 11 distinct voice clips, found ${#VOICE_FILES[@]}" >&2
