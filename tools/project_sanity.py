@@ -5,14 +5,14 @@ import json
 ROOT = Path(__file__).resolve().parents[1]
 required = [
     "project.godot", "scenes/Main.tscn", "scripts/main.gd", "scripts/main_v05.gd", "scripts/main_v06.gd", "scripts/main_v07.gd", "scripts/main_v08.gd", "scripts/main_v10.gd", "scripts/main_v12.gd", "scripts/main_v13.gd",
-    "scripts/core/game_state.gd", "scripts/core/game_state_v12.gd", "scripts/core/combat_engine.gd", "scripts/core/save_service.gd", "scripts/core/legacy_service.gd",
+    "scripts/core/game_state.gd", "scripts/core/game_state_v12.gd", "scripts/core/game_state_v14.gd", "scripts/core/combat_engine.gd", "scripts/core/save_service.gd", "scripts/core/legacy_service.gd",
     "scripts/ui/combat_presentation.gd", "scripts/ui/fight_stage.gd", "scripts/ui/impact_feedback.gd",
     "scripts/ui/fight_fx_director.gd", "scripts/ui/arena_audio.gd", "scripts/ui/safe_area_layout.gd", "scripts/ui/visual_asset_catalog.gd",
     "data/balance.json", "data/camp_actions.json", "data/opponents.json", "data/career_balance.json",
     "data/traits.json", "data/events.json", "data/injuries.json", "data/fighter_identities.json", "data/game_plans.json", "data/legacy_definitions.json", "data/fight_preparations.json",
     "tools/sim_combat.py", "tools/simulate_careers.py", "tools/simulate_gameplans.py", "tools/test_gameplans.py",
     "tools/validate_visual_assets_v07.py", "tools/validate_release_font_v10.py", "tools/import_visual_assets_v07.ps1",
-    "tests/runtime_state_smoke.gd", "tests/legacy_retirement_smoke.gd", "tests/legacy_slot_effect_smoke.gd", "tests/pre_fight_preparation_smoke.gd", "tests/v03_gameplan_smoke.gd", "tests/v04_combat_ux_smoke.gd",
+    "tests/runtime_state_smoke.gd", "tests/legacy_retirement_smoke.gd", "tests/legacy_slot_effect_smoke.gd", "tests/pre_fight_preparation_smoke.gd", "tests/boxer_creation_ladder_smoke.gd", "tests/v03_gameplan_smoke.gd", "tests/v04_combat_ux_smoke.gd",
     "tests/v04_fight_ui_smoke.gd", "tests/v05_fight_presentation_smoke.gd", "tests/v06_device_polish_smoke.gd",
     "tests/v07_visual_integration_smoke.gd", "tests/v08_first_five_minutes_smoke.gd", "tests/v10_release_font_smoke.gd",
 ]
@@ -25,7 +25,7 @@ for obsolete in ["scripts/main_v03.gd", "scripts/core/game_state_v03.gd", "scrip
 
 project = (ROOT / "project.godot").read_text()
 assert 'run/main_scene="res://scenes/Main.tscn"' in project
-assert 'GameState="*res://scripts/core/game_state_v12.gd"' in project
+assert 'GameState="*res://scripts/core/game_state_v14.gd"' in project
 scene = (ROOT / "scenes/Main.tscn").read_text()
 assert 'res://scripts/main_v13.gd' in scene
 
@@ -74,6 +74,10 @@ assert "새 유산 포기 · 기존 슬롯 유지" in main_v12
 
 main_v13 = (ROOT / "scripts/main_v13.gd").read_text()
 assert 'extends "res://scripts/main_v12.gd"' in main_v13
+assert "func _render_style_select()" in main_v13
+assert "func _render_talent_reveal()" in main_v13
+assert "타고난 재능" in main_v13 and "복싱 스타일" in main_v13
+assert "func _render_career_ladder_card()" in main_v13
 assert "func _render_tactical_preparation()" in main_v13
 assert "func _render_condition_preparation()" in main_v13
 assert "func _return_to_condition_preparation()" in main_v13
@@ -130,6 +134,15 @@ assert "func return_to_fight_offers_from_preparation()" in state_v12
 assert "func select_retirement_legacy(" in state_v12
 assert "func replace_retirement_legacy(" in state_v12 and "func abandon_retirement_legacy()" in state_v12
 assert "func start_next_generation()" in state_v12
+
+state_v14 = (ROOT / "scripts/core/game_state_v14.gd").read_text()
+assert 'extends "res://scripts/core/game_state_v12.gd"' in state_v14
+assert "func begin_boxer_creation()" in state_v14
+assert "func select_boxing_style(" in state_v14
+assert "func talent_definition()" in state_v14 and "func confirm_talent()" in state_v14
+assert "WORLD_TITLE_MIN_FIGHTS := 16" in state_v14 and "WORLD_TITLE_MIN_WINS := 12" in state_v14
+assert "func world_title_ready()" in state_v14 and "func career_ladder_stage()" in state_v14
+assert "func get_fight_offers(" in state_v14
 
 legacy = (ROOT / "scripts/core/legacy_service.gd").read_text()
 assert "class_name LegacyService" in legacy
