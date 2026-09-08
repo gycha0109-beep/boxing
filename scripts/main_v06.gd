@@ -34,6 +34,7 @@ func _choose_fight_action(action: String) -> void:
     var exchange: Dictionary = resolved.get("exchange_result", {})
     GameState.save_active_fight(combat.export_state())
     _impact().trigger(exchange)
+    _arena().react(exchange)
     var after: Dictionary = combat.snapshot()
     var after_round: int = int(after.round)
     if bool(after.finished):
