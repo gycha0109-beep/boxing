@@ -17,8 +17,7 @@ func _run() -> void:
 
     _test_style_choice_and_talent_separation()
     _test_stat_help_contract()
-    _test_world_title_gate()
-    _test_ladder_progression()
+    _test_ladder_title_fights_and_world_gate()
     _finish()
 
 func _test_style_choice_and_talent_separation() -> void:
@@ -50,55 +49,82 @@ func _test_stat_help_contract() -> void:
     for stat in ["power", "speed", "technique", "defense", "conditioning"]:
         _check(not str(game_state.stat_help(stat)).is_empty(), "missing player-facing stat help: %s" % stat)
 
-func _test_world_title_gate() -> void:
+func _test_ladder_title_fights_and_world_gate() -> void:
     var opponents: Array = _load_array("res://data/opponents.json")
-    _check(not opponents.is_empty(), "title gate fixture has no opponents")
+    _check(not opponents.is_empty(), "title ladder fixture has no opponents")
     if opponents.is_empty():
         return
 
-    game_state.new_career("Gate Boxer", "technician")
-    game_state.state.career.career_points = 100
-    game_state.state.career.fights = 10
-    game_state.state.career.wins = 10
-    game_state._sync_progression()
-    _check(not game_state.world_title_ready(), "world title became ready before minimum career length")
-    var early_offers: Array = game_state.get_fight_offers(opponents)
-    for value in early_offers:
-        var opponent: Dictionary = value
-        _check(not bool(opponent.get("title_fight", false)), "world title opponent appeared before 16 fights / 12 wins")
-
-    game_state.state.career.fights = 16
-    game_state.state.career.wins = 12
-    game_state.state.career.career_points = 100
-    game_state._sync_progression()
-    _check(game_state.world_title_ready(), "world title did not unlock at minimum gate")
-    var late_offers: Array = game_state.get_fight_offers(opponents)
-    var found_title := false
-    for value in late_offers:
-        var opponent: Dictionary = value
-        if bool(opponent.get("title_fight", false)):
-            found_title = true
-    _check(found_title, "world title opponent did not appear after gate was satisfied")
-
-func _test_ladder_progression() -> void:
     game_state.new_career("Ladder Boxer", "workhorse")
-    var stage: Dictionary = game_state.career_ladder_stage()
-    _check(str(stage.get("label", "")) == "동네 신인", "career did not start at local rookie stage")
+    _check(str(game_state.career_ladder_stage().get("label", "")) == "동네 신인", "career did not start as a local rookie")
+    _check(game_state.ladder_titles().is_empty(), "new career started with a ladder title")
 
-    game_state.state.career.fights = 3
-    game_state.state.career.wins = 2
-    stage = game_state.career_ladder_stage()
-    _check(str(stage.get("label", "")) == "구·시 챔피언", "district title stage did not unlock")
+    _set_record(2, 2, 18)
+    var district: Dictionary = _offered_title(opponents, "district")
+    _check(not district.is_empty(), "district title fight did not unlock at 2 fights / 2 wins")
+    _win_title(district)
+    _check("district" in game_state.ladder_titles(), "district belt was not recorded after an actual win")
+    _check(str(game_state.career_ladder_stage().get("label", "")) == "구·시 챔피언", "district title win did not change career status")
+    _check(not bool(game_state.state.career.get("finished", false)), "district title incorrectly ended the career")
 
-    game_state.state.career.fights = 9
-    game_state.state.career.wins = 6
-    stage = game_state.career_ladder_stage()
-    _check(str(stage.get("label", "")) == "대한민국 챔피언", "national title stage did not unlock")
+    _set_record(5, 4, 35)
+    var regional: Dictionary = _offered_title(opponents, "regional")
+    _check(not regional.is_empty(), "regional title fight did not unlock after district title")
+    _win_title(regional)
+    _check("regional" in game_state.ladder_titles(), "regional belt was not recorded after an actual win")
+    _check(str(game_state.career_ladder_stage().get("label", "")) == "지역 챔피언", "regional title win did not change career status")
 
-    game_state.state.career.fights = 14
-    game_state.state.career.wins = 10
-    stage = game_state.career_ladder_stage()
-    _check(str(stage.get("label", "")) == "세계 랭커", "world-ranked stage did not unlock")
+    _set_record(8, 6, 55)
+    var national: Dictionary = _offered_title(opponents, "national")
+    _check(not national.is_empty(), "national title fight did not unlock after regional title")
+    _win_title(national)
+    _check("national" in game_state.ladder_titles(), "national belt was not recorded after an actual win")
+    _check(str(game_state.career_ladder_stage().get("label", "")) == "대한민국 챔피언", "national title win did not change career status")
+
+    _set_record(11, 8, 72)
+    var continental: Dictionary = _offered_title(opponents, "continental")
+    _check(not continental.is_empty(), "continental title fight did not unlock after national title")
+    _win_title(continental)
+    _check("continental" in game_state.ladder_titles(), "continental belt was not recorded after an actual win")
+    _check(str(game_state.career_ladder_stage().get("label", "")) == "아시아 챔피언", "continental title win did not change career status")
+
+    _set_record(14, 10, 84)
+    _check(str(game_state.career_ladder_stage().get("label", "")) == "세계 랭커", "continental champion did not become world-ranked at the record gate")
+    var eliminator: Dictionary = _offered_title(opponents, "world_eliminator")
+    _check(not eliminator.is_empty(), "world title eliminator did not unlock at 14 fights / 10 wins")
+    _win_title(eliminator)
+    _check("world_eliminator" in game_state.ladder_titles(), "world eliminator win was not recorded")
+    _check(str(game_state.career_ladder_stage().get("label", "")) == "세계 타이틀 도전자", "eliminator win did not grant contender status")
+    _check(not bool(game_state.state.career.get("finished", false)), "world eliminator incorrectly ended the career")
+
+    _set_record(15, 11, 100)
+    _check(not game_state.world_title_ready(), "world title unlocked before minimum career length")
+    _check(_offered_title(opponents, "world").is_empty(), "world champion appeared before 16 fights / 12 wins")
+
+    _set_record(16, 12, 100)
+    _check(game_state.world_title_ready(), "world title did not unlock after eliminator plus 16 fights / 12 wins")
+    var world_title: Dictionary = _offered_title(opponents, "world")
+    _check(not world_title.is_empty(), "world champion did not appear after all career gates")
+
+func _set_record(fights: int, wins: int, points: int) -> void:
+    game_state.state.career.fights = fights
+    game_state.state.career.wins = wins
+    game_state.state.career.career_points = points
+    game_state._sync_progression()
+
+func _offered_title(opponents: Array, title_kind: String) -> Dictionary:
+    for value in game_state.get_fight_offers(opponents):
+        var opponent: Dictionary = value
+        if str(opponent.get("title_kind", "")) == title_kind:
+            return opponent
+    return {}
+
+func _win_title(opponent: Dictionary) -> void:
+    if opponent.is_empty():
+        return
+    game_state.state.phase = "fight"
+    game_state.state.last_weigh_in = {"purse_multiplier": 1.0}
+    game_state.apply_fight_result("WIN_DEC", opponent, {"player_hp": 90.0, "opponent_hp": 45.0})
 
 func _load_array(path: String) -> Array:
     var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
