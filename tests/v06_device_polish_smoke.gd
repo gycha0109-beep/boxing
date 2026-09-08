@@ -53,7 +53,7 @@ func _run() -> void:
     await process_frame
     await process_frame
 
-    _check(str(main_view.get_script().resource_path) == "res://scripts/main_v14.gd", "Main scene is not using the active economy shell that preserves the v1.0/v0.8/v0.6 device runtime")
+    _check(str(main_view.get_script().resource_path) == "res://scripts/main_v15.gd", "Main scene is not using the active audio/economy shell that preserves the v1.0/v0.8/v0.6 device runtime")
     var buttons: Array[Button] = _buttons_under(main_view)
     _check(not buttons.is_empty(), "v0.6 fight screen rendered no buttons")
     for button in buttons:
@@ -65,14 +65,25 @@ func _run() -> void:
         _check(bool(arena_node.get("crowd_active")), "crowd ambience was not activated")
         _check(int(arena_node.get("cue_count")) >= 1, "opening bell was not routed")
 
+    var music_node: Node = main_view.get_node_or_null("MusicDirector")
+    _check(is_instance_valid(music_node), "music director was not created on active fight screen")
+    if is_instance_valid(music_node):
+        _check(str(music_node.get("current_mode")) == "fight", "fight screen did not activate fight BGM")
+
     var pause_before: int = int(main_view.get("lifecycle_pause_saves"))
     main_view._notification(MainLoop.NOTIFICATION_APPLICATION_PAUSED)
     _check(int(main_view.get("lifecycle_pause_saves")) == pause_before + 1, "pause notification did not persist runtime state")
+    if is_instance_valid(music_node):
+        _check(bool(music_node.get("suspended")), "music did not suspend with application pause")
     main_view._notification(MainLoop.NOTIFICATION_APPLICATION_RESUMED)
     _check(int(main_view.get("lifecycle_resumes")) >= 1, "resume notification was not handled")
+    if is_instance_valid(music_node):
+        _check(not bool(music_node.get("suspended")), "music did not resume with application lifecycle")
 
     main_view._choose_fight_action("jab")
     _check(bool(main_view.get("fight_input_locked")), "fight input was not locked synchronously when presentation began")
+    if is_instance_valid(music_node):
+        _check(float(music_node.get("duck_gain")) < 0.55, "fight impact did not duck background music")
     await process_frame
     var fx_node: Node = main_view.get_node_or_null("FightFxDirector")
     _check(is_instance_valid(fx_node), "fight FX director was not wired into actual Main fight action")
