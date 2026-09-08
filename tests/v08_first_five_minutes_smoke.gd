@@ -43,7 +43,12 @@ func _run() -> void:
     await process_frame
     await process_frame
 
-    _check(str(main_view.get_script().resource_path) == "res://scripts/main_v14.gd", "Main scene is not using the active economy shell that preserves the v1.0/v0.8 flow")
+    _check(str(main_view.get_script().resource_path) == "res://scripts/main_v15.gd", "Main scene is not using the active audio/economy shell that preserves the v1.0/v0.8 flow")
+    var music_node: Node = main_view.get_node_or_null("MusicDirector")
+    _check(is_instance_valid(music_node), "launch flow did not create music director")
+    if is_instance_valid(music_node):
+        _check(str(music_node.get("current_mode")) == "menu", "launch title did not use menu BGM")
+
     var title_text := "\n".join(_collect_text(main_view))
     _check(title_text.contains("ONE FIGHTER. ONE CAREER."), "fresh career did not show launch title gate")
     _check(title_text.contains("프로 커리어 시작"), "launch title missing start CTA")
@@ -84,6 +89,8 @@ func _run() -> void:
     main_view._confirm_talent()
     await process_frame
     _check(str(game_state.state.phase) == "camp", "talent confirmation did not enter camp")
+    if is_instance_valid(music_node):
+        _check(str(music_node.get("current_mode")) == "career", "camp did not switch to career BGM")
     var camp_text := "\n".join(_collect_text(main_view))
     _check(camp_text.contains("PRO DEBUT · CAMP 01"), "first camp missing debut framing")
     _check(camp_text.contains("CAREER LADDER"), "first camp missing career ladder framing")
@@ -92,6 +99,8 @@ func _run() -> void:
     main_view._choose_camp_action(camps[0])
     await process_frame
     _check(str(game_state.state.phase) == "fight_offer", "camp choice did not enter fight offers")
+    if is_instance_valid(music_node):
+        _check(str(music_node.get("current_mode")) == "fight_week", "fight offer did not switch to fight-week BGM")
     var offer_text := "\n".join(_collect_text(main_view))
     _check(offer_text.contains("FIGHT WEEK · CONTRACT BOARD"), "fight offers missing fight-week framing")
     _check(offer_text.contains("CAREER LADDER"), "fight offers missing visible career ladder")
@@ -135,10 +144,14 @@ func _run() -> void:
     await process_frame
     _check(bool(game_state.state.get("weigh_in_acknowledged", false)), "weigh-in acknowledgement was not persisted")
     _check(_find_stage(main_view) != null, "fight stage did not render after weigh-in acknowledgement")
+    if is_instance_valid(music_node):
+        _check(str(music_node.get("current_mode")) == "fight", "fight night did not switch to fight BGM")
 
     game_state.apply_fight_result("WIN_DEC", opponent, {"player_hp": 72.0, "opponent_hp": 44.0})
     main_view._render_phase()
     await process_frame
+    if is_instance_valid(music_node):
+        _check(str(music_node.get("current_mode")) == "career", "result did not return to career BGM")
     var result_text := "\n".join(_collect_text(main_view))
     _check(result_text.contains("FIGHT NIGHT · OFFICIAL RESULT"), "result screen missing official-result framing")
     _check(result_text.contains("판정승"), "result screen missing localized result")
