@@ -70,7 +70,7 @@ func _run() -> void:
 
 func _check_fighter_profile(context: String) -> void:
     var text := "\n".join(_collect_text(main_view))
-    _check(text.contains("내 복서 · MY BOXER"), "%s screen has no clear fighter profile heading" % context)
+    _check(text.contains("내 복서 · YOUR FIGHTER"), "%s screen has no clear fighter profile heading" % context)
     _check(text.contains("Touch Boxer"), "%s fighter profile is missing boxer name" % context)
     for stat_label in ["파워", "스피드", "테크닉", "수비", "컨디셔닝"]:
         _check(text.contains(stat_label), "%s fighter profile is missing stat label: %s" % [context, stat_label])
