@@ -43,7 +43,7 @@ func _run() -> void:
     await process_frame
     await process_frame
 
-    _check(str(main_view.get_script().resource_path) == "res://scripts/main_v12.gd", "Main scene is not using the legacy shell that extends v1.0 and preserves v0.8 first-five-minutes flow")
+    _check(str(main_view.get_script().resource_path) == "res://scripts/main_v13.gd", "Main scene is not using the preparation shell that preserves v1.0/v0.8 first-five-minutes flow")
     var title_text := "\n".join(_collect_text(main_view))
     _check(title_text.contains("ONE FIGHTER. ONE CAREER."), "fresh career did not show launch title gate")
     _check(title_text.contains("프로 커리어 시작"), "launch title missing start CTA")
@@ -66,10 +66,26 @@ func _run() -> void:
     var opponent: Dictionary = opponents[0]
     main_view._choose_opponent(opponent)
     await process_frame
-    _check(str(game_state.state.phase) == "game_plan", "opponent choice did not enter game plan")
+    _check(str(game_state.state.phase) == "tactical_prep", "opponent choice did not enter tactical preparation")
+    var tactical_text := "\n".join(_collect_text(main_view))
+    _check(tactical_text.contains("FIGHT CAMP · TACTICAL PREP"), "tactical preparation missing fight-camp framing")
+    _check(tactical_text.contains(str(opponent.name)), "tactical preparation missing opponent")
+    _check(tactical_text.contains("영구 스탯은 더 오르지 않습니다"), "tactical preparation does not explain the one-growth rule")
+
+    main_view._choose_tactical_preparation("distance_drill")
+    await process_frame
+    _check(str(game_state.state.phase) == "condition_prep", "tactical choice did not enter final condition")
+    var condition_text := "\n".join(_collect_text(main_view))
+    _check(condition_text.contains("FIGHT CAMP · FINAL CONDITION"), "condition preparation missing fight-camp framing")
+    _check(condition_text.contains("추가 성장은 없습니다"), "condition preparation does not explain the no-growth rule")
+
+    main_view._choose_condition_preparation("sharpness")
+    await process_frame
+    _check(str(game_state.state.phase) == "game_plan", "condition choice did not enter game plan")
     var plan_text := "\n".join(_collect_text(main_view))
     _check(plan_text.contains("FIGHT WEEK · SCOUTING DOSSIER"), "game plan missing scouting dossier framing")
     _check(plan_text.contains(str(opponent.name)), "scouting dossier missing opponent")
+    _check(plan_text.contains("이번 준비"), "game plan missing preparation summary")
 
     main_view._choose_game_plan("balanced")
     await process_frame
