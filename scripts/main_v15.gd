@@ -20,8 +20,10 @@ func _render_fight(animated_exchange: Dictionary = {}) -> void:
 func _choose_fight_action(action: String) -> void:
     if fight_input_locked:
         return
+    # Duck before the base class resolves the exchange, because that is where
+    # ImpactFeedback actually emits the punch transient.
+    _music().duck(0.72)
     super._choose_fight_action(action)
-    _music().duck(0.52)
     _sync_music_for_phase()
 
 func _notification(what: int) -> void:
