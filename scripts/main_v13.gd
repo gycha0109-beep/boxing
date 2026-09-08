@@ -54,7 +54,7 @@ func _render_status() -> void:
         return
     if phase == "career_summary":
         return
-    var stage := GameState.career_ladder_stage()
+    var stage: Dictionary = GameState.career_ladder_stage()
     if not stage.is_empty():
         status.text += "\nCAREER · %s" % str(stage.get("label", "동네 신인"))
 
@@ -141,20 +141,20 @@ func _talent_passive_text(talent_id: String) -> String:
         _: return "이 선수만의 타고난 장단점입니다."
 
 func _render_career_ladder_card() -> void:
-    var current := GameState.career_ladder_stage()
-    var next := GameState.career_ladder_next_stage()
+    var current: Dictionary = GameState.career_ladder_stage()
+    var next_stage: Dictionary = GameState.career_ladder_next_stage()
     var career: Dictionary = GameState.state.get("career", {})
     var card := _card_box("CAREER LADDER · %s" % str(current.get("label", "동네 신인")))
-    if next.is_empty():
+    if next_stage.is_empty():
         if GameState.world_title_ready():
             _add_wrapped_label(card, "월드 타이틀 도전 자격 확보 · 이제 세계 챔피언전을 노릴 수 있습니다.", true)
         else:
             _add_wrapped_label(card, "세계 타이틀 도전 조건 · 최소 16전 / 12승", true)
     else:
-        _add_wrapped_label(card, "다음 단계 · %s" % str(next.get("label", "")), false)
+        _add_wrapped_label(card, "다음 단계 · %s" % str(next_stage.get("label", "")), false)
         _add_wrapped_label(card, "현재 %d전 %d승 · 필요 %d전 %d승" % [
             int(career.get("fights", 0)), int(career.get("wins", 0)),
-            int(next.get("min_fights", 0)), int(next.get("min_wins", 0))
+            int(next_stage.get("min_fights", 0)), int(next_stage.get("min_wins", 0))
         ], true)
 
 func _render_camp() -> void:
@@ -233,7 +233,7 @@ func _render_condition_preparation() -> void:
     _eyebrow("FIGHT CAMP · FINAL CONDITION")
     _section("마지막 몸 상태 결정", "추가 성장은 없습니다. 쉬어 갈지, 체중을 정리할지, 감각을 살릴지만 결정합니다.")
 
-    var tactical := GameState.preparation_definition("tactical", str(GameState.state.get("selected_tactical_prep", "")))
+    var tactical: Dictionary = GameState.preparation_definition("tactical", str(GameState.state.get("selected_tactical_prep", "")))
     if not tactical.is_empty():
         var selected := _card_box("TACTICAL · %s" % str(tactical.get("name", "")))
         _add_wrapped_label(selected, str(tactical.get("description", "")), true)
@@ -259,8 +259,8 @@ func _render_condition_preparation() -> void:
     body.add_child(back)
 
 func _render_game_plan() -> void:
-    var tactical := GameState.preparation_definition("tactical", str(GameState.state.get("selected_tactical_prep", "")))
-    var condition := GameState.preparation_definition("condition", str(GameState.state.get("selected_condition_prep", "")))
+    var tactical: Dictionary = GameState.preparation_definition("tactical", str(GameState.state.get("selected_tactical_prep", "")))
+    var condition: Dictionary = GameState.preparation_definition("condition", str(GameState.state.get("selected_condition_prep", "")))
     if not tactical.is_empty() or not condition.is_empty():
         var summary := _card_box("이번 준비")
         var parts: Array[String] = []
@@ -290,27 +290,27 @@ func _return_to_fight_offers() -> void:
     super._return_to_fight_offers()
 
 func _choose_tactical_preparation(preparation_id: String) -> void:
-    var result := GameState.select_tactical_preparation(preparation_id)
+    var result: Dictionary = GameState.select_tactical_preparation(preparation_id)
     if bool(result.get("ok", false)):
         _render_phase()
 
 func _choose_condition_preparation(preparation_id: String) -> void:
-    var result := GameState.select_condition_preparation(preparation_id)
+    var result: Dictionary = GameState.select_condition_preparation(preparation_id)
     if bool(result.get("ok", false)):
         _render_phase()
 
 func _return_to_tactical_preparation() -> void:
-    var result := GameState.return_to_tactical_preparation()
+    var result: Dictionary = GameState.return_to_tactical_preparation()
     if bool(result.get("ok", false)):
         _render_phase()
 
 func _return_to_condition_preparation() -> void:
-    var result := GameState.return_to_condition_preparation()
+    var result: Dictionary = GameState.return_to_condition_preparation()
     if bool(result.get("ok", false)):
         _render_phase()
 
 func _return_from_tactical_to_offers() -> void:
-    var result := GameState.return_to_fight_offers_from_preparation()
+    var result: Dictionary = GameState.return_to_fight_offers_from_preparation()
     if bool(result.get("ok", false)):
         current_opponent = {}
         _render_phase()
