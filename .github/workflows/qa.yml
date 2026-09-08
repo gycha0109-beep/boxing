@@ -100,3 +100,5 @@ jobs:
         run: timeout 60s Godot_v${GODOT_VERSION}_linux.x86_64 --headless --path . --script res://tests/v10_release_font_smoke.gd
       - name: Verify mobile card scrolling and opponent back navigation
         run: timeout 60s Godot_v${GODOT_VERSION}_linux.x86_64 --headless --path . --script res://tests/mobile_scroll_back_smoke.gd
+      - name: Verify fixed no-scroll fight HUD
+        run: timeout 60s Godot_v${GODOT_VERSION}_linux.x86_64 --headless --path . --script res://tests/fight_fixed_hud_smoke.gd
