@@ -39,7 +39,7 @@ func _test_style_choice_and_talent_separation() -> void:
     _check(int(game_state.state.boxer.technique) == 53, "style/talent technique composition mismatch")
     _check(int(game_state.state.boxer.defense) == 47, "style/talent defense composition mismatch")
 
-    var talent := game_state.talent_definition()
+    var talent: Dictionary = game_state.talent_definition()
     _check(str(talent.get("name", "")) == "유리 대포", "natural talent definition lookup failed")
     var confirmed: Dictionary = game_state.confirm_talent()
     _check(bool(confirmed.get("ok", false)), "talent confirmation failed")
@@ -82,7 +82,7 @@ func _test_world_title_gate() -> void:
 
 func _test_ladder_progression() -> void:
     game_state.new_career("Ladder Boxer", "workhorse")
-    var stage := game_state.career_ladder_stage()
+    var stage: Dictionary = game_state.career_ladder_stage()
     _check(str(stage.get("label", "")) == "동네 신인", "career did not start at local rookie stage")
 
     game_state.state.career.fights = 3
