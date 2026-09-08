@@ -1,7 +1,7 @@
 [
-  {"id":"balanced","name":"균형형","description":"뚜렷한 약점 없이 모든 선택지를 열어 둔 기본형입니다.","signature":"상대에 맞춰 스타일을 바꾸는 복서","stat_bonus":{}},
-  {"id":"pressure_fighter","name":"압박형","description":"앞으로 전진하며 체력과 압박으로 상대의 선택지를 줄입니다.","signature":"라운드가 길어질수록 거리를 빼앗는다","stat_bonus":{"power":2,"conditioning":4,"defense":-2}},
-  {"id":"out_boxer","name":"아웃복서","description":"속도와 정확도로 거리를 지키며 포인트를 쌓습니다.","signature":"맞기 전에 먼저 치고 빠진다","stat_bonus":{"speed":4,"technique":3,"power":-2}},
-  {"id":"slugger","name":"강타자","description":"한 번의 큰 적중으로 경기 흐름을 바꾸지만 기동성은 떨어집니다.","signature":"기회 한 번을 KO로 바꾼다","stat_bonus":{"power":6,"speed":-3,"defense":-1}},
-  {"id":"counter_puncher","name":"카운터 복서","description":"상대가 먼저 움직이게 만든 뒤 빈틈을 정확히 노립니다.","signature":"상대의 실수를 기다려 더 크게 돌려준다","stat_bonus":{"technique":4,"defense":4,"conditioning":-2}}
+  {"id":"balanced","name":"균형형","description":"어느 한쪽도 포기하지 않고 이후 훈련으로 방향을 정하는 기본형입니다.","signature":"약점 없이 원하는 방향으로 키운다","stat_bonus":{}},
+  {"id":"pressure_fighter","name":"압박형","description":"파워와 체력을 앞세워 전진하지만 속도와 수비 완성도는 낮게 시작합니다.","signature":"라운드가 길어질수록 거리를 빼앗는다","stat_bonus":{"power":2,"conditioning":3,"speed":-2,"technique":-1,"defense":-2}},
+  {"id":"out_boxer","name":"아웃복서","description":"속도와 정확도를 먼저 가져가는 대신 파워와 체력을 일부 포기합니다.","signature":"맞기 전에 먼저 치고 빠진다","stat_bonus":{"speed":3,"technique":2,"power":-3,"conditioning":-2}},
+  {"id":"slugger","name":"강타자","description":"파워에 능력치를 몰아 한 번의 큰 적중을 노리지만 기동성과 수비가 떨어집니다.","signature":"기회 한 번을 KO로 바꾼다","stat_bonus":{"power":4,"speed":-2,"defense":-2}},
+  {"id":"counter_puncher","name":"카운터 복서","description":"테크닉과 수비를 먼저 갖추는 대신 파워·스피드·체력을 일부 포기합니다.","signature":"상대의 실수를 기다려 더 크게 돌려준다","stat_bonus":{"technique":3,"defense":3,"power":-2,"speed":-2,"conditioning":-2}}
 ]
