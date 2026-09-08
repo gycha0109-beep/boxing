@@ -6,7 +6,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 required = [
     "project.godot", "scenes/Main.tscn",
-    "scripts/main.gd", "scripts/main_v05.gd", "scripts/main_v06.gd", "scripts/main_v07.gd", "scripts/main_v08.gd", "scripts/main_v10.gd", "scripts/main_v12.gd", "scripts/main_v13.gd", "scripts/main_v14.gd", "scripts/main_v15.gd",
+    "scripts/main.gd", "scripts/main_v05.gd", "scripts/main_v06.gd", "scripts/main_v07.gd", "scripts/main_v08.gd", "scripts/main_v10.gd", "scripts/main_v12.gd", "scripts/main_v13.gd", "scripts/main_v14.gd", "scripts/main_v15.gd", "scripts/main_v16.gd",
     "scripts/core/game_state.gd", "scripts/core/game_state_v12.gd", "scripts/core/game_state_v14.gd", "scripts/core/game_state_v15.gd", "scripts/core/combat_engine.gd", "scripts/core/save_service.gd", "scripts/core/legacy_service.gd",
     "scripts/ui/combat_presentation.gd", "scripts/ui/fight_stage.gd", "scripts/ui/impact_feedback.gd", "scripts/ui/fight_fx_director.gd", "scripts/ui/arena_audio.gd", "scripts/ui/music_director.gd", "scripts/ui/safe_area_layout.gd", "scripts/ui/visual_asset_catalog.gd",
     "data/balance.json", "data/camp_actions.json", "data/opponents.json", "data/career_balance.json", "data/traits.json", "data/events.json", "data/injuries.json", "data/fighter_identities.json", "data/game_plans.json", "data/legacy_definitions.json", "data/fight_preparations.json", "data/equipment.json",
@@ -24,7 +24,7 @@ project = (ROOT / "project.godot").read_text()
 scene = (ROOT / "scenes/Main.tscn").read_text()
 assert 'run/main_scene="res://scenes/Main.tscn"' in project
 assert 'GameState="*res://scripts/core/game_state_v15.gd"' in project
-assert 'res://scripts/main_v15.gd' in scene
+assert 'res://scripts/main_v16.gd' in scene
 
 main_chain = {
     "scripts/main_v05.gd": 'extends "res://scripts/main.gd"',
@@ -36,6 +36,7 @@ main_chain = {
     "scripts/main_v13.gd": 'extends "res://scripts/main_v12.gd"',
     "scripts/main_v14.gd": 'extends "res://scripts/main_v13.gd"',
     "scripts/main_v15.gd": 'extends "res://scripts/main_v14.gd"',
+    "scripts/main_v16.gd": 'extends "res://scripts/main_v15.gd"',
 }
 for path, marker in main_chain.items():
     assert marker in (ROOT / path).read_text(), f"main inheritance broken: {path}"
@@ -52,6 +53,14 @@ assert "%" not in "".join(line for line in main_v14.splitlines() if "training_pe
 main_v15 = (ROOT / "scripts/main_v15.gd").read_text()
 for marker in ["MusicDirector", "func _sync_music_for_phase()", "func _wire_ui_sounds()", "func _choose_fight_action(", "duck(0.72)", "func _notification("]:
     assert marker in main_v15
+
+main_v16 = (ROOT / "scripts/main_v16.gd").read_text()
+for marker in ["func _render_camp()", "func _render_offers()", "func _render_game_plan()", "func _render_tactical_preparation()", "func _render_condition_preparation()", "func _render_style_select()", "func _v16_stat_row(", "func _show_stat_help(", "GridContainer", "opponent_portrait_texture_for_name"]:
+    assert marker in main_v16
+
+visual_catalog = (ROOT / "scripts/ui/visual_asset_catalog.gd").read_text()
+for marker in ["VISUAL_PROFILE_BY_NAME", "VISUAL_STYLE_BY_PROFILE", "opponent_visual_profile_for_name", "opponent_visual_style_for_name", "opponent_portrait_texture_for_name", '"박태호": "korean"', '"에번 브룩스": "black"']:
+    assert marker in visual_catalog
 
 music = (ROOT / "scripts/ui/music_director.gd").read_text()
 for marker in ["class_name MusicDirector", "MUSIC_VOLUME_DB", "UI_VOLUME_DB", "func set_mode(", "func play_ui(", "func duck(", "func track_profile(", "func mode_for_phase(", '"fight_week"', '"legacy"']:
