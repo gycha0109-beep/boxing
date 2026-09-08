@@ -209,7 +209,7 @@ func _fight_action_button(parent: HBoxContainer, action_id: String, selected_pla
     var button := Button.new()
     var stamina := int(action.get("stamina", 0))
     var stamina_text := "STA +%d" % abs(stamina) if stamina < 0 else "STA %d" % stamina
-    var plan_bonus := selected_plan.get("action_modifiers", {}).has(action_id)
+    var plan_bonus: bool = bool(selected_plan.get("action_modifiers", {}).has(action_id))
     var plan_text := "\n★ PLAN" if plan_bonus else ""
     button.text = "%s%s\n%s" % [str(action.get("label", action_id)), plan_text, stamina_text]
     button.custom_minimum_size = Vector2(0, 68)
@@ -293,19 +293,13 @@ func _render_player_visual_card() -> void:
     identity_info.add_child(name_label)
 
     var identity_label := Label.new()
-    identity_label.text = "%s · 특성 [%s]" % [
-        str(boxer.get("identity_name", "균형형")),
-        str(boxer.get("trait_name", "무특성"))
-    ]
+    identity_label.text = "%s · 특성 [%s]" % [str(boxer.get("identity_name", "균형형")), str(boxer.get("trait_name", "무특성"))]
     identity_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
     identity_label.add_theme_color_override("font_color", PROFILE_ACCENT)
     identity_info.add_child(identity_label)
 
     var record_label := Label.new()
-    record_label.text = "%d-%d-%d · 랭킹 #%d · %s · %s" % [
-        int(career.get("wins", 0)), int(career.get("losses", 0)), int(career.get("draws", 0)),
-        int(career.get("rank", 0)), GameState.tier_label(), GameState.age_text()
-    ]
+    record_label.text = "%d-%d-%d · 랭킹 #%d · %s · %s" % [int(career.get("wins", 0)), int(career.get("losses", 0)), int(career.get("draws", 0)), int(career.get("rank", 0)), GameState.tier_label(), GameState.age_text()]
     record_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
     record_label.add_theme_font_size_override("font_size", 13)
     record_label.add_theme_color_override("font_color", PROFILE_MUTED)
@@ -334,11 +328,7 @@ func _render_player_visual_card() -> void:
         injury_text = "%s · %d캠프" % [str(injury.get("name", "부상")), int(injury.get("remaining_camps", 0))]
 
     var condition := Label.new()
-    condition.text = "현재 상태 · 체중 %.2f / %.1fkg · 피로 %d%% · 건강 %d%%\n부상 %s · 커리어 %dpt · 보유금 %d원" % [
-        float(boxer.get("weight_kg", 0.0)), float(GameState.career_balance.weight_class.limit_kg),
-        int(boxer.get("fatigue", 0)), int(boxer.get("health", 0)), injury_text,
-        int(career.get("career_points", 0)), int(career.get("money", 0))
-    ]
+    condition.text = "현재 상태 · 체중 %.2f / %.1fkg · 피로 %d%% · 건강 %d%%\n부상 %s · 커리어 %dpt · 보유금 %d원" % [float(boxer.get("weight_kg", 0.0)), float(GameState.career_balance.weight_class.limit_kg), int(boxer.get("fatigue", 0)), int(boxer.get("health", 0)), injury_text, int(career.get("career_points", 0)), int(career.get("money", 0))]
     condition.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
     condition.add_theme_font_size_override("font_size", 13)
     condition.add_theme_color_override("font_color", PROFILE_MUTED)
@@ -417,7 +407,6 @@ func _apply_v07_system_font() -> void:
     if bundled_font == null:
         push_error("Bundled Korean release font failed to load: %s" % RELEASE_FONT_PATH)
         return
-
     bundled_font.allow_system_fallback = false
     var ui_theme := Theme.new()
     ui_theme.default_font = bundled_font
