@@ -5,6 +5,40 @@ const ROOT := "res://assets/visual/v0.7"
 const POSES := ["idle", "jab", "power", "body", "guard", "counter", "hurt", "knockdown"]
 const STYLES := ["swarmer", "outboxer", "slugger", "counter"]
 
+# Combat style remains gameplay data in data/opponents.json. Visual profile is
+# intentionally separate so a Korean boxer cannot turn into a different person
+# just because two opponents share the same tactical style.
+const VISUAL_PROFILE_BY_NAME := {
+    "한도윤": "korean", "서민재": "korean", "장우진": "korean", "박태호": "korean",
+    "이준석": "korean", "배성호": "korean", "김성민": "korean", "최현우": "korean",
+    "임태건": "korean", "강무진": "korean", "윤재혁": "korean", "나카무라 렌": "korean",
+    "미겔 산토스": "latino", "에번 브룩스": "black", "마테오 실바": "latino",
+    "빅토르 코즐로프": "european",
+}
+const COUNTRY_BY_NAME := {
+    "한도윤": "KR", "서민재": "KR", "장우진": "KR", "박태호": "KR",
+    "이준석": "KR", "배성호": "KR", "김성민": "KR", "최현우": "KR",
+    "임태건": "KR", "강무진": "KR", "윤재혁": "KR", "나카무라 렌": "JP",
+    "미겔 산토스": "MX", "에번 브룩스": "US", "마테오 실바": "BR",
+    "빅토르 코즐로프": "RU",
+}
+const VISUAL_STYLE_BY_PROFILE := {
+    # The legacy slugger pose set is player-derived and is the stable East-Asian set.
+    "korean": "slugger",
+    # These three retain the distinct authored v0.7 silhouettes.
+    "black": "swarmer",
+    "latino": "outboxer",
+    "european": "counter",
+}
+const PORTRAIT_STYLE_BY_PROFILE := {
+    # Use the clean player portrait for East-Asian opponents instead of the old
+    # black slugger portrait. Portrait variety is expanded in the v1.1 art pass.
+    "korean": "player",
+    "black": "swarmer",
+    "latino": "outboxer",
+    "european": "counter",
+}
+
 static var _texture_cache: Dictionary = {}
 static var _opponent_cache: Dictionary = {}
 static var _opponents_loaded: bool = false
@@ -28,6 +62,26 @@ static func portrait_path(is_player: bool, style_id: String = "") -> String:
     if is_player:
         return "%s/portraits/portrait_player_a.png" % ROOT
     return "%s/portraits/portrait_%s_a.png" % [ROOT, normalize_style(style_id)]
+
+static func opponent_visual_profile_for_name(opponent_name: String) -> String:
+    return str(VISUAL_PROFILE_BY_NAME.get(opponent_name, "korean"))
+
+static func opponent_visual_style_for_name(opponent_name: String) -> String:
+    var profile: String = opponent_visual_profile_for_name(opponent_name)
+    return normalize_style(str(VISUAL_STYLE_BY_PROFILE.get(profile, "slugger")))
+
+static func opponent_country_badge(opponent_name: String) -> String:
+    return str(COUNTRY_BY_NAME.get(opponent_name, "INT"))
+
+static func opponent_portrait_path_for_name(opponent_name: String) -> String:
+    var profile: String = opponent_visual_profile_for_name(opponent_name)
+    var portrait_style: String = str(PORTRAIT_STYLE_BY_PROFILE.get(profile, "player"))
+    if portrait_style == "player":
+        return portrait_path(true)
+    return portrait_path(false, portrait_style)
+
+static func opponent_portrait_texture_for_name(opponent_name: String) -> Texture2D:
+    return texture(opponent_portrait_path_for_name(opponent_name))
 
 static func arena_path(title_fight: bool) -> String:
     return "%s/arena/%s" % [ROOT, "arena_title_night.png" if title_fight else "arena_gym_basic.png"]
@@ -108,10 +162,20 @@ static func missing_required_paths() -> Array[String]:
             result.append(path)
     return result
 
+# Kept for compatibility with FightStage: this now returns the visual style.
+# Combat code reads the opponent dictionary's real style directly and is unchanged.
 static func opponent_style_for_name(opponent_name: String) -> String:
+    return opponent_visual_style_for_name(opponent_name)
+
+static func opponent_combat_style_for_name(opponent_name: String) -> String:
     _load_opponents()
     var meta: Dictionary = _opponent_cache.get(opponent_name, {})
     return normalize_style(str(meta.get("style", "swarmer")))
+
+static func install_identity_visual_profiles() -> void:
+    # Compatibility hook for the v1.1 UI shell. Identity routing is resolved
+    # dynamically by the methods above, so no gameplay data is mutated.
+    _load_opponents()
 
 static func is_title_opponent(opponent_name: String) -> bool:
     _load_opponents()
