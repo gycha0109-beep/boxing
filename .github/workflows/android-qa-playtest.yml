@@ -135,8 +135,8 @@ jobs:
           architectures/arm64-v8a=true
           architectures/x86=false
           architectures/x86_64=false
-          version/code=2
-          version/name="1.0.0-scrollfix"
+          version/code=3
+          version/name="1.0.0-fixedhud"
           package/unique_name="com.twelvecount.qaplaytest"
           package/name="Twelve Count QA"
           package/signed=true
@@ -185,7 +185,7 @@ jobs:
       - name: Upload Android QA APK
         uses: actions/upload-artifact@v6
         with:
-          name: TwelveCount-Android-QA-ScrollFix
+          name: TwelveCount-Android-QA-FixedHUD
           path: |
             build/android-qa/TwelveCount-QA.apk
             build/android-qa/SHA256SUMS.txt
