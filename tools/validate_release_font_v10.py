@@ -9,6 +9,7 @@ FONT = ROOT / "assets/fonts/NotoSansKR-VF.ttf"
 LICENSE = ROOT / "assets/fonts/OFL-NotoSansKR.txt"
 MAIN_SCENE = ROOT / "scenes/Main.tscn"
 RELEASE_SHELL = ROOT / "scripts/main_v10.gd"
+ACTIVE_SHELL = ROOT / "scripts/main_v12.gd"
 IMPORT_WORKFLOW = ROOT / ".github/workflows/import-korean-font-v10.yml"
 
 EXPECTED_FONT_BLOB = "b386890ba945e1f39448a6b59f20c5d194f58808"
@@ -37,7 +38,9 @@ def main() -> None:
 
     scene_text = MAIN_SCENE.read_text(encoding="utf-8")
     shell_text = RELEASE_SHELL.read_text(encoding="utf-8")
-    require('res://scripts/main_v10.gd' in scene_text, "Main scene is not routed through the v1.0 release shell")
+    active_shell_text = ACTIVE_SHELL.read_text(encoding="utf-8")
+    require('res://scripts/main_v12.gd' in scene_text, "Main scene is not routed through the active legacy shell")
+    require('extends "res://scripts/main_v10.gd"' in active_shell_text, "active legacy shell no longer preserves the v1.0 release shell")
     require('extends "res://scripts/main_v08.gd"' in shell_text, "v1.0 release shell no longer preserves v0.8 flow")
     require('res://assets/fonts/NotoSansKR-VF.ttf' in shell_text, "release shell does not reference the bundled font")
     require("as FontFile" in shell_text, "release shell does not require a FontFile resource")
