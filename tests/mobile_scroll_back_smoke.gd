@@ -49,6 +49,8 @@ func _run() -> void:
         for button in buttons:
             _check(button.mouse_filter == Control.MOUSE_FILTER_PASS, "button blocks parent touch drag: %s" % button.text)
 
+    _check_fighter_profile("game-plan")
+
     var back_button := _button_with_text(main_view, "← 상대 다시 선택")
     _check(is_instance_valid(back_button), "game-plan screen has no opponent back button")
 
@@ -63,7 +65,23 @@ func _run() -> void:
         for button in _buttons_under(scroll):
             _check(button.mouse_filter == Control.MOUSE_FILTER_PASS, "fight-offer button blocks parent touch drag after rerender: %s" % button.text)
 
+    _check_fighter_profile("fight-offer")
     _finish()
+
+func _check_fighter_profile(context: String) -> void:
+    var text := "\n".join(_collect_text(main_view))
+    _check(text.contains("내 복서 · MY BOXER"), "%s screen has no clear fighter profile heading" % context)
+    _check(text.contains("Touch Boxer"), "%s fighter profile is missing boxer name" % context)
+    for stat_label in ["파워", "스피드", "테크닉", "수비", "컨디셔닝"]:
+        _check(text.contains(stat_label), "%s fighter profile is missing stat label: %s" % [context, stat_label])
+    _check(text.contains("현재 상태"), "%s fighter profile is missing condition summary" % context)
+    _check(text.contains("복싱 정체성"), "%s fighter profile is missing identity explanation" % context)
+
+    var profile_bars := 0
+    for node in main_view.find_children("*", "ProgressBar", true, false):
+        if node is ProgressBar:
+            profile_bars += 1
+    _check(profile_bars >= 5, "%s fighter profile did not render five readable stat bars" % context)
 
 func _find_scroll(root: Node) -> ScrollContainer:
     for node in root.find_children("*", "ScrollContainer", true, false):
@@ -84,6 +102,16 @@ func _button_with_text(root: Node, text_value: String) -> Button:
             return button
     return null
 
+func _collect_text(root: Node) -> Array[String]:
+    var values: Array[String] = []
+    if root is Label:
+        values.append((root as Label).text)
+    elif root is Button:
+        values.append((root as Button).text)
+    for child in root.get_children():
+        values.append_array(_collect_text(child))
+    return values
+
 func _load_array(path: String) -> Array:
     var file := FileAccess.open(path, FileAccess.READ)
     if file == null:
@@ -95,7 +123,7 @@ func _finish() -> void:
     if is_instance_valid(main_view):
         main_view.queue_free()
     if failures.is_empty():
-        print("mobile-scroll-back-smoke: PASS")
+        print("mobile-scroll-back-profile-smoke: PASS")
         quit(0)
         return
     for failure in failures:
