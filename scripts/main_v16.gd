@@ -64,9 +64,12 @@ func _render_game_plan() -> void:
         var choose := _v16_cta("이 플랜 선택")
         choose.pressed.connect(Callable(self, "_choose_game_plan").bind(str(plan.get("id", ""))))
         card.add_child(choose)
-    var back := _v16_secondary_button("← 상대 다시 선택")
-    back.pressed.connect(Callable(self, "_return_to_fight_offers"))
-    body.add_child(back)
+    var condition_back := _v16_secondary_button("← 컨디션 다시 선택")
+    condition_back.pressed.connect(Callable(self, "_return_to_condition_preparation"))
+    body.add_child(condition_back)
+    var opponent_back := _v16_secondary_button("← 상대 다시 선택")
+    opponent_back.pressed.connect(Callable(self, "_return_to_fight_offers"))
+    body.add_child(opponent_back)
 
 func _render_tactical_preparation() -> void:
     _sync_current_opponent()
