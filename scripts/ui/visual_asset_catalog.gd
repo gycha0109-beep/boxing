@@ -31,9 +31,6 @@ const VISUAL_STYLE_BY_PROFILE := {
     "european": "counter",
 }
 const PORTRAIT_STYLE_BY_PROFILE := {
-    # Use the clean player portrait for East-Asian opponents instead of the old
-    # black slugger portrait. Portrait variety is expanded in the v1.1 art pass.
-    "korean": "player",
     "black": "swarmer",
     "latino": "outboxer",
     "european": "counter",
@@ -75,9 +72,12 @@ static func opponent_country_badge(opponent_name: String) -> String:
 
 static func opponent_portrait_path_for_name(opponent_name: String) -> String:
     var profile: String = opponent_visual_profile_for_name(opponent_name)
-    var portrait_style: String = str(PORTRAIT_STYLE_BY_PROFILE.get(profile, "player"))
-    if portrait_style == "player":
-        return portrait_path(true)
+    if profile == "korean":
+        # Use the exact visual family that FightStage will render. This keeps the
+        # contract-board portrait distinct from the player and prevents the
+        # portrait/fight person swap that existed in the prototype pipeline.
+        return fighter_path(false, opponent_visual_style_for_name(opponent_name), "idle")
+    var portrait_style: String = str(PORTRAIT_STYLE_BY_PROFILE.get(profile, "swarmer"))
     return portrait_path(false, portrait_style)
 
 static func opponent_portrait_texture_for_name(opponent_name: String) -> Texture2D:
