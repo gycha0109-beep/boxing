@@ -37,6 +37,8 @@ func _run() -> void:
     game_state.state.boxer.weight_kg = 61.0
     game_state.state.phase = "fight_offer"
     game_state.select_opponent(opponents[0])
+    _check(bool(game_state.select_tactical_preparation("counter_timing").get("ok", false)), "v0.6 fixture could not select tactical preparation")
+    _check(bool(game_state.select_condition_preparation("sharpness").get("ok", false)), "v0.6 fixture could not select condition preparation")
     var selected: Dictionary = game_state.select_game_plan("counter_trap")
     _check(bool(selected.get("ok", false)), "v0.6 fixture could not select game plan")
 
@@ -51,7 +53,7 @@ func _run() -> void:
     await process_frame
     await process_frame
 
-    _check(str(main_view.get_script().resource_path) == "res://scripts/main_v12.gd", "Main scene is not using the legacy shell that extends the v1.0/v0.8/v0.6 device runtime")
+    _check(str(main_view.get_script().resource_path) == "res://scripts/main_v13.gd", "Main scene is not using the preparation shell that preserves the v1.0/v0.8/v0.6 device runtime")
     var buttons: Array[Button] = _buttons_under(main_view)
     _check(not buttons.is_empty(), "v0.6 fight screen rendered no buttons")
     for button in buttons:
