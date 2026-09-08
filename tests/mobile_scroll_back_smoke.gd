@@ -50,6 +50,7 @@ func _run() -> void:
     await process_frame
     await process_frame
 
+    _check(str(main_view.get_script().resource_path) == "res://scripts/main_v16.gd", "mobile UX smoke is not exercising v16")
     var scroll := _find_scroll(main_view)
     _check(is_instance_valid(scroll), "mobile UI has no ScrollContainer")
     if is_instance_valid(scroll):
@@ -62,8 +63,8 @@ func _run() -> void:
             _check(button.mouse_filter == Control.MOUSE_FILTER_PASS, "button blocks parent touch drag: %s" % button.text)
 
     var tactical_text := "\n".join(_collect_text(main_view))
-    _check(tactical_text.contains("FIGHT CAMP · TACTICAL PREP"), "opponent selection did not render tactical preparation")
-    _check(tactical_text.contains("영구 스탯은 더 오르지 않습니다"), "tactical preparation hides the one-growth rule")
+    _check(tactical_text.contains("TACTICAL PREP"), "opponent selection did not render tactical preparation")
+    _check(tactical_text.contains("영구 스탯 성장 없음"), "tactical preparation hides the one-growth rule")
     _check_fighter_profile("tactical-prep")
 
     for plan_value in game_state.game_plans:
@@ -110,6 +111,8 @@ func _run() -> void:
     await process_frame
     _check(str(game_state.state.get("phase", "")) == "condition_prep", "tactical choice did not advance to condition preparation")
     _check(is_instance_valid(_button_with_text(main_view, "← 전술 준비 다시 선택")), "condition screen has no tactical back button")
+    var condition_text := "\n".join(_collect_text(main_view))
+    _check(condition_text.contains("추가 영구 성장 없음"), "condition preparation hides the no-growth rule")
     _check_fighter_profile("condition-prep")
 
     main_view._choose_condition_preparation("sharpness")
@@ -151,7 +154,7 @@ func _run() -> void:
 
 func _check_fighter_profile(context: String) -> void:
     var text := "\n".join(_collect_text(main_view))
-    _check(text.contains("내 복서 · YOUR FIGHTER"), "%s screen has no clear fighter profile heading" % context)
+    _check(text.contains("내 선수 · YOUR FIGHTER"), "%s screen has no clear fighter profile heading" % context)
     _check(text.contains("Touch Boxer"), "%s fighter profile is missing boxer name" % context)
     for stat_label in ["파워", "스피드", "테크닉", "수비", "컨디셔닝"]:
         _check(text.contains(stat_label), "%s fighter profile is missing stat label: %s" % [context, stat_label])
