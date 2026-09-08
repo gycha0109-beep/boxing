@@ -26,14 +26,31 @@ func _run() -> void:
 
     game_state.new_career("UI 복서", "technician")
     game_state.state.boxer.weight_kg = 61.0
+    # Keep this UI smoke deterministic and non-terminal. Its purpose is to
+    # verify telegraph -> action -> structured exchange -> rerender, not KO RNG.
+    game_state.state.boxer.power = 1
+    game_state.state.boxer.technique = 1
+    game_state.state.boxer.defense = 100
+    game_state.state.boxer.conditioning = 100
     game_state.state.phase = "fight_offer"
-    var opponent: Dictionary = opponents[0]
+
+    var opponent: Dictionary = opponents[0].duplicate(true)
+    opponent.stats.power = 1
+    opponent.stats.technique = 1
+    opponent.tendencies = {
+        "jab": 0.0,
+        "power": 0.0,
+        "body": 0.0,
+        "guard": 1.0,
+        "counter": 0.0
+    }
     game_state.select_opponent(opponent)
     _check(bool(game_state.select_tactical_preparation("distance_drill").get("ok", false)), "fight UI fixture could not select tactical preparation")
     _check(bool(game_state.select_condition_preparation("sharpness").get("ok", false)), "fight UI fixture could not select condition preparation")
     var selected: Dictionary = game_state.select_game_plan("outside_boxing")
     _check(bool(selected.get("ok", false)), "fight UI fixture could not select game plan")
     _check(str(game_state.state.phase) == "fight", "fight UI fixture did not enter fight phase")
+    game_state.state.fight_seed = 1
 
     var packed: PackedScene = load("res://scenes/Main.tscn")
     _check(is_instance_valid(packed), "Main scene could not load after autoload initialization")
@@ -41,6 +58,7 @@ func _run() -> void:
         _finish()
         return
     main_view = packed.instantiate()
+    main_view.set("current_opponent", opponent)
     get_root().add_child(main_view)
     await process_frame
     await process_frame
@@ -58,7 +76,7 @@ func _run() -> void:
         _check(_contains_button_label(button_texts, action_label), "fight UI missing action button: %s" % action_label)
 
     var locked_action: String = str(game_state.state.get("active_fight", {}).get("pending_opponent_action", ""))
-    _check(not locked_action.is_empty(), "rendered telegraph did not persist locked opponent action")
+    _check(locked_action == "guard", "deterministic fight UI fixture did not lock guard")
     _check(not game_state.state.get("active_fight", {}).get("pending_telegraph", {}).is_empty(), "rendered telegraph did not persist save payload")
 
     main_view._choose_fight_action("jab")
@@ -70,6 +88,7 @@ func _run() -> void:
     _check(not last_exchange.is_empty(), "fight UI action did not persist structured exchange result")
     _check(str(last_exchange.get("player_action", "")) == "jab", "fight UI action persisted wrong player action")
     _check(str(last_exchange.get("opponent_action", "")) == locked_action, "fight UI action did not consume locked telegraph action")
+    _check(not bool(last_exchange.get("finished", true)), "deterministic UI fixture unexpectedly finished the fight")
 
     var after_text: String = "\n".join(_collect_text(main_view))
     _check(after_text.contains("OPPONENT READ"), "fight UI did not render next opponent read after exchange")
