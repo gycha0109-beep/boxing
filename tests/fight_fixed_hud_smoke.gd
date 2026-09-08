@@ -33,6 +33,8 @@ func _run() -> void:
     game_state.state.phase = "fight_offer"
     var opponent: Dictionary = opponents[0]
     game_state.select_opponent(opponent)
+    _check(bool(game_state.select_tactical_preparation("distance_drill").get("ok", false)), "fight HUD fixture could not select tactical preparation")
+    _check(bool(game_state.select_condition_preparation("sharpness").get("ok", false)), "fight HUD fixture could not select condition preparation")
     var selected: Dictionary = game_state.select_game_plan("outside_boxing")
     _check(bool(selected.get("ok", false)), "fight HUD fixture could not select plan")
 
