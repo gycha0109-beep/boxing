@@ -27,11 +27,11 @@ func _test_low_base_and_zero_sum_styles() -> void:
     game_state.begin_boxer_creation()
     var selected: Dictionary = game_state.select_boxing_style("balanced")
     _check(bool(selected.get("ok", false)), "balanced style selection failed")
-    _check(int(game_state.state.boxer.power) == 47, "base 40 + glass-cannon power composition mismatch")
-    _check(int(game_state.state.boxer.speed) == 40, "balanced style should not alter speed")
-    _check(int(game_state.state.boxer.technique) == 40, "balanced style should not alter technique")
-    _check(int(game_state.state.boxer.defense) == 37, "base 40 + glass-cannon defense composition mismatch")
-    _check(int(game_state.state.boxer.conditioning) == 40, "balanced style should not alter conditioning")
+    _check(int(game_state.state.boxer.power) == 51, "base 44 + glass-cannon power composition mismatch")
+    _check(int(game_state.state.boxer.speed) == 44, "balanced style should not alter speed")
+    _check(int(game_state.state.boxer.technique) == 44, "balanced style should not alter technique")
+    _check(int(game_state.state.boxer.defense) == 41, "base 44 + glass-cannon defense composition mismatch")
+    _check(int(game_state.state.boxer.conditioning) == 44, "balanced style should not alter conditioning")
 
     for value in game_state.boxing_styles():
         var style: Dictionary = value
