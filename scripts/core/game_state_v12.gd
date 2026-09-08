@@ -11,6 +11,10 @@ func apply_camp_action(action: Dictionary) -> Dictionary:
     var result: Dictionary = super.apply_camp_action(action)
     if not bool(result.get("ok", false)):
         return result
+    var career_state: Dictionary = state.get("career_state", {}).duplicate(true)
+    if str(action.get("kind", "training")) != "training":
+        career_state["last_legacy_camp_bonus"] = {}
+        state["career_state"] = career_state
     var bonuses := Legacy.apply_camp_growth_bonus(state, action)
     if not bonuses.is_empty():
         result["legacy_growth_bonus"] = bonuses.duplicate(true)
