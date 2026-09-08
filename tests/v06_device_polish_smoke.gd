@@ -53,7 +53,7 @@ func _run() -> void:
     await process_frame
     await process_frame
 
-    _check(str(main_view.get_script().resource_path) == "res://scripts/main_v15.gd", "Main scene is not using the active audio/economy shell that preserves the v1.0/v0.8/v0.6 device runtime")
+    _check(str(main_view.get_script().resource_path) == "res://scripts/main_v16.gd", "Main scene is not using the active v1.1 UI/audio/economy shell that preserves the v1.0/v0.8/v0.6 device runtime")
     var buttons: Array[Button] = _buttons_under(main_view)
     _check(not buttons.is_empty(), "v0.6 fight screen rendered no buttons")
     for button in buttons:
