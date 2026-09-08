@@ -74,7 +74,7 @@ func _test_cycle_recovery_applies_to_runtime() -> void:
     game_state.state.phase = "result"
     var trait_recovery := int(game_state.state.boxer.modifiers.get("recovery_bonus", 0))
     game_state._begin_next_cycle()
-    var expected := max(0, 60 - 12 - trait_recovery - 8)
+    var expected: int = max(0, 60 - 12 - trait_recovery - 8)
     _check(int(game_state.state.boxer.fatigue) == expected, "capped legacy recovery was not applied after base recovery")
     _check(int(game_state.state.career_state.get("last_legacy_cycle_recovery", 0)) == 8, "runtime did not expose legacy recovery feedback")
 
