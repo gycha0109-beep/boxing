@@ -22,8 +22,9 @@ func _render_camp() -> void:
         _v16_camp_card(grid, action_value as Dictionary)
     var shop := Button.new()
     shop.text = "장비 · 투자 보기"
-    shop.custom_minimum_size = Vector2(0, 52)
+    shop.custom_minimum_size = Vector2(0, 56)
     shop.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    shop.mouse_filter = Control.MOUSE_FILTER_PASS
     shop.pressed.connect(Callable(self, "_open_equipment_shop"))
     body.add_child(shop)
     _render_career_ladder_card()
@@ -45,6 +46,7 @@ func _render_game_plan() -> void:
         _render_phase()
         return
     _v16_heading("GAME PLAN", "상대의 습관에 맞춰 한 가지 플랜을 고릅니다.")
+    _render_player_visual_card()
     _v16_opponent_card(current_opponent, "NEXT OPPONENT")
     var scouting: Dictionary = current_opponent.get("scouting", {})
     var read := _v16_panel(body, "SCOUTING READ")
@@ -62,10 +64,7 @@ func _render_game_plan() -> void:
         var choose := _v16_cta("이 플랜 선택")
         choose.pressed.connect(Callable(self, "_choose_game_plan").bind(str(plan.get("id", ""))))
         card.add_child(choose)
-    var back := Button.new()
-    back.text = "← 상대 다시 선택"
-    back.custom_minimum_size = Vector2(0, 52)
-    back.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    var back := _v16_secondary_button("← 상대 다시 선택")
     back.pressed.connect(Callable(self, "_return_to_fight_offers"))
     body.add_child(back)
 
@@ -77,6 +76,7 @@ func _render_tactical_preparation() -> void:
         _render_phase()
         return
     _v16_heading("TACTICAL PREP", "이번 상대를 위한 전술 하나만 준비합니다.")
+    _render_player_visual_card()
     _v16_opponent_card(current_opponent, "OPPONENT")
     var grid: GridContainer = _v16_grid(2)
     for prep_value in GameState.tactical_preparations():
@@ -87,10 +87,7 @@ func _render_tactical_preparation() -> void:
         var choose := _v16_cta("이 전술 준비")
         choose.pressed.connect(Callable(self, "_choose_tactical_preparation").bind(str(prep.get("id", ""))))
         card.add_child(choose)
-    var back := Button.new()
-    back.text = "← 상대 다시 선택"
-    back.custom_minimum_size = Vector2(0, 52)
-    back.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    var back := _v16_secondary_button("← 상대 다시 선택")
     back.pressed.connect(Callable(self, "_return_from_tactical_to_offers"))
     body.add_child(back)
 
@@ -102,6 +99,7 @@ func _render_condition_preparation() -> void:
         _render_phase()
         return
     _v16_heading("FIGHT WEEK PREP", "마지막 몸 상태만 정리합니다.")
+    _render_player_visual_card()
     _v16_opponent_card(current_opponent, "NEXT FIGHT")
     var tactical: Dictionary = GameState.preparation_definition("tactical", str(GameState.state.get("selected_tactical_prep", "")))
     if not tactical.is_empty():
@@ -116,10 +114,7 @@ func _render_condition_preparation() -> void:
         var choose := _v16_cta("이 준비 선택")
         choose.pressed.connect(Callable(self, "_choose_condition_preparation").bind(str(prep.get("id", ""))))
         card.add_child(choose)
-    var back := Button.new()
-    back.text = "← 전술 준비 다시 선택"
-    back.custom_minimum_size = Vector2(0, 52)
-    back.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    var back := _v16_secondary_button("← 전술 준비 다시 선택")
     back.pressed.connect(Callable(self, "_return_to_tactical_preparation"))
     body.add_child(back)
 
@@ -156,9 +151,9 @@ func _render_player_visual_card() -> void:
     name_label.text = str(boxer.get("name", "BOXER"))
     name_label.add_theme_font_size_override("font_size", 20)
     info.add_child(name_label)
-    _v16_label(info, "%s · %s" % [str(boxer.get("identity_name", "균형형")), str(boxer.get("trait_name", ""))], true)
+    _v16_label(info, "복싱 스타일 · %s  |  재능 · %s" % [str(boxer.get("identity_name", "균형형")), str(boxer.get("trait_name", ""))], true)
     _v16_label(info, "%d전 %d승 %d패 %d무 · 랭킹 #%d" % [int(career.get("fights", 0)), int(career.get("wins", 0)), int(career.get("losses", 0)), int(career.get("draws", 0)), int(career.get("rank", 0))], true)
-    _v16_label(info, "체중 %.1fkg · 피로 %d%% · 건강 %d%%" % [float(boxer.get("weight_kg", 0.0)), int(boxer.get("fatigue", 0)), int(boxer.get("health", 0))], false)
+    _v16_label(info, "현재 상태 · 체중 %.1fkg · 피로 %d%% · 건강 %d%%" % [float(boxer.get("weight_kg", 0.0)), int(boxer.get("fatigue", 0)), int(boxer.get("health", 0))], false)
     var stats_title := Label.new()
     stats_title.text = "능력치"
     stats_title.add_theme_font_size_override("font_size", 17)
@@ -238,7 +233,8 @@ func _v16_stat_row(parent: VBoxContainer, stat_id: String, value: int) -> void:
     var help := Button.new()
     help.text = "?"
     help.tooltip_text = GameState.stat_help(stat_id)
-    help.custom_minimum_size = Vector2(34, 34)
+    help.custom_minimum_size = Vector2(44, 44)
+    help.mouse_filter = Control.MOUSE_FILTER_PASS
     help.pressed.connect(Callable(self, "_show_stat_help").bind(stat_id))
     row.add_child(help)
     var bar := ProgressBar.new()
@@ -331,9 +327,18 @@ func _v16_portrait(texture: Texture2D, extent: float) -> TextureRect:
 func _v16_cta(text_value: String) -> Button:
     var button := Button.new()
     button.text = text_value
-    button.custom_minimum_size = Vector2(0, 46)
+    button.custom_minimum_size = Vector2(0, 56)
     button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    button.mouse_filter = Control.MOUSE_FILTER_PASS
     button.add_theme_color_override("font_color", V16_ACCENT)
+    return button
+
+func _v16_secondary_button(text_value: String) -> Button:
+    var button := Button.new()
+    button.text = text_value
+    button.custom_minimum_size = Vector2(0, 56)
+    button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    button.mouse_filter = Control.MOUSE_FILTER_PASS
     return button
 
 func _v16_label(parent: Container, text_value: String, muted: bool) -> Label:
