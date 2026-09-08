@@ -156,7 +156,7 @@ func _check_fighter_profile(context: String) -> void:
     for stat_label in ["파워", "스피드", "테크닉", "수비", "컨디셔닝"]:
         _check(text.contains(stat_label), "%s fighter profile is missing stat label: %s" % [context, stat_label])
     _check(text.contains("현재 상태"), "%s fighter profile is missing condition summary" % context)
-    _check(text.contains("복싱 정체성"), "%s fighter profile is missing identity explanation" % context)
+    _check(text.contains("복싱 스타일"), "%s fighter profile is missing boxing style explanation" % context)
 
     var profile_bars := 0
     for node in main_view.find_children("*", "ProgressBar", true, false):
