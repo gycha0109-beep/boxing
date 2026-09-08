@@ -56,13 +56,15 @@ func _run() -> void:
         _check(scroll.horizontal_scroll_mode == ScrollContainer.SCROLL_MODE_DISABLED, "horizontal scrolling is not disabled")
         _check(scroll.vertical_scroll_mode == ScrollContainer.SCROLL_MODE_AUTO, "vertical touch scrolling is not automatic")
         _check(scroll.scroll_deadzone <= 8, "touch scroll deadzone is too large")
-
         var buttons := _buttons_under(scroll)
-        _check(not buttons.is_empty(), "game-plan screen rendered no buttons")
+        _check(not buttons.is_empty(), "tactical preparation screen rendered no buttons")
         for button in buttons:
             _check(button.mouse_filter == Control.MOUSE_FILTER_PASS, "button blocks parent touch drag: %s" % button.text)
 
-    _check_fighter_profile("game-plan")
+    var tactical_text := "\n".join(_collect_text(main_view))
+    _check(tactical_text.contains("FIGHT CAMP · TACTICAL PREP"), "opponent selection did not render tactical preparation")
+    _check(tactical_text.contains("영구 스탯은 더 오르지 않습니다"), "tactical preparation hides the one-growth rule")
+    _check_fighter_profile("tactical-prep")
 
     for plan_value in game_state.game_plans:
         var plan: Dictionary = plan_value
@@ -72,20 +74,18 @@ func _run() -> void:
     var tendency_text := str(main_view._tendency_text(opponents[0].get("tendencies", {})))
     _check(not tendency_text.contains("%"), "scouting tendency still exposes internal probability")
 
-    var back_button := _button_with_text(main_view, "← 상대 다시 선택")
-    _check(is_instance_valid(back_button), "game-plan screen has no opponent back button")
-
-    main_view._return_to_fight_offers()
+    var opponent_back := _button_with_text(main_view, "← 상대 다시 선택")
+    _check(is_instance_valid(opponent_back), "tactical preparation has no opponent back button")
+    main_view._return_from_tactical_to_offers()
     await process_frame
     _check(str(game_state.state.get("phase", "")) == "fight_offer", "opponent back navigation did not return to fight offers")
     _check(str(game_state.state.get("selected_opponent", "")).is_empty(), "opponent back navigation did not clear selected opponent")
-    _check(str(game_state.state.get("selected_game_plan", "")).is_empty(), "opponent back navigation did not clear selected game plan")
+    _check(str(game_state.state.get("selected_tactical_prep", "")).is_empty(), "opponent back navigation did not clear tactical preparation")
 
     scroll = _find_scroll(main_view)
     if is_instance_valid(scroll):
         for button in _buttons_under(scroll):
             _check(button.mouse_filter == Control.MOUSE_FILTER_PASS, "fight-offer button blocks parent touch drag after rerender: %s" % button.text)
-
     _check_fighter_profile("fight-offer")
 
     var limit := float(game_state.career_balance.weight_class.limit_kg)
@@ -106,6 +106,19 @@ func _run() -> void:
     main_view.current_opponent = opponents[0]
     main_view._render_phase()
     await process_frame
+    main_view._choose_tactical_preparation("distance_drill")
+    await process_frame
+    _check(str(game_state.state.get("phase", "")) == "condition_prep", "tactical choice did not advance to condition preparation")
+    _check(is_instance_valid(_button_with_text(main_view, "← 전술 준비 다시 선택")), "condition screen has no tactical back button")
+    _check_fighter_profile("condition-prep")
+
+    main_view._choose_condition_preparation("sharpness")
+    await process_frame
+    _check(str(game_state.state.get("phase", "")) == "game_plan", "condition choice did not advance to game plan")
+    _check(is_instance_valid(_button_with_text(main_view, "← 컨디션 다시 선택")), "game-plan screen has no condition back button")
+    _check(is_instance_valid(_button_with_text(main_view, "← 상대 다시 선택")), "game-plan screen has no opponent back button")
+    _check_fighter_profile("game-plan")
+
     main_view._choose_game_plan("outside_boxing")
     await process_frame
     await process_frame
@@ -119,12 +132,20 @@ func _run() -> void:
     await process_frame
     _check(str(game_state.state.get("phase", "")) == "game_plan", "game-plan back navigation did not return to scouting")
     _check(str(game_state.state.get("selected_game_plan", "")).is_empty(), "game-plan back navigation did not clear selected plan")
+    _check(str(game_state.state.get("selected_tactical_prep", "")) == "distance_drill", "game-plan back lost tactical preparation")
+    _check(str(game_state.state.get("selected_condition_prep", "")) == "sharpness", "game-plan back lost condition preparation")
     _check(game_state.state.get("last_weigh_in", {}).is_empty(), "game-plan back navigation did not clear resolved weigh-in")
     _check(game_state.state.get("pre_game_plan_snapshot", {}).is_empty(), "game-plan rollback snapshot was not consumed")
     _check(abs(float(game_state.state.boxer.weight_kg) - before_weight) < 0.001, "game-plan back did not restore pre-weigh-in weight")
     _check(int(game_state.state.boxer.fatigue) == before_fatigue, "game-plan back did not restore pre-weigh-in fatigue")
     _check(int(game_state.state.boxer.health) == before_health, "game-plan back did not restore pre-weigh-in health")
     _check(int(game_state.state.career.reputation) == before_reputation, "game-plan back did not restore pre-weigh-in reputation")
+
+    main_view._return_to_condition_preparation()
+    await process_frame
+    _check(str(game_state.state.get("phase", "")) == "condition_prep", "condition back did not return from game plan")
+    _check(str(game_state.state.get("selected_condition_prep", "")).is_empty(), "condition back did not clear condition choice")
+    _check(str(game_state.state.get("selected_tactical_prep", "")) == "distance_drill", "condition back unexpectedly cleared tactical choice")
 
     _finish()
 
