@@ -32,7 +32,7 @@ func _render_camp() -> void:
 
 func _render_offers() -> void:
     _v16_heading("FIGHT WEEK", "다음 상대를 선택하세요.")
-    _render_player_visual_card()
+    _v16_player_context_strip()
     var offers: Array = GameState.get_fight_offers(opponents)
     for opponent_value in offers:
         _v16_offer_card(opponent_value as Dictionary)
@@ -45,8 +45,8 @@ func _render_game_plan() -> void:
         SaveService.save_game(GameState.state)
         _render_phase()
         return
-    _v16_heading("GAME PLAN", "상대의 습관에 맞춰 한 가지 플랜을 고릅니다.")
-    _render_player_visual_card()
+    _v16_heading("GAME PLAN", "한 가지 플랜을 고르세요.")
+    _v16_player_context_strip()
     _v16_opponent_card(current_opponent, "NEXT OPPONENT")
     var scouting: Dictionary = current_opponent.get("scouting", {})
     var read := _v16_panel(body, "SCOUTING READ")
@@ -79,7 +79,7 @@ func _render_tactical_preparation() -> void:
         _render_phase()
         return
     _v16_heading("TACTICAL PREP", "이번 상대 전용 전술 · 영구 스탯 성장 없음")
-    _render_player_visual_card()
+    _v16_player_context_strip()
     _v16_opponent_card(current_opponent, "OPPONENT")
     var grid: GridContainer = _v16_grid(2)
     for prep_value in GameState.tactical_preparations():
@@ -102,7 +102,7 @@ func _render_condition_preparation() -> void:
         _render_phase()
         return
     _v16_heading("FIGHT WEEK PREP", "마지막 몸 상태 · 추가 영구 성장 없음")
-    _render_player_visual_card()
+    _v16_player_context_strip()
     _v16_opponent_card(current_opponent, "NEXT FIGHT")
     var tactical: Dictionary = GameState.preparation_definition("tactical", str(GameState.state.get("selected_tactical_prep", "")))
     if not tactical.is_empty():
@@ -165,6 +165,28 @@ func _render_player_visual_card() -> void:
     for stat_id in ["power", "speed", "technique", "defense", "conditioning"]:
         _v16_stat_row(card, stat_id, int(boxer.get(stat_id, 0)))
 
+func _v16_player_context_strip() -> void:
+    var texture: Texture2D = VisualAssetCatalog.portrait_texture(true)
+    if texture == null:
+        return
+    var boxer: Dictionary = GameState.state.get("boxer", {})
+    var card := _v16_panel(body, "내 선수")
+    var row := HBoxContainer.new()
+    row.add_theme_constant_override("separation", 10)
+    card.add_child(row)
+    row.add_child(_v16_portrait(texture, 58.0))
+    var info := VBoxContainer.new()
+    info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    info.add_theme_constant_override("separation", 2)
+    row.add_child(info)
+    var name_label := Label.new()
+    name_label.text = str(boxer.get("name", "BOXER"))
+    name_label.add_theme_font_size_override("font_size", 16)
+    info.add_child(name_label)
+    _v16_label(info, "복싱 스타일 · %s  |  재능 · %s" % [str(boxer.get("identity_name", "균형형")), str(boxer.get("trait_name", ""))], true)
+    _v16_label(info, "현재 상태 · %.1fkg · 피로 %d%% · 건강 %d%%" % [float(boxer.get("weight_kg", 0.0)), int(boxer.get("fatigue", 0)), int(boxer.get("health", 0))], true)
+    _v16_label(info, "파워 %d · 스피드 %d · 테크닉 %d · 수비 %d · 컨디셔닝 %d" % [int(boxer.get("power", 0)), int(boxer.get("speed", 0)), int(boxer.get("technique", 0)), int(boxer.get("defense", 0)), int(boxer.get("conditioning", 0))], false)
+
 func _v16_camp_card(parent: GridContainer, action: Dictionary) -> void:
     var affordable: bool = int(GameState.state.career.money) >= int(action.get("cost", 0))
     var card := _v16_panel(parent, str(action.get("name", "캠프")))
@@ -215,7 +237,7 @@ func _v16_opponent_card(opponent: Dictionary, title_text: String) -> void:
     var row := HBoxContainer.new()
     row.add_theme_constant_override("separation", 12)
     card.add_child(row)
-    row.add_child(_v16_portrait(VisualAssetCatalog.opponent_portrait_texture_for_name(str(opponent.get("name", ""))), 88.0))
+    row.add_child(_v16_portrait(VisualAssetCatalog.opponent_portrait_texture_for_name(str(opponent.get("name", ""))), 76.0))
     var info := VBoxContainer.new()
     info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     row.add_child(info)
