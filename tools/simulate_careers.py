@@ -17,7 +17,7 @@ CB=json.loads((ROOT/'data/career_balance.json').read_text())
 TIERS=[t['id'] for t in CB['career_points']['tiers']]
 TRAINABLE=['power','speed','technique','defense','conditioning']
 PLAYABLE_IDENTITIES=IDENTITIES
-BASE_STAT=40
+BASE_STAT=44
 TITLE_ORDER=['district','regional','national','continental','world_eliminator']
 TITLE_REQUIREMENTS={
     'district':(2,2),
@@ -145,8 +145,6 @@ def equipment_priority(identity_id,item):
 
 
 def maybe_buy_equipment(rng,s):
-    # One purchase at most per fight cycle. Keep a cash reserve so gear competes with
-    # training/rehab rather than automatically causing bankruptcy.
     current_tier=tier_for(s['points'])
     reserve=max(60000, int(CB['economy']['cycle_cost_by_tier'].get(current_tier,0)))
     candidates=[]
@@ -323,7 +321,7 @@ def main(n=10000):
     for r in runs:
         plans.update(r['plan_counts']); title_counts.update(r['titles'])
     champ=end['world_champion']/n; avg_f=statistics.mean(r['fights'] for r in runs); avg_w=statistics.mean(r['wins'] for r in runs); avg_money=statistics.mean(r['money'] for r in runs); avg_spent=statistics.mean(r['equipment_spent'] for r in runs); injury_share=statistics.mean(r['injury_fights']/max(1,r['fights']) for r in runs)
-    print(f"careers={n} policy=base40_title_ladder_equipment")
+    print(f"careers={n} policy=base44_title_ladder_equipment")
     print(f"champion_rate={champ:.3f}")
     print(f"avg_fights={avg_f:.2f} avg_wins={avg_w:.2f} avg_final_money={avg_money:.0f} avg_equipment_spent={avg_spent:.0f}")
     print(f"injury_fight_share={injury_share:.3f}")
