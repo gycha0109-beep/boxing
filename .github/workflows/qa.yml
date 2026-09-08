@@ -92,6 +92,8 @@ jobs:
         run: timeout 60s Godot_v${GODOT_VERSION}_linux.x86_64 --headless --path . --script res://tests/boxer_creation_ladder_smoke.gd
       - name: Verify low-base stats and equipment economy
         run: timeout 60s Godot_v${GODOT_VERSION}_linux.x86_64 --headless --path . --script res://tests/equipment_economy_smoke.gd
+      - name: Verify dynamic BGM, UI cues, and impact ducking
+        run: timeout 60s Godot_v${GODOT_VERSION}_linux.x86_64 --headless --path . --script res://tests/audio_music_smoke.gd
       - name: Verify fighter identity, scouting, and game-plan flow
         run: timeout 60s Godot_v${GODOT_VERSION}_linux.x86_64 --headless --path . --script res://tests/v03_gameplan_smoke.gd
       - name: Verify telegraph, structured exchange, and combat feedback flow
@@ -100,11 +102,11 @@ jobs:
         run: timeout 60s Godot_v${GODOT_VERSION}_linux.x86_64 --headless --path . --script res://tests/v04_fight_ui_smoke.gd
       - name: Verify fight stage animation, impact SFX routing, and haptic profile
         run: timeout 60s Godot_v${GODOT_VERSION}_linux.x86_64 --headless --path . --script res://tests/v05_fight_presentation_smoke.gd
-      - name: Verify hit-stop, shake, arena audio, safe area, touch targets, and lifecycle hooks
+      - name: Verify hit-stop, shake, arena audio, safe area, touch targets, lifecycle hooks, and fight BGM
         run: timeout 60s Godot_v${GODOT_VERSION}_linux.x86_64 --headless --path . --script res://tests/v06_device_polish_smoke.gd
       - name: Verify v0.7 commercial visual mapping and procedural fallback
         run: timeout 60s Godot_v${GODOT_VERSION}_linux.x86_64 --headless --path . --script res://tests/v07_visual_integration_smoke.gd
-      - name: Verify v0.8 first-five-minutes release flow
+      - name: Verify v0.8 first-five-minutes release flow and BGM transitions
         run: timeout 60s Godot_v${GODOT_VERSION}_linux.x86_64 --headless --path . --script res://tests/v08_first_five_minutes_smoke.gd
       - name: Verify v1.0 bundled Korean release font
         run: timeout 60s Godot_v${GODOT_VERSION}_linux.x86_64 --headless --path . --script res://tests/v10_release_font_smoke.gd
