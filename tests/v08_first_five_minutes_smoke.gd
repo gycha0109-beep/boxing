@@ -53,6 +53,11 @@ func _run() -> void:
     await process_frame
     _check(bool(game_state.state.get("first_launch_acknowledged", false)), "title acknowledgement was not persisted")
     _check(str(game_state.state.phase) == "style_select", "title CTA did not enter boxer style selection")
+    var natural_talent_id := str(game_state.state.boxer.get("trait_id", ""))
+    var natural_talent: Dictionary = game_state.talent_definition()
+    _check(not natural_talent_id.is_empty(), "new boxer did not receive an innate talent")
+    _check(not natural_talent.is_empty(), "new boxer innate talent has no definition")
+
     var style_text := "\n".join(_collect_text(main_view))
     _check(style_text.contains("BOXER CREATION · BOXING STYLE"), "style selection missing creation framing")
     _check(style_text.contains("어떤 복서로 시작하시겠습니까?"), "style selection missing player-choice prompt")
@@ -63,12 +68,18 @@ func _run() -> void:
     await process_frame
     _check(str(game_state.state.phase) == "talent_reveal", "style choice did not enter natural-talent reveal")
     _check(str(game_state.state.boxer.get("identity_id", "")) == "out_boxer", "chosen boxing style was not persisted")
-    _check(str(game_state.state.boxer.get("trait_id", "")) == "technician", "style choice changed the predetermined natural talent")
+    _check(str(game_state.state.boxer.get("trait_id", "")) == natural_talent_id, "style choice changed the innate talent")
     var talent_text := "\n".join(_collect_text(main_view))
     _check(talent_text.contains("NATURAL TALENT"), "talent reveal missing creation framing")
-    _check(talent_text.contains("타고난 재능 · 테크니션"), "talent reveal does not identify the natural talent")
-    _check(talent_text.contains("TECHNIQUE +6"), "talent reveal hides direct stat bonus")
-    _check(not talent_text.contains("0.025"), "talent reveal exposes internal accuracy coefficient")
+    _check(talent_text.contains("타고난 재능 · %s" % str(natural_talent.get("name", ""))), "talent reveal does not identify the innate talent")
+    for stat in ["power", "speed", "technique", "defense", "conditioning"]:
+        var bonus := int(natural_talent.get("stat_bonus", {}).get(stat, 0))
+        if bonus == 0:
+            continue
+        var bonus_text := "%s %s%d" % [_stat_label_upper(stat), "+" if bonus > 0 else "", bonus]
+        _check(talent_text.contains(bonus_text), "talent reveal hides direct stat bonus: %s" % bonus_text)
+    for hidden_value in ["0.025", "1.28", "1.12", "0.72", "0.94", "0.78", "1.18", "1.2", "0.82"]:
+        _check(not talent_text.contains(hidden_value), "talent reveal exposes internal tuning coefficient: %s" % hidden_value)
 
     main_view._confirm_talent()
     await process_frame
@@ -134,6 +145,15 @@ func _run() -> void:
     _check(result_text.contains("커리어 계속"), "result screen missing continuation CTA")
 
     _finish()
+
+func _stat_label_upper(stat: String) -> String:
+    match stat:
+        "power": return "파워"
+        "speed": return "스피드"
+        "technique": return "테크닉"
+        "defense": return "수비"
+        "conditioning": return "컨디셔닝"
+        _: return stat
 
 func _find_stage(node: Node) -> FightStage:
     for child in node.get_children():
