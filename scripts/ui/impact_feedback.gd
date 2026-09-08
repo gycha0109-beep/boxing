@@ -9,6 +9,10 @@ var last_haptic_amplitude: float = 0.0
 var audio_player: AudioStreamPlayer
 var generator: AudioStreamGenerator
 var playback: AudioStreamGeneratorPlayback
+var impact_rng: RandomNumberGenerator = RandomNumberGenerator.new()
+
+func _ready() -> void:
+    impact_rng.seed = 12062026
 
 func trigger(exchange: Dictionary) -> String:
     last_profile = profile(exchange)
@@ -29,8 +33,9 @@ func _ensure_audio() -> void:
     audio_player.name = "ImpactAudio"
     generator = AudioStreamGenerator.new()
     generator.mix_rate = 22050.0
-    generator.buffer_length = 0.12
+    generator.buffer_length = 0.20
     audio_player.stream = generator
+    audio_player.volume_db = 0.0
     add_child(audio_player)
     audio_player.play()
     playback = audio_player.get_stream_playback() as AudioStreamGeneratorPlayback
@@ -38,55 +43,65 @@ func _ensure_audio() -> void:
 func _play_procedural_impact(profile_id: String, cue_id: String) -> void:
     if playback == null or generator == null:
         return
-    var duration: float = 0.035
-    var frequency: float = 105.0
-    var amplitude: float = 0.18
-    match profile_id:
-        "guard":
-            frequency = 150.0
-            amplitude = 0.12
-            duration = 0.028
-        "medium":
-            frequency = 92.0
-            amplitude = 0.22
-            duration = 0.045
-        "heavy":
-            frequency = 72.0
-            amplitude = 0.30
-            duration = 0.060
-        "counter":
-            frequency = 128.0
-            amplitude = 0.32
-            duration = 0.055
-        "knockdown":
-            frequency = 58.0
-            amplitude = 0.38
-            duration = 0.080
-        "miss":
-            frequency = 210.0
-            amplitude = 0.07
-            duration = 0.020
-        _:
-            pass
-    if cue_id == "body_hit":
-        frequency *= 0.72
-        duration *= 1.12
-    elif cue_id == "head_crack":
-        frequency *= 1.35
-        amplitude *= 1.08
-    elif cue_id == "glove_block":
-        frequency *= 1.18
-        amplitude *= 0.78
-    var frame_count: int = min(playback.get_frames_available(), int(generator.mix_rate * duration))
+    var spec: Dictionary = impact_profile(profile_id, cue_id)
+    var duration: float = float(spec.get("duration", 0.055))
+    var body_frequency: float = float(spec.get("body_frequency", 175.0))
+    var crack_frequency: float = float(spec.get("crack_frequency", 560.0))
+    var amplitude: float = float(spec.get("amplitude", 0.55))
+    var noise_mix: float = float(spec.get("noise_mix", 0.28))
+
+    # A fresh impact must win the mix immediately. Low-only tones were almost
+    # inaudible on phone speakers; clearing queued samples also prevents a hit
+    # from arriving late behind a previous transient.
+    playback.clear_buffer()
+    var frame_count: int = int(min(playback.get_frames_available(), int(generator.mix_rate * duration)))
     if frame_count <= 0:
         return
+
     for i in range(frame_count):
         var t: float = float(i) / generator.mix_rate
-        var envelope: float = max(0.0, 1.0 - t / duration)
-        var fundamental: float = sin(TAU * frequency * t)
-        var grit: float = sin(TAU * frequency * 2.7 * t) * 0.22
-        var sample: float = clamp((fundamental + grit) * amplitude * envelope, -1.0, 1.0)
+        var progress: float = t / duration
+        var body_envelope: float = pow(max(0.0, 1.0 - progress), 2.2)
+        var crack_envelope: float = exp(-progress * 9.5)
+        var body: float = sin(TAU * body_frequency * t) * 0.72
+        var slap: float = sin(TAU * crack_frequency * t) * 0.38 * crack_envelope
+        var grit: float = impact_rng.randf_range(-1.0, 1.0) * noise_mix * crack_envelope
+        var sample: float = float(clamp((body + slap + grit) * amplitude * body_envelope, -0.95, 0.95))
         playback.push_frame(Vector2(sample, sample))
+
+static func impact_profile(profile_id: String, cue_id: String = "") -> Dictionary:
+    var spec: Dictionary
+    match profile_id:
+        "guard":
+            spec = {"duration": 0.050, "body_frequency": 215.0, "crack_frequency": 390.0, "amplitude": 0.44, "noise_mix": 0.22}
+        "medium":
+            spec = {"duration": 0.064, "body_frequency": 178.0, "crack_frequency": 610.0, "amplitude": 0.60, "noise_mix": 0.30}
+        "heavy":
+            spec = {"duration": 0.088, "body_frequency": 158.0, "crack_frequency": 760.0, "amplitude": 0.74, "noise_mix": 0.34}
+        "counter":
+            spec = {"duration": 0.078, "body_frequency": 184.0, "crack_frequency": 860.0, "amplitude": 0.78, "noise_mix": 0.38}
+        "knockdown":
+            spec = {"duration": 0.115, "body_frequency": 138.0, "crack_frequency": 430.0, "amplitude": 0.84, "noise_mix": 0.32}
+        "miss":
+            spec = {"duration": 0.034, "body_frequency": 320.0, "crack_frequency": 920.0, "amplitude": 0.20, "noise_mix": 0.42}
+        _:
+            spec = {"duration": 0.050, "body_frequency": 190.0, "crack_frequency": 520.0, "amplitude": 0.50, "noise_mix": 0.26}
+
+    if cue_id == "body_hit":
+        spec["body_frequency"] = 148.0
+        spec["crack_frequency"] = 360.0
+        spec["duration"] = float(spec.get("duration", 0.055)) * 1.16
+        spec["noise_mix"] = float(spec.get("noise_mix", 0.28)) * 0.72
+    elif cue_id == "head_crack":
+        spec["body_frequency"] = max(172.0, float(spec.get("body_frequency", 175.0)))
+        spec["crack_frequency"] = max(820.0, float(spec.get("crack_frequency", 560.0)))
+        spec["amplitude"] = min(0.88, float(spec.get("amplitude", 0.55)) * 1.08)
+        spec["noise_mix"] = min(0.44, float(spec.get("noise_mix", 0.28)) * 1.12)
+    elif cue_id == "glove_block":
+        spec["body_frequency"] = 230.0
+        spec["crack_frequency"] = 410.0
+        spec["amplitude"] = float(spec.get("amplitude", 0.55)) * 0.84
+    return spec
 
 static func profile(exchange: Dictionary) -> String:
     if exchange.is_empty():
