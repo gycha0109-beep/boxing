@@ -1,0 +1,75 @@
+name: Vendor Commercial Audio v1
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feat/legacy-state-foundation-v1.2
+    paths:
+      - tools/vendor_audio_assets.sh
+      - assets/audio/licenses/AUDIO_SOURCES.md
+      - .github/workflows/vendor-commercial-audio-v1.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: vendor-commercial-audio-v1
+  cancel-in-progress: false
+
+jobs:
+  vendor-verified-cc0-audio:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: feat/legacy-state-foundation-v1.2
+          fetch-depth: 0
+
+      - name: Install audio tooling
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg p7zip-full unzip
+          ffmpeg -version | head -n 1
+          7z | head -n 3
+
+      - name: Download and transform verified CC0 originals
+        shell: bash
+        run: bash tools/vendor_audio_assets.sh
+
+      - name: Validate commercial audio inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s assets/audio/music/character_create/character_create_theme.ogg
+          test -s assets/audio/music/camp/camp_funked_up.ogg
+          test -s assets/audio/music/fight_week/fight_week_prepare.ogg
+          test -s assets/audio/music/fight_night/fight_night_ring.ogg
+          test -s assets/audio/sfx/crowd/crowd_ambience.ogg
+          test -s assets/audio/sfx/bells/round_bell.wav
+          test -s assets/audio/sfx/bells/final_bell.wav
+          test "$(find assets/audio/sfx/punches -maxdepth 1 -name '*.wav' | wc -l)" -eq 16
+          test "$(find assets/audio/sfx/blocks -maxdepth 1 -name '*.wav' | wc -l)" -eq 5
+          test "$(find assets/audio/sfx/swings -maxdepth 1 -name '*.wav' | wc -l)" -eq 3
+          test "$(find assets/audio/sfx/voice -maxdepth 1 -name '*.ogg' | wc -l)" -eq 11
+          test "$(find assets/audio/sfx/crowd -maxdepth 1 -name 'reaction_*.ogg' | wc -l)" -eq 8
+          test -s assets/audio/licenses/DERIVED_ASSET_MAP.tsv
+          grep -q 'CC0 1.0' assets/audio/licenses/AUDIO_SOURCES.md
+
+      - name: Commit vendored audio to feature branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/audio
+          if git diff --cached --quiet; then
+            echo "Audio inventory already matches the deterministic vendor output."
+            exit 0
+          fi
+          git commit -m "assets(audio): vendor verified CC0 commercial sound pack"
+          git push origin HEAD:feat/legacy-state-foundation-v1.2
