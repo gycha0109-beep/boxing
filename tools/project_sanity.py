@@ -12,7 +12,7 @@ required = [
     "data/traits.json", "data/events.json", "data/injuries.json", "data/fighter_identities.json", "data/game_plans.json", "data/legacy_definitions.json",
     "tools/sim_combat.py", "tools/simulate_careers.py", "tools/simulate_gameplans.py", "tools/test_gameplans.py",
     "tools/validate_visual_assets_v07.py", "tools/validate_release_font_v10.py", "tools/import_visual_assets_v07.ps1",
-    "tests/runtime_state_smoke.gd", "tests/legacy_retirement_smoke.gd", "tests/v03_gameplan_smoke.gd", "tests/v04_combat_ux_smoke.gd",
+    "tests/runtime_state_smoke.gd", "tests/legacy_retirement_smoke.gd", "tests/legacy_slot_effect_smoke.gd", "tests/v03_gameplan_smoke.gd", "tests/v04_combat_ux_smoke.gd",
     "tests/v04_fight_ui_smoke.gd", "tests/v05_fight_presentation_smoke.gd", "tests/v06_device_polish_smoke.gd",
     "tests/v07_visual_integration_smoke.gd", "tests/v08_first_five_minutes_smoke.gd", "tests/v10_release_font_smoke.gd",
 ]
@@ -66,8 +66,11 @@ main_v12 = (ROOT / "scripts/main_v12.gd").read_text()
 assert 'extends "res://scripts/main_v10.gd"' in main_v12
 assert "func _render_career_summary()" in main_v12
 assert "func _choose_retirement_legacy(" in main_v12
+assert "func _replace_retirement_legacy(" in main_v12 and "func _abandon_retirement_legacy()" in main_v12
+assert "func _render_active_legacy_summary()" in main_v12
 assert "func _start_next_generation()" in main_v12
 assert "GYM LEGACY" in main_v12 and "이 유산을 남긴다" in main_v12
+assert "새 유산 포기 · 기존 슬롯 유지" in main_v12
 
 for name in ["balance.json","camp_actions.json","opponents.json","career_balance.json","traits.json","events.json","injuries.json","fighter_identities.json","game_plans.json","legacy_definitions.json"]:
     json.loads((ROOT / "data" / name).read_text())
@@ -104,13 +107,18 @@ assert "fighter_identities" in state and "game_plans" in state and "selected_gam
 state_v12 = (ROOT / "scripts/core/game_state_v12.gd").read_text()
 assert 'extends "res://scripts/core/game_state.gd"' in state_v12
 assert "Legacy.observe_career_peak" in state_v12
+assert "func apply_camp_action(" in state_v12 and "Legacy.apply_camp_growth_bonus" in state_v12
 assert "func select_retirement_legacy(" in state_v12
+assert "func replace_retirement_legacy(" in state_v12 and "func abandon_retirement_legacy()" in state_v12
 assert "func start_next_generation()" in state_v12
 
 legacy = (ROOT / "scripts/core/legacy_service.gd").read_text()
 assert "class_name LegacyService" in legacy
 assert "career_high_points" in legacy
-assert '"already_selected"' in legacy and '"legacy_slots_full"' in legacy
+assert '"already_selected"' in legacy and '"slot_decision_pending"' in legacy
+assert "func replace_retirement_legacy(" in legacy and "func abandon_retirement_legacy(" in legacy
+assert "func effect_value(" in legacy and "DIMINISHING_FACTOR" in legacy
+assert "legacy_status" in legacy and '"replaced"' in legacy and '"abandoned"' in legacy
 assert '"definition_id"' in legacy and '"source_generation"' in legacy
 
 main = (ROOT / "scripts/main.gd").read_text()
