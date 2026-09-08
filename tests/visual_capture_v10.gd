@@ -43,8 +43,8 @@ func _run() -> void:
     await process_frame
     await process_frame
 
-    if str(main_view.get_script().resource_path) != "res://scripts/main_v15.gd":
-        _fail("capture is not using the audio/economy shell above the preparation/Legacy/v1.0 runtime")
+    if str(main_view.get_script().resource_path) != "res://scripts/main_v16.gd":
+        _fail("capture is not using the active v16 mobile UI shell above the audio/economy/preparation/Legacy runtime")
         return
 
     await _capture("01_title.png")
