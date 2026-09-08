@@ -1,8 +1,5 @@
 extends "res://scripts/main_v12.gd"
 
-const PREP_ACCENT := Color(0.92, 0.70, 0.34, 1.0)
-const PREP_MUTED := Color(0.68, 0.70, 0.75, 1.0)
-
 func _render_phase() -> void:
     var phase := str(GameState.state.get("phase", ""))
     if phase not in ["tactical_prep", "condition_prep"]:
@@ -22,6 +19,12 @@ func _render_phase() -> void:
         if is_instance_valid(fighter_profile_root) and fighter_profile_root.get_parent() == body:
             body.move_child(fighter_profile_root, 0)
     _configure_mobile_scroll()
+
+func _should_insert_persistent_fighter_profile() -> bool:
+    var phase := str(GameState.state.get("phase", ""))
+    if phase in ["tactical_prep", "condition_prep"]:
+        return not launch_gate_active and is_instance_valid(body) and not GameState.state.is_empty()
+    return super._should_insert_persistent_fighter_profile()
 
 func _render_tactical_preparation() -> void:
     _sync_current_opponent()
