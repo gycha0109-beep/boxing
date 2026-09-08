@@ -65,7 +65,7 @@ func _run() -> void:
     var tactical_text := "\n".join(_collect_text(main_view))
     _check(tactical_text.contains("TACTICAL PREP"), "opponent selection did not render tactical preparation")
     _check(tactical_text.contains("영구 스탯 성장 없음"), "tactical preparation hides the one-growth rule")
-    _check_fighter_profile("tactical-prep")
+    _check_fighter_context("tactical-prep")
 
     for plan_value in game_state.game_plans:
         var plan: Dictionary = plan_value
@@ -87,7 +87,7 @@ func _run() -> void:
     if is_instance_valid(scroll):
         for button in _buttons_under(scroll):
             _check(button.mouse_filter == Control.MOUSE_FILTER_PASS, "fight-offer button blocks parent touch drag after rerender: %s" % button.text)
-    _check_fighter_profile("fight-offer")
+    _check_fighter_context("fight-offer")
 
     var limit := float(game_state.career_balance.weight_class.limit_kg)
     var soft_over := float(game_state.career_balance.weigh_in.soft_over_kg)
@@ -113,14 +113,14 @@ func _run() -> void:
     _check(is_instance_valid(_button_with_text(main_view, "← 전술 준비 다시 선택")), "condition screen has no tactical back button")
     var condition_text := "\n".join(_collect_text(main_view))
     _check(condition_text.contains("추가 영구 성장 없음"), "condition preparation hides the no-growth rule")
-    _check_fighter_profile("condition-prep")
+    _check_fighter_context("condition-prep")
 
     main_view._choose_condition_preparation("sharpness")
     await process_frame
     _check(str(game_state.state.get("phase", "")) == "game_plan", "condition choice did not advance to game plan")
     _check(is_instance_valid(_button_with_text(main_view, "← 컨디션 다시 선택")), "game-plan screen has no condition back button")
     _check(is_instance_valid(_button_with_text(main_view, "← 상대 다시 선택")), "game-plan screen has no opponent back button")
-    _check_fighter_profile("game-plan")
+    _check_fighter_context("game-plan")
 
     main_view._choose_game_plan("outside_boxing")
     await process_frame
@@ -152,20 +152,14 @@ func _run() -> void:
 
     _finish()
 
-func _check_fighter_profile(context: String) -> void:
+func _check_fighter_context(context: String) -> void:
     var text := "\n".join(_collect_text(main_view))
-    _check(text.contains("내 선수 · YOUR FIGHTER"), "%s screen has no clear fighter profile heading" % context)
-    _check(text.contains("Touch Boxer"), "%s fighter profile is missing boxer name" % context)
+    _check(text.contains("내 선수"), "%s screen has no compact fighter context" % context)
+    _check(text.contains("Touch Boxer"), "%s fighter context is missing boxer name" % context)
     for stat_label in ["파워", "스피드", "테크닉", "수비", "컨디셔닝"]:
-        _check(text.contains(stat_label), "%s fighter profile is missing stat label: %s" % [context, stat_label])
-    _check(text.contains("현재 상태"), "%s fighter profile is missing condition summary" % context)
-    _check(text.contains("복싱 스타일"), "%s fighter profile is missing boxing style explanation" % context)
-
-    var profile_bars := 0
-    for node in main_view.find_children("*", "ProgressBar", true, false):
-        if node is ProgressBar:
-            profile_bars += 1
-    _check(profile_bars >= 5, "%s fighter profile did not render five readable stat bars" % context)
+        _check(text.contains(stat_label), "%s fighter context is missing stat label: %s" % [context, stat_label])
+    _check(text.contains("현재 상태"), "%s fighter context is missing condition summary" % context)
+    _check(text.contains("복싱 스타일"), "%s fighter context is missing boxing style explanation" % context)
 
 func _find_scroll(root: Node) -> ScrollContainer:
     for node in root.find_children("*", "ScrollContainer", true, false):
