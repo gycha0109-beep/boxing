@@ -36,7 +36,7 @@ func _notification(what: int) -> void:
 func _sync_music_for_phase() -> void:
     if GameState == null:
         return
-    var phase := str(GameState.state.get("phase", "")) if not GameState.state.is_empty() else ""
+    var phase: String = str(GameState.state.get("phase", "")) if not GameState.state.is_empty() else ""
     _music().set_mode(MusicDirector.mode_for_phase(phase, launch_gate_active))
 
 func _music() -> MusicDirector:
@@ -57,7 +57,7 @@ func _wire_ui_sounds_under(node: Node) -> void:
         return
     for child in node.get_children():
         if child is Button:
-            var button := child as Button
+            var button: Button = child as Button
             if not button.has_meta("ui_sound_bound"):
                 button.set_meta("ui_sound_bound", true)
                 button.pressed.connect(Callable(self, "_play_button_sound").bind(button))
@@ -66,8 +66,8 @@ func _wire_ui_sounds_under(node: Node) -> void:
 func _play_button_sound(button: Button) -> void:
     if button == null or button.disabled:
         return
-    var text := button.text
-    var cue := "click"
+    var text: String = button.text
+    var cue: String = "click"
     if str(GameState.state.get("phase", "")) == "fight":
         cue = "fight_select"
     elif "구매" in text:
