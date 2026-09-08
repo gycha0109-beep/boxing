@@ -50,11 +50,11 @@ for marker in ["func _render_equipment_shop()", "func _render_equipment_section(
 assert "%" not in "".join(line for line in main_v14.splitlines() if "training_percent" in line), "equipment UI should not expose hidden training percentages"
 
 main_v15 = (ROOT / "scripts/main_v15.gd").read_text()
-for marker in ["MusicDirector", "func _sync_music_for_phase()", "func _wire_ui_sounds()", "func _choose_fight_action(", "duck(0.52)", "func _notification("]:
+for marker in ["MusicDirector", "func _sync_music_for_phase()", "func _wire_ui_sounds()", "func _choose_fight_action(", "duck(0.72)", "func _notification("]:
     assert marker in main_v15
 
 music = (ROOT / "scripts/ui/music_director.gd").read_text()
-for marker in ["class_name MusicDirector", "func set_mode(", "func play_ui(", "func duck(", "func track_profile(", "func mode_for_phase(", '"fight_week"', '"legacy"']:
+for marker in ["class_name MusicDirector", "MUSIC_VOLUME_DB", "UI_VOLUME_DB", "func set_mode(", "func play_ui(", "func duck(", "func track_profile(", "func mode_for_phase(", '"fight_week"', '"legacy"']:
     assert marker in music
 
 state_v12 = (ROOT / "scripts/core/game_state_v12.gd").read_text()
