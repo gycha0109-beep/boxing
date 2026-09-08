@@ -5,6 +5,15 @@ const MIX_RATE: float = 22050.0
 const VALID_MODES: Array[String] = ["silent", "menu", "career", "fight_week", "fight", "legacy"]
 const MUSIC_VOLUME_DB: float = -19.0
 const UI_VOLUME_DB: float = -13.0
+const MUSIC_ASSETS := {
+    "menu": "res://assets/audio/music/character_create/character_create_theme.ogg",
+    "career": "res://assets/audio/music/camp/camp_funked_up.ogg",
+    "fight_week": "res://assets/audio/music/fight_week/fight_week_prepare.ogg",
+    "fight": "res://assets/audio/music/fight_night/fight_night_ring.ogg",
+    # The commercial pack currently has four themes. Reuse the subdued
+    # character theme for Legacy instead of synthesizing a fifth placeholder.
+    "legacy": "res://assets/audio/music/character_create/character_create_theme.ogg",
+}
 
 var current_mode: String = "silent"
 var last_ui_cue: String = ""
@@ -14,10 +23,9 @@ var sample_cursor: int = 0
 var current_gain: float = 0.0
 var duck_gain: float = 1.0
 var suspended: bool = false
+var last_music_asset_path: String = ""
 
 var music_player: AudioStreamPlayer
-var music_generator: AudioStreamGenerator
-var music_playback: AudioStreamGeneratorPlayback
 var ui_player: AudioStreamPlayer
 var ui_generator: AudioStreamGenerator
 var ui_playback: AudioStreamGeneratorPlayback
@@ -35,8 +43,12 @@ func set_mode(mode_id: String) -> void:
     mode_switch_count += 1
     sample_cursor = 0
     current_gain = 0.0
-    if current_mode != "silent":
-        _ensure_music_audio()
+    _ensure_music_audio()
+    if current_mode == "silent":
+        last_music_asset_path = ""
+        music_player.stop()
+        return
+    _play_mode_stream(current_mode)
 
 func set_suspended(value: bool) -> void:
     suspended = value
@@ -47,6 +59,7 @@ func set_suspended(value: bool) -> void:
 
 func duck(strength: float = 0.45) -> void:
     duck_gain = float(clamp(1.0 - strength, 0.18, 1.0))
+    _apply_music_gain()
 
 func play_ui(cue_id: String = "click") -> void:
     last_ui_cue = cue_id
@@ -60,25 +73,49 @@ func _process(delta: float) -> void:
     _ensure_music_audio()
     current_gain = float(move_toward(current_gain, 1.0, delta * 2.4))
     duck_gain = float(move_toward(duck_gain, 1.0, delta * 3.8))
-    _feed_music()
+    _apply_music_gain()
 
 func _ensure_music_audio() -> void:
     if is_instance_valid(music_player):
         return
     music_player = AudioStreamPlayer.new()
-    music_player.name = "ProceduralBGM"
-    music_generator = AudioStreamGenerator.new()
-    music_generator.mix_rate = MIX_RATE
-    music_generator.buffer_length = 0.45
-    music_player.stream = music_generator
+    music_player.name = "CommercialBGM"
     music_player.volume_db = MUSIC_VOLUME_DB
     add_child(music_player)
+
+func _play_mode_stream(mode_id: String) -> void:
+    _ensure_music_audio()
+    var path := music_asset_path(mode_id)
+    if path.is_empty() or not ResourceLoader.exists(path):
+        push_warning("Missing commercial music asset for mode %s: %s" % [mode_id, path])
+        last_music_asset_path = ""
+        music_player.stop()
+        return
+    var stream := ResourceLoader.load(path) as AudioStream
+    if stream == null:
+        push_warning("Failed to load commercial music asset: %s" % path)
+        last_music_asset_path = ""
+        music_player.stop()
+        return
+    stream = stream.duplicate() as AudioStream
+    if stream is AudioStreamOggVorbis:
+        (stream as AudioStreamOggVorbis).loop = true
+    music_player.stream = stream
+    last_music_asset_path = path
+    _apply_music_gain()
     music_player.play()
-    music_playback = music_player.get_stream_playback() as AudioStreamGeneratorPlayback
+
+func _apply_music_gain() -> void:
+    if not is_instance_valid(music_player):
+        return
+    var linear_gain := max(0.001, current_gain * duck_gain)
+    music_player.volume_db = MUSIC_VOLUME_DB + linear_to_db(linear_gain)
 
 func _ensure_ui_audio() -> void:
     if is_instance_valid(ui_player):
         return
+    # UI clicks remain the only procedural audio in v1. They are tiny tactile
+    # cues; all score, fight impacts, voice, bell and crowd audio is recorded.
     ui_player = AudioStreamPlayer.new()
     ui_player.name = "UISound"
     ui_generator = AudioStreamGenerator.new()
@@ -89,54 +126,6 @@ func _ensure_ui_audio() -> void:
     add_child(ui_player)
     ui_player.play()
     ui_playback = ui_player.get_stream_playback() as AudioStreamGeneratorPlayback
-
-func _feed_music() -> void:
-    if music_playback == null or music_generator == null:
-        return
-    var spec: Dictionary = track_profile(current_mode)
-    var frames: int = int(min(music_playback.get_frames_available(), 1024))
-    if frames <= 0:
-        return
-    var bpm: float = float(spec.get("bpm", 82.0))
-    var root: float = float(spec.get("root", 98.0))
-    var intensity: float = float(spec.get("intensity", 0.45))
-    var pad_level: float = float(spec.get("pad", 0.35))
-    var beat_seconds: float = 60.0 / bpm
-    var progression: Array = spec.get("progression", [0, -3, -5, -7])
-
-    for _i in range(frames):
-        var t: float = float(sample_cursor) / MIX_RATE
-        var beat_pos: float = t / beat_seconds
-        var beat_phase: float = fmod(beat_pos, 1.0)
-        var half_phase: float = fmod(beat_pos * 0.5, 1.0)
-        var chord_index: int = int(floor(beat_pos / 4.0)) % progression.size()
-        var chord_root: float = root * pow(2.0, float(progression[chord_index]) / 12.0)
-
-        # Keep the placeholder score deliberately dark and low-mid. The old
-        # high sine pulses/metallic hats read as arcade laser sounds on phones.
-        var pad: float = _soft_chord(chord_root, t) * 0.018 * pad_level
-        var bass_env: float = 0.42 + 0.58 * exp(-beat_phase * 4.0)
-        var bass: float = sin(TAU * chord_root * 0.5 * t) * bass_env * 0.026 * intensity
-
-        var thump_env: float = exp(-beat_phase * 11.0)
-        var thump: float = sin(TAU * (72.0 + 18.0 * thump_env) * t) * thump_env * 0.028 * intensity
-
-        var second_thump: float = 0.0
-        if current_mode in ["fight_week", "fight"]:
-            var second_phase: float = fmod(beat_pos + 0.5, 1.0)
-            var second_env: float = exp(-second_phase * 13.0)
-            second_thump = sin(TAU * 126.0 * t) * second_env * 0.012 * intensity
-
-        var pressure: float = 0.0
-        if current_mode == "fight":
-            var pressure_env: float = exp(-half_phase * 5.0)
-            pressure = sin(TAU * chord_root * 1.5 * t) * pressure_env * 0.006
-
-        var attack: float = min(1.0, t / 0.45)
-        var gain: float = current_gain * duck_gain * attack
-        var sample: float = float(clamp((pad + bass + thump + second_thump + pressure) * gain, -0.22, 0.22))
-        music_playback.push_frame(Vector2(sample, sample))
-        sample_cursor += 1
 
 func _feed_ui_cue(cue_id: String) -> void:
     if ui_playback == null or ui_generator == null:
@@ -180,11 +169,12 @@ func _feed_ui_cue(cue_id: String) -> void:
         var sample: float = float(clamp((knock + grit) * envelope * amplitude, -0.35, 0.35))
         ui_playback.push_frame(Vector2(sample, sample))
 
-static func _soft_chord(root: float, t: float) -> float:
-    var fifth: float = root * pow(2.0, 7.0 / 12.0)
-    return sin(TAU * root * t) * 0.62 + sin(TAU * root * 0.5 * t) * 0.42 + sin(TAU * fifth * t) * 0.16
+static func music_asset_path(mode_id: String) -> String:
+    return str(MUSIC_ASSETS.get(mode_id, ""))
 
 static func track_profile(mode_id: String) -> Dictionary:
+    # These values remain product/mix metadata used by QA to ensure phase
+    # contrast. Playback itself now comes from the licensed recorded assets.
     match mode_id:
         "menu":
             return {"bpm": 66.0, "root": 98.0, "intensity": 0.26, "pad": 0.62, "progression": [0, -3, -5, -7]}
