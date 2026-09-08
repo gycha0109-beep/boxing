@@ -1,6 +1,6 @@
 [
   {"id":"heavy_bag","name":"헤비백 강훈련","kind":"training","cost":18000,"effects":{"power":3,"technique":1,"fatigue":15,"weight":-0.15},"risk":0.07},
-  {"id":"mitts","name":"미트 집중","kind":"training","cost":18000,"effects":{"speed":3,"technique":2,"fatigue":12,"weight":-0.10},"risk":0.04},
+  {"id":"mitts","name":"미트 집중","kind":"training","cost":18000,"effects":{"speed":3,"technique":3,"fatigue":13,"weight":-0.10},"risk":0.045},
   {"id":"roadwork","name":"로드워크","kind":"training","cost":12000,"effects":{"conditioning":3,"speed":2,"fatigue":11,"weight":-0.35},"risk":0.025},
   {"id":"defense_drill","name":"디펜스 드릴","kind":"training","cost":16000,"effects":{"defense":3,"technique":1,"fatigue":9,"weight":-0.08},"risk":0.03},
   {"id":"sparring","name":"강한 스파링","kind":"training","cost":26000,"effects":{"power":1,"speed":2,"technique":2,"defense":2,"fatigue":19,"weight":-0.18},"risk":0.11},
