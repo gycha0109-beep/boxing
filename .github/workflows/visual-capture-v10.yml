@@ -1,6 +1,16 @@
 name: Visual Capture v1.0
 
 on:
+  push:
+    branches:
+      - fix/mobile-scroll-and-back-v1.1
+    paths:
+      - .github/workflows/visual-capture-v10.yml
+      - scenes/**
+      - scripts/**
+      - assets/**
+      - data/**
+      - tests/visual_capture_v10.gd
   pull_request:
     branches:
       - main
