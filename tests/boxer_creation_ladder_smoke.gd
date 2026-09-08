@@ -1,6 +1,6 @@
 extends SceneTree
 
-const StateScript = preload("res://scripts/core/game_state_v14.gd")
+const StateScript = preload("res://scripts/core/game_state_v15.gd")
 const Save = preload("res://scripts/core/save_service.gd")
 
 var failures: Array[String] = []
@@ -32,11 +32,12 @@ func _test_style_choice_and_talent_separation() -> void:
     _check(str(game_state.state.boxer.get("identity_id", "")) == "out_boxer", "chosen boxing style was not stored")
     _check(str(game_state.state.boxer.get("trait_id", "")) == "glass_cannon", "style selection overwrote natural talent")
 
-    # Base 50 + glass-cannon talent + chosen out-boxer style.
-    _check(int(game_state.state.boxer.power) == 55, "style/talent power composition mismatch")
-    _check(int(game_state.state.boxer.speed) == 54, "style/talent speed composition mismatch")
-    _check(int(game_state.state.boxer.technique) == 53, "style/talent technique composition mismatch")
-    _check(int(game_state.state.boxer.defense) == 47, "style/talent defense composition mismatch")
+    # Base 40 + glass-cannon talent + zero-sum out-boxer style.
+    _check(int(game_state.state.boxer.power) == 44, "style/talent power composition mismatch")
+    _check(int(game_state.state.boxer.speed) == 43, "style/talent speed composition mismatch")
+    _check(int(game_state.state.boxer.technique) == 42, "style/talent technique composition mismatch")
+    _check(int(game_state.state.boxer.defense) == 37, "style/talent defense composition mismatch")
+    _check(int(game_state.state.boxer.conditioning) == 38, "style/talent conditioning composition mismatch")
 
     var talent: Dictionary = game_state.talent_definition()
     _check(str(talent.get("name", "")) == "유리 대포", "natural talent definition lookup failed")
