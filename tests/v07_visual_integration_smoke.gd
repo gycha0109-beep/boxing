@@ -55,7 +55,7 @@ func _run() -> void:
     await process_frame
     await process_frame
 
-    _check(str(main_view.get_script().resource_path) == "res://scripts/main_v14.gd", "Main scene is not using the active economy shell that preserves v1.0/v0.7 visual integration")
+    _check(str(main_view.get_script().resource_path) == "res://scripts/main_v15.gd", "Main scene is not using the active audio/economy shell that preserves v1.0/v0.7 visual integration")
     var stage: FightStage = _find_stage(main_view)
     _check(is_instance_valid(stage), "v0.7 actual fight screen rendered no FightStage")
     if is_instance_valid(stage):
