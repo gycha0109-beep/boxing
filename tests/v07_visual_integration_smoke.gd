@@ -15,7 +15,8 @@ func _run() -> void:
     _check(VisualAssetCatalog.arena_path(true).ends_with("arena/arena_title_night.png"), "title arena mapping mismatch")
 
     _check(VisualAssetCatalog.opponent_visual_profile_for_name("박태호") == "korean", "Park Tae-ho visual identity must be Korean")
-    _check(VisualAssetCatalog.opponent_portrait_path_for_name("박태호").ends_with("portraits/portrait_player_a.png"), "Korean opponent portrait must not use the old black slugger portrait")
+    _check(VisualAssetCatalog.opponent_portrait_path_for_name("박태호").ends_with("fighters/opponents/slugger/op_slugger_a_idle.png"), "Korean opponent portrait must match the East-Asian fight visual rather than the player portrait")
+    _check(VisualAssetCatalog.opponent_portrait_path_for_name("박태호") != VisualAssetCatalog.portrait_path(true), "Korean opponent portrait must remain distinct from the player portrait")
     _check(VisualAssetCatalog.opponent_visual_style_for_name("박태호") == "slugger", "Korean opponent fight set must use the stable East-Asian pose set")
     _check(VisualAssetCatalog.opponent_visual_profile_for_name("에번 브룩스") == "black", "Evan Brooks visual identity must be Black")
     _check(VisualAssetCatalog.opponent_portrait_path_for_name("에번 브룩스").ends_with("portraits/portrait_swarmer_a.png"), "Black opponent portrait mapping mismatch")
