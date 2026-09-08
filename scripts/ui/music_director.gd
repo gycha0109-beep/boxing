@@ -108,7 +108,7 @@ func _play_mode_stream(mode_id: String) -> void:
 func _apply_music_gain() -> void:
     if not is_instance_valid(music_player):
         return
-    var linear_gain := max(0.001, current_gain * duck_gain)
+    var linear_gain: float = maxf(0.001, current_gain * duck_gain)
     music_player.volume_db = MUSIC_VOLUME_DB + linear_to_db(linear_gain)
 
 func _ensure_ui_audio() -> void:
