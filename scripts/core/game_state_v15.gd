@@ -1,6 +1,6 @@
 extends "res://scripts/core/game_state_v14.gd"
 
-const STARTING_BASE_STAT := 40
+const STARTING_BASE_STAT := 44
 const EQUIPMENT_PATH := "res://data/equipment.json"
 const EQUIPMENT_SECTIONS := ["personal", "gym"]
 
