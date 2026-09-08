@@ -1,6 +1,9 @@
 class_name ArenaAudio
 extends Node
 
+const CROWD_VOLUME_DB: float = -18.0
+const CUE_VOLUME_DB: float = -9.0
+
 var crowd_active: bool = false
 var suspended: bool = false
 var last_cue: String = ""
@@ -12,7 +15,7 @@ var crowd_playback: AudioStreamGeneratorPlayback
 var cue_player: AudioStreamPlayer
 var cue_generator: AudioStreamGenerator
 var cue_playback: AudioStreamGeneratorPlayback
-var noise_rng := RandomNumberGenerator.new()
+var noise_rng: RandomNumberGenerator = RandomNumberGenerator.new()
 
 func _ready() -> void:
     process_mode = Node.PROCESS_MODE_ALWAYS
@@ -53,6 +56,7 @@ func _ensure_crowd_audio() -> void:
     crowd_generator.mix_rate = 22050.0
     crowd_generator.buffer_length = 0.35
     crowd_player.stream = crowd_generator
+    crowd_player.volume_db = CROWD_VOLUME_DB
     add_child(crowd_player)
     crowd_player.play()
     crowd_playback = crowd_player.get_stream_playback() as AudioStreamGeneratorPlayback
@@ -66,6 +70,7 @@ func _ensure_cue_audio() -> void:
     cue_generator.mix_rate = 22050.0
     cue_generator.buffer_length = 0.25
     cue_player.stream = cue_generator
+    cue_player.volume_db = CUE_VOLUME_DB
     add_child(cue_player)
     cue_player.play()
     cue_playback = cue_player.get_stream_playback() as AudioStreamGeneratorPlayback
@@ -73,11 +78,11 @@ func _ensure_cue_audio() -> void:
 func _feed_crowd() -> void:
     if crowd_playback == null or crowd_generator == null:
         return
-    var frames: int = min(crowd_playback.get_frames_available(), 768)
+    var frames: int = int(min(crowd_playback.get_frames_available(), 768))
     for i in range(frames):
         var noise: float = noise_rng.randf_range(-1.0, 1.0) * 0.022
         var rumble: float = sin(TAU * 74.0 * (float(i) / crowd_generator.mix_rate)) * 0.010
-        var sample: float = clamp(noise + rumble, -0.08, 0.08)
+        var sample: float = float(clamp(noise + rumble, -0.08, 0.08))
         crowd_playback.push_frame(Vector2(sample, sample))
 
 func _play_cue(cue_id: String) -> void:
@@ -87,16 +92,17 @@ func _play_cue(cue_id: String) -> void:
     if cue_playback == null or cue_generator == null:
         return
     var spec: Dictionary = cue_profile(cue_id)
-    var duration: float = float(spec.duration)
-    var frequency: float = float(spec.frequency)
-    var amplitude: float = float(spec.amplitude)
-    var frames: int = min(cue_playback.get_frames_available(), int(cue_generator.mix_rate * duration))
+    var duration: float = float(spec.get("duration", 0.05))
+    var frequency: float = float(spec.get("frequency", 440.0))
+    var amplitude: float = float(spec.get("amplitude", 0.05))
+    cue_playback.clear_buffer()
+    var frames: int = int(min(cue_playback.get_frames_available(), int(cue_generator.mix_rate * duration)))
     for i in range(frames):
         var t: float = float(i) / cue_generator.mix_rate
         var envelope: float = max(0.0, 1.0 - t / duration)
         var carrier: float = sin(TAU * frequency * t)
         var overtone: float = sin(TAU * frequency * 2.01 * t) * 0.45
-        var sample: float = clamp((carrier + overtone) * amplitude * envelope, -1.0, 1.0)
+        var sample: float = float(clamp((carrier + overtone) * amplitude * envelope, -1.0, 1.0))
         cue_playback.push_frame(Vector2(sample, sample))
 
 static func cue_profile(cue_id: String) -> Dictionary:
