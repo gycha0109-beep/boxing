@@ -43,8 +43,8 @@ func _run() -> void:
     await process_frame
     await process_frame
 
-    if str(main_view.get_script().resource_path) != "res://scripts/main_v10.gd":
-        _fail("capture is not using the v1.0 release shell")
+    if str(main_view.get_script().resource_path) != "res://scripts/main_v12.gd":
+        _fail("capture is not using the v1.2 Legacy shell above the v1.0 release shell")
         return
 
     await _capture("01_title.png")
