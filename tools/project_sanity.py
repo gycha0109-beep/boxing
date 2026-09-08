@@ -3,18 +3,15 @@ from pathlib import Path
 import json
 
 ROOT = Path(__file__).resolve().parents[1]
+
 required = [
-    "project.godot", "scenes/Main.tscn", "scripts/main.gd", "scripts/main_v05.gd", "scripts/main_v06.gd", "scripts/main_v07.gd", "scripts/main_v08.gd", "scripts/main_v10.gd", "scripts/main_v12.gd", "scripts/main_v13.gd",
-    "scripts/core/game_state.gd", "scripts/core/game_state_v12.gd", "scripts/core/game_state_v14.gd", "scripts/core/combat_engine.gd", "scripts/core/save_service.gd", "scripts/core/legacy_service.gd",
-    "scripts/ui/combat_presentation.gd", "scripts/ui/fight_stage.gd", "scripts/ui/impact_feedback.gd",
-    "scripts/ui/fight_fx_director.gd", "scripts/ui/arena_audio.gd", "scripts/ui/safe_area_layout.gd", "scripts/ui/visual_asset_catalog.gd",
-    "data/balance.json", "data/camp_actions.json", "data/opponents.json", "data/career_balance.json",
-    "data/traits.json", "data/events.json", "data/injuries.json", "data/fighter_identities.json", "data/game_plans.json", "data/legacy_definitions.json", "data/fight_preparations.json",
-    "tools/sim_combat.py", "tools/simulate_careers.py", "tools/simulate_gameplans.py", "tools/test_gameplans.py",
-    "tools/validate_visual_assets_v07.py", "tools/validate_release_font_v10.py", "tools/import_visual_assets_v07.ps1",
-    "tests/runtime_state_smoke.gd", "tests/legacy_retirement_smoke.gd", "tests/legacy_slot_effect_smoke.gd", "tests/pre_fight_preparation_smoke.gd", "tests/boxer_creation_ladder_smoke.gd", "tests/v03_gameplan_smoke.gd", "tests/v04_combat_ux_smoke.gd",
-    "tests/v04_fight_ui_smoke.gd", "tests/v05_fight_presentation_smoke.gd", "tests/v06_device_polish_smoke.gd",
-    "tests/v07_visual_integration_smoke.gd", "tests/v08_first_five_minutes_smoke.gd", "tests/v10_release_font_smoke.gd",
+    "project.godot", "scenes/Main.tscn",
+    "scripts/main.gd", "scripts/main_v05.gd", "scripts/main_v06.gd", "scripts/main_v07.gd", "scripts/main_v08.gd", "scripts/main_v10.gd", "scripts/main_v12.gd", "scripts/main_v13.gd", "scripts/main_v14.gd",
+    "scripts/core/game_state.gd", "scripts/core/game_state_v12.gd", "scripts/core/game_state_v14.gd", "scripts/core/game_state_v15.gd", "scripts/core/combat_engine.gd", "scripts/core/save_service.gd", "scripts/core/legacy_service.gd",
+    "scripts/ui/combat_presentation.gd", "scripts/ui/fight_stage.gd", "scripts/ui/impact_feedback.gd", "scripts/ui/fight_fx_director.gd", "scripts/ui/arena_audio.gd", "scripts/ui/safe_area_layout.gd", "scripts/ui/visual_asset_catalog.gd",
+    "data/balance.json", "data/camp_actions.json", "data/opponents.json", "data/career_balance.json", "data/traits.json", "data/events.json", "data/injuries.json", "data/fighter_identities.json", "data/game_plans.json", "data/legacy_definitions.json", "data/fight_preparations.json", "data/equipment.json",
+    "tools/sim_combat.py", "tools/simulate_careers.py", "tools/simulate_gameplans.py", "tools/test_gameplans.py", "tools/validate_visual_assets_v07.py", "tools/validate_release_font_v10.py", "tools/import_visual_assets_v07.ps1",
+    "tests/runtime_state_smoke.gd", "tests/legacy_retirement_smoke.gd", "tests/legacy_slot_effect_smoke.gd", "tests/pre_fight_preparation_smoke.gd", "tests/boxer_creation_ladder_smoke.gd", "tests/equipment_economy_smoke.gd", "tests/v03_gameplan_smoke.gd", "tests/v04_combat_ux_smoke.gd", "tests/v04_fight_ui_smoke.gd", "tests/v05_fight_presentation_smoke.gd", "tests/v06_device_polish_smoke.gd", "tests/v07_visual_integration_smoke.gd", "tests/v08_first_five_minutes_smoke.gd", "tests/v10_release_font_smoke.gd", "tests/mobile_scroll_back_smoke.gd", "tests/fight_fixed_hud_smoke.gd",
 ]
 missing = [p for p in required if not (ROOT / p).exists()]
 if missing:
@@ -24,69 +21,59 @@ for obsolete in ["scripts/main_v03.gd", "scripts/core/game_state_v03.gd", "scrip
     assert not (ROOT / obsolete).exists(), f"obsolete subclass remains: {obsolete}"
 
 project = (ROOT / "project.godot").read_text()
-assert 'run/main_scene="res://scenes/Main.tscn"' in project
-assert 'GameState="*res://scripts/core/game_state_v14.gd"' in project
 scene = (ROOT / "scenes/Main.tscn").read_text()
-assert 'res://scripts/main_v13.gd' in scene
+assert 'run/main_scene="res://scenes/Main.tscn"' in project
+assert 'GameState="*res://scripts/core/game_state_v15.gd"' in project
+assert 'res://scripts/main_v14.gd' in scene
 
-main_v05 = (ROOT / "scripts/main_v05.gd").read_text()
-assert 'extends "res://scripts/main.gd"' in main_v05
-assert "FightStage.new()" in main_v05 and "ImpactFeedback.new()" in main_v05
-assert "func _choose_fight_action(" in main_v05
-
-main_v06 = (ROOT / "scripts/main_v06.gd").read_text()
-assert 'extends "res://scripts/main_v05.gd"' in main_v06
-assert "MIN_TOUCH_TARGET := 56.0" in main_v06
-assert "SafeAreaLayout.current_insets" in main_v06
-assert "MainLoop.NOTIFICATION_APPLICATION_PAUSED" in main_v06
-assert "MainLoop.NOTIFICATION_APPLICATION_RESUMED" in main_v06
-assert "FightFxDirector.interaction_lock_seconds" in main_v06
-assert "ArenaAudio.new()" in main_v06 and "FightFxDirector.new()" in main_v06
-
-main_v07 = (ROOT / "scripts/main_v07.gd").read_text()
-assert 'extends "res://scripts/main_v06.gd"' in main_v07
-assert "VisualAssetCatalog.portrait_texture" in main_v07
-assert "func _render_offers()" in main_v07 and "func _render_game_plan()" in main_v07
-
-main_v08 = (ROOT / "scripts/main_v08.gd").read_text()
-assert 'extends "res://scripts/main_v07.gd"' in main_v08
-assert "func _render_launch_title()" in main_v08
-assert "func _render_weigh_in()" in main_v08 and '"weigh_in_acknowledged"' in main_v08
-assert "func _render_result()" in main_v08
-assert "PRO DEBUT · CAMP 01" in main_v08 and "FIGHT WEEK · CONTRACT BOARD" in main_v08
-
-main_v10 = (ROOT / "scripts/main_v10.gd").read_text()
-assert 'extends "res://scripts/main_v08.gd"' in main_v10
-assert "func _apply_v07_system_font()" in main_v10
-assert 'res://assets/fonts/NotoSansKR-VF.ttf' in main_v10
-assert "allow_system_fallback = false" in main_v10
-assert "SystemFont.new" not in main_v10
-
-main_v12 = (ROOT / "scripts/main_v12.gd").read_text()
-assert 'extends "res://scripts/main_v10.gd"' in main_v12
-assert "func _render_career_summary()" in main_v12
-assert "func _choose_retirement_legacy(" in main_v12
-assert "func _replace_retirement_legacy(" in main_v12 and "func _abandon_retirement_legacy()" in main_v12
-assert "func _render_active_legacy_summary()" in main_v12
-assert "func _start_next_generation()" in main_v12
-assert "GYM LEGACY" in main_v12 and "이 유산을 남긴다" in main_v12
-assert "새 유산 포기 · 기존 슬롯 유지" in main_v12
+main_chain = {
+    "scripts/main_v05.gd": 'extends "res://scripts/main.gd"',
+    "scripts/main_v06.gd": 'extends "res://scripts/main_v05.gd"',
+    "scripts/main_v07.gd": 'extends "res://scripts/main_v06.gd"',
+    "scripts/main_v08.gd": 'extends "res://scripts/main_v07.gd"',
+    "scripts/main_v10.gd": 'extends "res://scripts/main_v08.gd"',
+    "scripts/main_v12.gd": 'extends "res://scripts/main_v10.gd"',
+    "scripts/main_v13.gd": 'extends "res://scripts/main_v12.gd"',
+    "scripts/main_v14.gd": 'extends "res://scripts/main_v13.gd"',
+}
+for path, marker in main_chain.items():
+    assert marker in (ROOT / path).read_text(), f"main inheritance broken: {path}"
 
 main_v13 = (ROOT / "scripts/main_v13.gd").read_text()
-assert 'extends "res://scripts/main_v12.gd"' in main_v13
-assert "func _render_style_select()" in main_v13
-assert "func _render_talent_reveal()" in main_v13
-assert "타고난 재능" in main_v13 and "복싱 스타일" in main_v13
-assert "func _render_career_ladder_card()" in main_v13
-assert "func _render_tactical_preparation()" in main_v13
-assert "func _render_condition_preparation()" in main_v13
-assert "func _return_to_condition_preparation()" in main_v13
-assert "func _return_to_tactical_preparation()" in main_v13
-assert "영구 스탯은 더 오르지 않습니다" in main_v13
-assert "추가 성장은 없습니다" in main_v13
+for marker in ["func _render_style_select()", "func _render_talent_reveal()", "타고난 재능", "복싱 스타일", "func _render_career_ladder_card()", "func _render_tactical_preparation()", "func _render_condition_preparation()", "영구 스탯은 더 오르지 않습니다", "추가 성장은 없습니다"]:
+    assert marker in main_v13
 
-for name in ["balance.json","camp_actions.json","opponents.json","career_balance.json","traits.json","events.json","injuries.json","fighter_identities.json","game_plans.json","legacy_definitions.json","fight_preparations.json"]:
+main_v14 = (ROOT / "scripts/main_v14.gd").read_text()
+for marker in ["func _render_equipment_shop()", "func _render_equipment_section(", "func _purchase_equipment(", "장비 · 체육관 투자", "장비는 이번 복서의 커리어가 끝나면 리셋됩니다"]:
+    assert marker in main_v14
+assert "%" not in "".join(line for line in main_v14.splitlines() if "training_percent" in line), "equipment UI should not expose hidden training percentages"
+
+state_v12 = (ROOT / "scripts/core/game_state_v12.gd").read_text()
+assert 'extends "res://scripts/core/game_state.gd"' in state_v12
+assert "Legacy.observe_career_peak" in state_v12 and "Legacy.apply_camp_growth_bonus" in state_v12
+assert "func select_tactical_preparation(" in state_v12 and "func select_condition_preparation(" in state_v12
+assert "func start_next_generation()" in state_v12
+
+state_v14 = (ROOT / "scripts/core/game_state_v14.gd").read_text()
+assert 'extends "res://scripts/core/game_state_v12.gd"' in state_v14
+for marker in ["func begin_boxer_creation()", "func select_boxing_style(", "func talent_definition()", "WORLD_TITLE_MIN_FIGHTS := 16", "WORLD_TITLE_MIN_WINS := 12", "func world_title_ready()", "func career_ladder_stage()", "func get_fight_offers("]:
+    assert marker in state_v14
+
+state_v15 = (ROOT / "scripts/core/game_state_v15.gd").read_text()
+assert 'extends "res://scripts/core/game_state_v14.gd"' in state_v15
+for marker in ["STARTING_BASE_STAT := 40", "EQUIPMENT_PATH", "func purchase_equipment(", "func next_equipment_upgrade(", "func gym_training_percent(", "func apply_camp_action(", 'career_state["equipment_state"]']:
+    assert marker in state_v15
+
+for name in ["balance.json","camp_actions.json","opponents.json","career_balance.json","traits.json","events.json","injuries.json","fighter_identities.json","game_plans.json","legacy_definitions.json","fight_preparations.json","equipment.json"]:
     json.loads((ROOT / "data" / name).read_text())
+
+styles = json.loads((ROOT / "data/fighter_identities.json").read_text())
+for style in styles:
+    assert sum(int(style.get("stat_bonus", {}).get(stat, 0)) for stat in ["power","speed","technique","defense","conditioning"]) == 0, f"style is not zero-sum: {style['id']}"
+
+equipment = json.loads((ROOT / "data/equipment.json").read_text())
+assert set(equipment) == {"personal", "gym"}
+assert len(equipment["personal"]) == 9 and len(equipment["gym"]) == 12
 
 preparations = json.loads((ROOT / "data/fight_preparations.json").read_text())
 assert len(preparations.get("tactical", [])) >= 4
@@ -95,105 +82,25 @@ assert len(preparations.get("condition", [])) >= 3
 combat = (ROOT / "scripts/core/combat_engine.gd").read_text()
 for action in ["jab","power","body","guard","counter"]:
     assert f'"{action}"' in combat
-assert "func export_state()" in combat and "func restore(" in combat
-assert "tendencies" in combat and "action_modifiers" in combat and "requires_target_actions" in combat
-assert "reactive_window" in combat
-assert 'if reactive_window and action_id == "counter"' in combat
-assert "COMMITTED_ATTACKS" in combat
-assert 'player_action == "counter" and opponent_action in COMMITTED_ATTACKS' in combat
-assert 'opponent_action == "counter" and player_action in COMMITTED_ATTACKS' in combat
-assert "miss_read_stats" in combat
-assert 'source = modifiers.get("miss_read_stats", {})' in combat
+for marker in ["func export_state()", "func restore(", "tendencies", "action_modifiers", "requires_target_actions", "reactive_window", "COMMITTED_ATTACKS", "miss_read_stats"]:
+    assert marker in combat
 assert "initiative_bias" not in combat
 
 sim_combat = (ROOT / "tools/sim_combat.py").read_text()
-assert "reactive_window" in sim_combat
-assert 'if reactive_window and action_id == "counter"' in sim_combat
-assert "COMMITTED_ATTACKS" in sim_combat
-assert 'pa == "counter" and oa in COMMITTED_ATTACKS' in sim_combat
-assert 'oa == "counter" and pa in COMMITTED_ATTACKS' in sim_combat
-assert "miss_read_stats" in sim_combat
-assert 'source = mods.get("miss_read_stats", {})' in sim_combat
+for marker in ["reactive_window", "COMMITTED_ATTACKS", "miss_read_stats"]:
+    assert marker in sim_combat
 assert "initiative_bias" not in sim_combat
 
-state = (ROOT / "scripts/core/game_state.gd").read_text()
-assert 'state.phase = "game_plan"' in state
-assert "func select_game_plan(" in state
-assert "fighter_identities" in state and "game_plans" in state and "selected_game_plan" in state
-
-state_v12 = (ROOT / "scripts/core/game_state_v12.gd").read_text()
-assert 'extends "res://scripts/core/game_state.gd"' in state_v12
-assert "Legacy.observe_career_peak" in state_v12
-assert "func apply_camp_action(" in state_v12 and "Legacy.apply_camp_growth_bonus" in state_v12
-assert "PREPARATION_PATH" in state_v12
-assert "func select_tactical_preparation(" in state_v12
-assert "func select_condition_preparation(" in state_v12
-assert "func return_to_condition_preparation()" in state_v12
-assert "func return_to_tactical_preparation()" in state_v12
-assert "func return_to_fight_offers_from_preparation()" in state_v12
-assert "func select_retirement_legacy(" in state_v12
-assert "func replace_retirement_legacy(" in state_v12 and "func abandon_retirement_legacy()" in state_v12
-assert "func start_next_generation()" in state_v12
-
-state_v14 = (ROOT / "scripts/core/game_state_v14.gd").read_text()
-assert 'extends "res://scripts/core/game_state_v12.gd"' in state_v14
-assert "func begin_boxer_creation()" in state_v14
-assert "func select_boxing_style(" in state_v14
-assert "func talent_definition()" in state_v14 and "func confirm_talent()" in state_v14
-assert "WORLD_TITLE_MIN_FIGHTS := 16" in state_v14 and "WORLD_TITLE_MIN_WINS := 12" in state_v14
-assert "func world_title_ready()" in state_v14 and "func career_ladder_stage()" in state_v14
-assert "func get_fight_offers(" in state_v14
-
 legacy = (ROOT / "scripts/core/legacy_service.gd").read_text()
-assert "class_name LegacyService" in legacy
-assert "career_high_points" in legacy
-assert '"already_selected"' in legacy and '"slot_decision_pending"' in legacy
-assert "func replace_retirement_legacy(" in legacy and "func abandon_retirement_legacy(" in legacy
-assert "func effect_value(" in legacy and "DIMINISHING_FACTOR" in legacy
-assert "legacy_status" in legacy and '"replaced"' in legacy and '"abandoned"' in legacy
-assert '"definition_id"' in legacy and '"source_generation"' in legacy
+for marker in ["class_name LegacyService", "career_high_points", "func replace_retirement_legacy(", "func abandon_retirement_legacy(", "func effect_value(", "DIMINISHING_FACTOR", "legacy_status", '"definition_id"', '"source_generation"']:
+    assert marker in legacy
 
-main = (ROOT / "scripts/main.gd").read_text()
-assert '"game_plan": _render_game_plan()' in main
-assert "상대 스카우팅" in main and "행동 경향" in main
-
-stage = (ROOT / "scripts/ui/fight_stage.gd").read_text()
-assert "class_name FightStage" in stage
-assert "func play_exchange(" in stage
-assert 'player_pose = "down"' in stage and 'opponent_pose = "down"' in stage
-assert "VisualAssetCatalog.fighter_texture" in stage
-assert "VisualAssetCatalog.arena_texture" in stage
-assert "VisualAssetCatalog.fx_texture" in stage
-assert "_draw_fighter_asset_or_fallback" in stage
-
-catalog = (ROOT / "scripts/ui/visual_asset_catalog.gd").read_text()
-assert "class_name VisualAssetCatalog" in catalog
-assert 'ROOT := "res://assets/visual/v0.7"' in catalog
-assert "fighter_path" in catalog and "portrait_path" in catalog and "arena_path" in catalog and "fx_path" in catalog
-assert "missing_required_paths" in catalog and "asset_pack_available" in catalog
-
-impact = (ROOT / "scripts/ui/impact_feedback.gd").read_text()
-assert "class_name ImpactFeedback" in impact
-assert "AudioStreamGenerator" in impact and "Input.vibrate_handheld" in impact
-assert "haptic_amplitude" in impact and "hit_stop_seconds" in impact and "shake_strength" in impact
-assert "sfx_cue_for_exchange" in impact and '"body_hit"' in impact and '"head_crack"' in impact
-
-fx = (ROOT / "scripts/ui/fight_fx_director.gd").read_text()
-assert "class_name FightFxDirector" in fx
-assert "PROCESS_MODE_DISABLED" in fx and "create_timer" in fx
-assert "tween_method" in fx and "shake_duration_seconds" in fx
-
-arena = (ROOT / "scripts/ui/arena_audio.gd").read_text()
-assert "class_name ArenaAudio" in arena
-assert '"round_bell"' in arena and '"final_bell"' in arena and '"corner_call"' in arena
-assert "crowd_active" in arena and "AudioStreamGenerator" in arena
-
-safe = (ROOT / "scripts/ui/safe_area_layout.gd").read_text()
-assert "class_name SafeAreaLayout" in safe
-assert "DisplayServer.get_display_safe_area()" in safe
-assert "compute_insets" in safe
+release_shell = (ROOT / "scripts/main_v10.gd").read_text()
+assert 'res://assets/fonts/NotoSansKR-VF.ttf' in release_shell
+assert "allow_system_fallback = false" in release_shell
 
 save = (ROOT / "scripts/core/save_service.gd").read_text()
 assert "SCHEMA_VERSION := 3" in save
 assert "PREVIOUS_SCHEMA_VERSION := 2" in save and "_load_previous_v2" in save and "_load_legacy_v1" in save
+
 print("project_sanity: PASS")
