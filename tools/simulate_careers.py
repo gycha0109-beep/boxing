@@ -10,12 +10,23 @@ OPPS=json.loads((ROOT/'data/opponents.json').read_text())
 CAMP=json.loads((ROOT/'data/camp_actions.json').read_text())
 TRAITS=json.loads((ROOT/'data/traits.json').read_text())
 IDENTITIES=json.loads((ROOT/'data/fighter_identities.json').read_text())
+EQUIPMENT=json.loads((ROOT/'data/equipment.json').read_text())
 EVENTS=json.loads((ROOT/'data/events.json').read_text())
 INJURIES=json.loads((ROOT/'data/injuries.json').read_text())
 CB=json.loads((ROOT/'data/career_balance.json').read_text())
 TIERS=[t['id'] for t in CB['career_points']['tiers']]
 TRAINABLE=['power','speed','technique','defense','conditioning']
-PLAYABLE_IDENTITIES=[i for i in IDENTITIES if i['id']!='balanced'] or [next(i for i in IDENTITIES if i['id']=='balanced')]
+PLAYABLE_IDENTITIES=IDENTITIES
+BASE_STAT=40
+TITLE_ORDER=['district','regional','national','continental','world_eliminator']
+TITLE_REQUIREMENTS={
+    'district':(2,2),
+    'regional':(5,4),
+    'national':(8,6),
+    'continental':(11,8),
+    'world_eliminator':(14,10),
+}
+WORLD_GATE=(16,12,88)
 
 
 def tier_for(points):
@@ -25,11 +36,11 @@ def tier_for(points):
     return 'title'
 
 
-def offers(points):
+def base_offers(points):
     cur=tier_for(points); idx=TIERS.index(cur); same=[]; lower=[]; higher=[]
     for o in OPPS:
+        if o.get('title_fight'): continue
         oi=TIERS.index(o['tier'])
-        if o['tier']=='title' and points<88: continue
         if oi==idx: same.append(o)
         elif oi==idx-1: lower.append(o)
         elif oi==idx+1: higher.append(o)
@@ -45,9 +56,45 @@ def offers(points):
     return out
 
 
+def next_title_kind(s):
+    for kind in TITLE_ORDER:
+        if kind not in s['titles']:
+            return kind
+    return 'world'
+
+
+def eligible_title_kind(s):
+    kind=next_title_kind(s)
+    if kind=='world':
+        fights,wins,points=WORLD_GATE
+        return 'world' if 'world_eliminator' in s['titles'] and s['fights']>=fights and s['wins']>=wins and s['points']>=points else None
+    fights,wins=TITLE_REQUIREMENTS[kind]
+    return kind if s['fights']>=fights and s['wins']>=wins else None
+
+
+def title_opponent(kind):
+    return next((o for o in OPPS if o.get('title_kind')==kind),None)
+
+
+def offers(s):
+    out=[]
+    kind=eligible_title_kind(s)
+    if kind:
+        title=title_opponent(kind)
+        if title: out.append(title)
+    for o in base_offers(s['points']):
+        if o not in out: out.append(o)
+        if len(out)>=3: break
+    if len(out)<3:
+        for o in OPPS:
+            if o.get('title_fight'): continue
+            if o not in out: out.append(o)
+            if len(out)>=3: break
+    return out
+
+
 def choose_action(rng,s):
-    b=s['boxer']; money=s['money']
-    by={a['id']:a for a in CAMP}
+    b=s['boxer']; money=s['money']; by={a['id']:a for a in CAMP}
     if b['injury'] and money>=by['rehab']['cost'] and rng.random()<.65:
         return by['rehab']
     if b['weight_kg'] > CB['weight_class']['limit_kg'] + .45 and money>=by['weight_cut']['cost']:
@@ -61,14 +108,73 @@ def choose_action(rng,s):
 
 def choose_plan(rng, opponent):
     suggested=list(opponent.get('scouting',{}).get('suggested_plans',[]))
-    if not suggested:
-        return 'balanced'
+    if not suggested: return 'balanced'
     roll=rng.random()
-    if roll < .55:
-        return suggested[0]
-    if len(suggested)>1 and roll < .90:
-        return suggested[1]
+    if roll < .55: return suggested[0]
+    if len(suggested)>1 and roll < .90: return suggested[1]
     return 'balanced'
+
+
+def unlocked(item,s):
+    req=item.get('required_title','')
+    return not req or req in s['titles']
+
+
+def equipped_item(s,section,slot):
+    item_id=s['equipment'][section].get(slot)
+    if not item_id: return None
+    return next((i for i in EQUIPMENT[section] if i['id']==item_id),None)
+
+
+def next_upgrade(s,section,slot):
+    cur=equipped_item(s,section,slot); tier=int(cur.get('tier',0)) if cur else 0
+    return next((i for i in EQUIPMENT[section] if i['slot']==slot and i['tier']==tier+1),None)
+
+
+def equipment_priority(identity_id,item):
+    slot=item['slot']
+    preferred={
+        'balanced':['mouthguard','mitts','shoes','defense','gloves','heavy_bag','roadwork'],
+        'pressure_fighter':['heavy_bag','roadwork','gloves','defense','mouthguard','mitts','shoes'],
+        'out_boxer':['mitts','shoes','roadwork','mouthguard','defense','gloves','heavy_bag'],
+        'slugger':['heavy_bag','gloves','mouthguard','defense','roadwork','mitts','shoes'],
+        'counter_puncher':['defense','mitts','mouthguard','shoes','roadwork','gloves','heavy_bag'],
+    }.get(identity_id,[])
+    try: return preferred.index(slot)
+    except ValueError: return 99
+
+
+def maybe_buy_equipment(rng,s):
+    # One purchase at most per fight cycle. Keep a cash reserve so gear competes with
+    # training/rehab rather than automatically causing bankruptcy.
+    current_tier=tier_for(s['points'])
+    reserve=max(60000, int(CB['economy']['cycle_cost_by_tier'].get(current_tier,0)))
+    candidates=[]
+    for section in ('personal','gym'):
+        for slot in sorted({i['slot'] for i in EQUIPMENT[section]}):
+            item=next_upgrade(s,section,slot)
+            if not item or not unlocked(item,s): continue
+            if s['money']-item['price'] < reserve: continue
+            candidates.append((equipment_priority(s['identity'],item),item['price'],section,item))
+    if not candidates or rng.random()>.62: return
+    candidates.sort(key=lambda x:(x[0],x[1]))
+    _,_,section,item=candidates[0]
+    slot=item['slot']; previous=equipped_item(s,section,slot)
+    s['money']-=item['price']; s['equipment_spent']+=item['price']; s['equipment'][section][slot]=item['id']
+    if section=='personal':
+        old_bonus=previous.get('stat_bonus',{}) if previous else {}
+        for stat in TRAINABLE:
+            delta=int(item.get('stat_bonus',{}).get(stat,0))-int(old_bonus.get(stat,0))
+            if delta: s['boxer'][stat]=max(1,min(100,s['boxer'][stat]+delta))
+
+
+def gym_percent(s,action_id):
+    best=0.0
+    for slot in s['equipment']['gym']:
+        item=equipped_item(s,'gym',slot)
+        if item and action_id in item.get('action_ids',[]):
+            best=max(best,float(item.get('training_percent',0)))
+    return best
 
 
 def apply_camp(rng,s,a):
@@ -78,6 +184,17 @@ def apply_camp(rng,s,a):
         if stat in e:
             raw=e[stat]; gain=max(1,round(raw*growth)) if raw>0 else raw
             b[stat]=max(1,min(100,b[stat]+gain))
+    if a.get('kind','training')=='training':
+        pct=gym_percent(s,a['id'])
+        if pct>0:
+            for stat in TRAINABLE:
+                raw=int(e.get(stat,0))
+                if raw<=0: continue
+                key=f"{a['id']}:{stat}"
+                fractional=s['growth_carry'].get(key,0.0)+raw*pct/100.0
+                bonus=int(fractional+1e-9)
+                s['growth_carry'][key]=fractional-bonus
+                if bonus>0: b[stat]=max(1,min(100,b[stat]+bonus))
     fd=e.get('fatigue',0)
     if fd>0 and a['kind']=='training': fd=round(fd*mods.get('training_fatigue_multiplier',1.0))
     b['fatigue']=max(0,min(100,b['fatigue']+fd)); b['health']=max(0,min(100,b['health']+e.get('health',0))); b['weight_kg']=max(57,min(68,b['weight_kg']+e.get('weight',0)))
@@ -117,7 +234,12 @@ def weigh_in(s):
 
 def choose_opp(rng, choices):
     if not choices: return None
-    scored=sorted(choices,key=lambda o:sum(o['stats'].values()))
+    titles=[o for o in choices if o.get('title_fight')]
+    if titles and rng.random()<.72:
+        return titles[0]
+    regular=[o for o in choices if not o.get('title_fight')]
+    pool=regular or choices
+    scored=sorted(pool,key=lambda o:sum(o['stats'].values()))
     r=rng.random()
     if r<.58: return scored[0]
     if r<.82: return scored[min(1,len(scored)-1)]
@@ -150,15 +272,17 @@ def ending(s):
 
 def simulate(seed):
     rng=random.Random(seed); trait=rng.choice(TRAITS); identity=rng.choice(PLAYABLE_IDENTITIES)
-    b={'power':50,'speed':50,'technique':50,'defense':50,'conditioning':50,'fatigue':0,'health':100,'weight_kg':CB['weight_class']['start_weight_kg'],'modifiers':dict(trait.get('modifiers',{})),'injury':{}}
+    b={stat:BASE_STAT for stat in TRAINABLE}
+    b.update({'fatigue':0,'health':100,'weight_kg':CB['weight_class']['start_weight_kg'],'modifiers':dict(trait.get('modifiers',{})),'injury':{}})
     for source in (trait,identity):
         for stat,v in source.get('stat_bonus',{}).items():
             b[stat]=max(1,min(100,b[stat]+v))
-    s={'boxer':b,'money':120000,'reputation':0,'wins':0,'losses':0,'draws':0,'fights':0,'points':0,'age_months':19*12,'champion':False,'injury_fights':0,'plan_counts':Counter()}
+    s={'boxer':b,'money':120000,'reputation':0,'wins':0,'losses':0,'draws':0,'fights':0,'points':0,'age_months':19*12,'champion':False,'injury_fights':0,'plan_counts':Counter(),'trait':trait['id'],'identity':identity['id'],'titles':[],'equipment':{'personal':{},'gym':{}},'growth_carry':{},'equipment_spent':0}
     while not ending(s):
+        maybe_buy_equipment(rng,s)
         a=choose_action(rng,s); apply_camp(rng,s,a)
         if b['injury']: s['injury_fights']+=1
-        opts=offers(s['points']); opp=choose_opp(rng,opts)
+        opts=offers(s); opp=choose_opp(rng,opts)
         if opp is None: break
         plan_id=choose_plan(rng,opp); s['plan_counts'][plan_id]+=1
         purse_mult=weigh_in(s)*b['modifiers'].get('purse_multiplier',1.0)
@@ -173,7 +297,11 @@ def simulate(seed):
         rep_mult=b['modifiers'].get('reputation_multiplier',1.0)
         if result.startswith('WIN'):
             s['wins']+=1; s['reputation']+=round(opp['reputation_reward']*rep_mult); s['points']=min(100,s['points']+opp['career_points_win'])
-            if opp.get('title_fight'): s['champion']=True
+            title_kind=opp.get('title_kind')
+            if title_kind in TITLE_ORDER and title_kind not in s['titles']:
+                s['titles'].append(title_kind)
+            elif title_kind=='world':
+                s['champion']=True
         elif result.startswith('LOSS'):
             s['losses']+=1; s['reputation']=max(0,s['reputation']-2); s['points']=max(0,s['points']-opp['career_points_loss'])
         else:
@@ -186,29 +314,32 @@ def simulate(seed):
         if b['injury']:
             b['injury']['remaining_camps']=max(0,b['injury']['remaining_camps']-1)
             if b['injury']['remaining_camps']==0: b['injury']={}
-    s['ending']=ending(s) or 'stalled'; s['trait']=trait['id']; s['identity']=identity['id']; return s
+    s['ending']=ending(s) or 'stalled'; return s
 
 
 def main(n=10000):
     runs=[simulate(i+1) for i in range(n)]
-    end=Counter(r['ending'] for r in runs); traits=Counter(r['trait'] for r in runs); identities=Counter(r['identity'] for r in runs); plans=Counter()
-    for r in runs: plans.update(r['plan_counts'])
-    champ=end['world_champion']/n; avg_f=statistics.mean(r['fights'] for r in runs); avg_w=statistics.mean(r['wins'] for r in runs); avg_money=statistics.mean(r['money'] for r in runs); injury_share=statistics.mean(r['injury_fights']/max(1,r['fights']) for r in runs)
-    print(f"careers={n} policy=informed_scouting")
+    end=Counter(r['ending'] for r in runs); identities=Counter(r['identity'] for r in runs); plans=Counter(); title_counts=Counter()
+    for r in runs:
+        plans.update(r['plan_counts']); title_counts.update(r['titles'])
+    champ=end['world_champion']/n; avg_f=statistics.mean(r['fights'] for r in runs); avg_w=statistics.mean(r['wins'] for r in runs); avg_money=statistics.mean(r['money'] for r in runs); avg_spent=statistics.mean(r['equipment_spent'] for r in runs); injury_share=statistics.mean(r['injury_fights']/max(1,r['fights']) for r in runs)
+    print(f"careers={n} policy=base40_title_ladder_equipment")
     print(f"champion_rate={champ:.3f}")
-    print(f"avg_fights={avg_f:.2f} avg_wins={avg_w:.2f} avg_final_money={avg_money:.0f}")
+    print(f"avg_fights={avg_f:.2f} avg_wins={avg_w:.2f} avg_final_money={avg_money:.0f} avg_equipment_spent={avg_spent:.0f}")
     print(f"injury_fight_share={injury_share:.3f}")
     print("endings="+", ".join(f"{k}:{v/n:.3f}" for k,v in end.most_common()))
-    print("traits="+", ".join(f"{k}:{v/n:.3f}" for k,v in traits.most_common()))
+    print("titles="+", ".join(f"{k}:{v/n:.3f}" for k,v in title_counts.most_common()))
     print("identities="+", ".join(f"{k}:{v/n:.3f}" for k,v in identities.most_common()))
     total_plan_uses=max(1,sum(plans.values()))
     print("plans="+", ".join(f"{k}:{v/total_plan_uses:.3f}" for k,v in plans.most_common()))
-    assert .08 <= champ <= .45, champ
-    assert 8 <= avg_f <= 30, avg_f
-    assert end['bankrupt']/n < .08, end
+    assert .02 <= champ <= .55, champ
+    assert 10 <= avg_f <= 36, avg_f
+    assert avg_spent >= 100000, avg_spent
+    assert end['bankrupt']/n < .15, end
     assert end['stalled'] == 0, end
     assert set(identities) == {i['id'] for i in PLAYABLE_IDENTITIES}, identities
     assert all(plans[p] > 0 for p in ['outside_boxing','body_breakdown','pressure','counter_trap']), plans
+    assert title_counts['district'] > 0 and title_counts['regional'] > 0, title_counts
     print('career-simulation: PASS')
 
 
