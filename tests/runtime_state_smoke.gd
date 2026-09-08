@@ -10,6 +10,8 @@ func _init() -> void:
 
 func _run() -> void:
     _test_save_round_trip_and_backup()
+    _test_v2_foundation_migration()
+    _test_generation_foundation_persistence()
     _test_legacy_v1_migration()
     _test_combat_resume_rng_round_trip()
     _cleanup_save_files()
@@ -27,6 +29,9 @@ func _test_save_round_trip_and_backup() -> void:
     _check(Save.save_game(first), "primary save write failed")
     var loaded: Dictionary = Save.load_game()
     _check(int(loaded.get("career", {}).get("money", -1)) == 111000, "primary save round-trip failed")
+    _check(int(loaded.get("meta_state", {}).get("generation", -1)) == 1, "new save generation default failed")
+    _check(int(loaded.get("meta_state", {}).get("legacy_capacity", -1)) == 3, "new save legacy capacity default failed")
+    _check(loaded.get("meta_state", {}).get("legacy_slots", ["unexpected"]).is_empty(), "new save legacy slots must start empty")
 
     var second: Dictionary = _valid_state(222000, "두 번째 세이브")
     _check(Save.save_game(second), "second save write failed")
@@ -37,6 +42,50 @@ func _test_save_round_trip_and_backup() -> void:
         file.close()
     loaded = Save.load_game()
     _check(int(loaded.get("career", {}).get("money", -1)) == 111000, "known-good backup fallback failed")
+
+func _test_v2_foundation_migration() -> void:
+    _cleanup_save_files()
+    var old_payload: Dictionary = _valid_state(135000, "V2 Boxer")
+    var payload_text: String = JSON.stringify(old_payload)
+    var envelope: Dictionary = {"schema": 2, "payload_text": payload_text, "checksum": _sha256(payload_text)}
+    var previous: FileAccess = FileAccess.open(Save.PREVIOUS_SAVE_PATH, FileAccess.WRITE)
+    _check(previous != null, "could not create v2 fixture")
+    if previous:
+        previous.store_string(JSON.stringify(envelope))
+        previous.close()
+
+    var migrated: Dictionary = Save.load_game()
+    _check(int(migrated.get("career", {}).get("money", -1)) == 135000, "v2 career payload changed during migration")
+    var meta: Dictionary = migrated.get("meta_state", {})
+    _check(int(meta.get("generation", -1)) == 1, "v2 migration generation default failed")
+    _check(int(meta.get("legacy_capacity", -1)) == 3, "v2 migration legacy capacity default failed")
+    _check(typeof(meta.get("legacy_slots", null)) == TYPE_ARRAY and meta.get("legacy_slots", []).is_empty(), "v2 migration legacy slots default failed")
+    var world: Dictionary = migrated.get("world_state", {})
+    _check(int(world.get("world_date", {}).get("year", -1)) == 2030, "v2 migration world year default failed")
+    _check(int(world.get("world_date", {}).get("month", -1)) == 1, "v2 migration world month default failed")
+    var career_state: Dictionary = migrated.get("career_state", {})
+    _check(int(career_state.get("rank", -1)) == int(migrated.get("career", {}).get("rank", -2)), "v2 migration career state rank bridge failed")
+    _check(FileAccess.file_exists(Save.SAVE_PATH), "v2 migration did not persist a v3 save")
+    if FileAccess.file_exists(Save.SAVE_PATH):
+        var persisted = JSON.parse_string(FileAccess.get_file_as_string(Save.SAVE_PATH))
+        _check(typeof(persisted) == TYPE_DICTIONARY and int(persisted.get("schema", -1)) == 3, "v2 migration persisted wrong schema")
+
+func _test_generation_foundation_persistence() -> void:
+    _cleanup_save_files()
+    var state: Dictionary = _valid_state(150000, "4대 복서")
+    _check(Save.save_game(state), "foundation bootstrap save failed")
+    state.meta_state.generation = 4
+    state.career.rank = 17
+    state.selected_game_plan = "pressure"
+    state.active_fight = {"round_no": 2, "exchange_no": 1}
+    _check(Save.save_game(state), "foundation persistence save failed")
+
+    var loaded: Dictionary = Save.load_game()
+    _check(int(loaded.get("meta_state", {}).get("generation", -1)) == 4, "generation did not persist")
+    _check(int(loaded.get("meta_state", {}).get("legacy_capacity", -1)) == 3, "legacy capacity drifted from default")
+    _check(int(loaded.get("career_state", {}).get("rank", -1)) == 17, "career state rank bridge did not synchronize")
+    _check(str(loaded.get("career_state", {}).get("selected_game_plan", "")) == "pressure", "career state game plan bridge did not synchronize")
+    _check(int(loaded.get("career_state", {}).get("active_fight", {}).get("round_no", -1)) == 2, "career state active fight bridge did not synchronize")
 
 func _test_legacy_v1_migration() -> void:
     _cleanup_save_files()
@@ -61,7 +110,9 @@ func _test_legacy_v1_migration() -> void:
     var migrated: Dictionary = Save.load_game()
     _check(int(migrated.get("career", {}).get("age_months", -1)) == 228, "legacy age migration failed")
     _check(str(migrated.get("boxer", {}).get("trait_id", "")) == "workhorse", "legacy default trait migration failed")
-    _check(FileAccess.file_exists(Save.SAVE_PATH), "migrated v2 save was not persisted")
+    _check(int(migrated.get("meta_state", {}).get("generation", -1)) == 1, "legacy v1 generation foundation failed")
+    _check(int(migrated.get("meta_state", {}).get("legacy_capacity", -1)) == 3, "legacy v1 capacity foundation failed")
+    _check(FileAccess.file_exists(Save.SAVE_PATH), "migrated v3 save was not persisted")
 
 func _test_combat_resume_rng_round_trip() -> void:
     var opponents: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/opponents.json"))
@@ -125,7 +176,11 @@ func _valid_state(money: int, label: String) -> Dictionary:
     }
 
 func _cleanup_save_files() -> void:
-    for path in [Save.SAVE_PATH, Save.BACKUP_PATH, "user://career_v1.json", "user://career_v1.backup.json"]:
+    for path in [
+        Save.SAVE_PATH, Save.BACKUP_PATH,
+        Save.PREVIOUS_SAVE_PATH, Save.PREVIOUS_BACKUP_PATH,
+        "user://career_v1.json", "user://career_v1.backup.json"
+    ]:
         if FileAccess.file_exists(path):
             var err: Error = DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
             _check(err == OK, "failed to remove fixture file: %s" % path)
