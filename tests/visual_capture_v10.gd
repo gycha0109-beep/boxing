@@ -59,6 +59,10 @@ func _run() -> void:
 
     main_view._open_equipment_shop()
     await process_frame
+    var equipment_text := "\n".join(_collect_text(main_view))
+    if not equipment_text.contains("번 돈을 복서에게 다시 투자") or not equipment_text.contains("개인 장비") or not equipment_text.contains("체육관 장비"):
+        _fail("equipment investment screen did not render its required player-facing sections")
+        return
     await _capture("03_equipment_shop.png")
     main_view._return_from_equipment_shop()
     await process_frame
@@ -113,6 +117,16 @@ func _capture(filename: String) -> void:
         _fail("failed to save %s" % path)
         return
     print("captured: %s" % path)
+
+func _collect_text(root: Node) -> Array[String]:
+    var values: Array[String] = []
+    if root is Label:
+        values.append(str((root as Label).text))
+    elif root is Button:
+        values.append(str((root as Button).text))
+    for child in root.get_children():
+        values.append_array(_collect_text(child))
+    return values
 
 func _load_array(path: String) -> Array:
     var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
