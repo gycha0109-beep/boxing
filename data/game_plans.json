@@ -1,7 +1,7 @@
 [
-  {"id":"balanced","name":"균형 운영","description":"특정 교환에 올인하지 않고 기본 능력으로 대응합니다.","risk":"낮음","global_stats":{},"action_modifiers":{}},
-  {"id":"outside_boxing","name":"거리전","description":"잽과 발을 살려 먼저 맞히고 위험한 강타 교환을 줄입니다.","risk":"낮음","global_stats":{"power":-3,"speed":4,"technique":4},"action_modifiers":{"jab":{"speed":8,"technique":10},"guard":{"conditioning":6},"power":{"power":-3}}},
-  {"id":"body_breakdown","name":"바디 공략","description":"몸통 공격으로 상대의 후반 스태미나와 리듬을 무너뜨립니다.","risk":"중간","global_stats":{"conditioning":2,"defense":-1},"action_modifiers":{"body":{"power":10,"technique":10,"conditioning":6},"jab":{"power":-2}}},
-  {"id":"pressure","name":"정면 압박","description":"전진하며 교환량을 늘리되, 수비와 체력 부담을 감수합니다. 무작정 강타를 누르는 만능 플랜은 아닙니다.","risk":"높음","global_stats":{"conditioning":-5,"defense":-6},"action_modifiers":{"power":{"power":1},"body":{"power":1}}},
-  {"id":"counter_trap","name":"카운터 함정","description":"강타나 바디처럼 큰 공격이 들어올 때 후공 반응을 노립니다. 읽기가 빗나가면 카운터 정확도와 위력이 크게 떨어집니다.","risk":"높음","global_stats":{"defense":-4,"conditioning":-4},"action_modifiers":{"counter":{"requires_target_actions":["power","body"],"power":8,"speed":5,"technique":9,"miss_read_stats":{"power":-8,"speed":-8,"technique":-10,"conditioning":-6}},"jab":{"power":-3}}}
+  {"id":"balanced","name":"균형 운영","description":"기본기를 살려 상황에 맞춰 대응합니다.","risk":"낮음","global_stats":{},"action_modifiers":{}},
+  {"id":"outside_boxing","name":"거리전","description":"잽과 거리 유지로 먼저 맞히고 위험한 난타전을 피합니다.","risk":"낮음","global_stats":{"power":-3,"speed":4,"technique":4},"action_modifiers":{"jab":{"speed":8,"technique":10},"guard":{"conditioning":6},"power":{"power":-3}}},
+  {"id":"body_breakdown","name":"바디 공략","description":"몸통을 꾸준히 두드려 후반에 상대 움직임을 무너뜨립니다.","risk":"중간","global_stats":{"conditioning":2,"defense":-1},"action_modifiers":{"body":{"power":10,"technique":10,"conditioning":6},"jab":{"power":-2}}},
+  {"id":"pressure","name":"정면 압박","description":"계속 전진해 교환을 강제하지만 카운터와 체력 소모를 감수합니다.","risk":"높음","global_stats":{"conditioning":-5,"defense":-6},"action_modifiers":{"power":{"power":1},"body":{"power":1}}},
+  {"id":"counter_trap","name":"카운터 함정","description":"큰 공격을 기다렸다가 받아칩니다. 읽기가 빗나가면 크게 흔들릴 수 있습니다.","risk":"높음","global_stats":{"defense":-4,"conditioning":-4},"action_modifiers":{"counter":{"requires_target_actions":["power","body"],"power":8,"speed":5,"technique":9,"miss_read_stats":{"power":-8,"speed":-8,"technique":-10,"conditioning":-6}},"jab":{"power":-3}}}
 ]
