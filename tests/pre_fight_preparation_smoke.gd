@@ -27,7 +27,11 @@ func _run() -> void:
     game_state.new_career("Prep Boxer", "technician")
     game_state.state.career.money = 999999
     var raw_before := _trainable_snapshot(game_state.state.boxer)
-    var mitts := _action_by_id(camp_actions, "mitts")
+    var mitts: Dictionary = _action_by_id(camp_actions, "mitts").duplicate(true)
+    # This smoke isolates preparation composition. Random training injuries are
+    # covered elsewhere and can apply shoulder_strain (-3 speed), which makes
+    # the temporary +6 speed assertion nondeterministic without changing prep.
+    mitts["risk"] = 0.0
     var camp_result: Dictionary = game_state.apply_camp_action(mitts)
     _check(bool(camp_result.get("ok", false)), "development camp action failed")
     _check(str(game_state.state.phase) == "fight_offer", "development did not end at fight offers")
