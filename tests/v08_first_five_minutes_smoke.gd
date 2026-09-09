@@ -43,7 +43,7 @@ func _run() -> void:
     await process_frame
     await process_frame
 
-    _check(str(main_view.get_script().resource_path) == "res://scripts/main_v16.gd", "Main scene is not using the compact v1.1 UI shell")
+    _check(str(main_view.get_script().resource_path) == "res://scripts/main_v18_release.gd", "Main scene is not using the v18 release shell")
     var music_node: Node = main_view.get_node_or_null("MusicDirector")
     _check(is_instance_valid(music_node), "launch flow did not create music director")
     if is_instance_valid(music_node):
@@ -93,9 +93,10 @@ func _run() -> void:
     if is_instance_valid(music_node):
         _check(str(music_node.get("current_mode")) == "career", "camp did not switch to career BGM")
     var camp_text := "\n".join(_collect_text(main_view))
-    _check(camp_text.contains("TRAINING CAMP"), "camp missing compact training header")
+    _check(camp_text.contains("훈련 캠프 선택"), "camp missing v18 training framing")
+    _check(camp_text.contains("FIGHTER STATS"), "camp missing compact five-stat panel")
     _check(camp_text.contains("CAREER LADDER"), "first camp missing career ladder framing")
-    _check(camp_text.contains("장비 · 투자 보기"), "first camp missing optional equipment investment entry")
+    _check(camp_text.contains("장비 · 체육관 투자"), "first camp missing optional equipment investment entry")
     _check(_grid_count(main_view) >= 1, "training choices are not grouped into a scan-friendly grid")
     _check(_button_count_with_text(main_view, "캠프 선택") >= 4, "training grid does not expose clear camp CTAs")
     _check(_button_count_with_text(main_view, "?") >= 5, "fighter stats do not expose per-stat help buttons")
@@ -114,7 +115,7 @@ func _run() -> void:
     if is_instance_valid(music_node):
         _check(str(music_node.get("current_mode")) == "fight_week", "fight offer did not switch to fight-week BGM")
     var offer_text := "\n".join(_collect_text(main_view))
-    _check(offer_text.contains("FIGHT WEEK"), "fight offers missing compact fight-week header")
+    _check(offer_text.contains("다음 상대를 선택하세요"), "fight offers missing v18 opponent-selection framing")
     _check(offer_text.contains("CAREER LADDER"), "fight offers missing visible career ladder")
     _check(offer_text.contains("[%s]" % VisualAssetCatalog.opponent_country_badge(str(opponents[0].name))), "fight offer missing identity/country badge")
 
@@ -123,7 +124,7 @@ func _run() -> void:
     await process_frame
     _check(str(game_state.state.phase) == "tactical_prep", "opponent choice did not enter tactical preparation")
     var tactical_text := "\n".join(_collect_text(main_view))
-    _check(tactical_text.contains("TACTICAL PREP"), "tactical preparation missing compact framing")
+    _check(tactical_text.contains("전술 준비"), "tactical preparation missing v18 framing")
     _check(tactical_text.contains(str(opponent.name)), "tactical preparation missing opponent")
     _check(_grid_count(main_view) >= 1, "tactical options are not grouped into a scan-friendly grid")
 
@@ -131,14 +132,14 @@ func _run() -> void:
     await process_frame
     _check(str(game_state.state.phase) == "condition_prep", "tactical choice did not enter final condition")
     var condition_text := "\n".join(_collect_text(main_view))
-    _check(condition_text.contains("FIGHT WEEK PREP"), "condition preparation missing compact fight-week framing")
+    _check(condition_text.contains("경기 주간 준비"), "condition preparation missing v18 fight-week framing")
     _check(_grid_count(main_view) >= 1, "condition options are not grouped into a scan-friendly grid")
 
     main_view._choose_condition_preparation("sharpness")
     await process_frame
     _check(str(game_state.state.phase) == "game_plan", "condition choice did not enter game plan")
     var plan_text := "\n".join(_collect_text(main_view))
-    _check(plan_text.contains("GAME PLAN"), "game plan missing compact framing")
+    _check(plan_text.contains("게임플랜"), "game plan missing v18 framing")
     _check(plan_text.contains("SCOUTING READ"), "game plan missing scouting summary")
     _check(plan_text.contains(str(opponent.name)), "scouting summary missing opponent")
     _check(_grid_count(main_view) >= 1, "game-plan choices are not grouped into a scan-friendly grid")
@@ -167,7 +168,7 @@ func _run() -> void:
     if is_instance_valid(music_node):
         _check(str(music_node.get("current_mode")) == "career", "result did not return to career BGM")
     var result_text := "\n".join(_collect_text(main_view))
-    _check(result_text.contains("FIGHT NIGHT · OFFICIAL RESULT"), "result screen missing official-result framing")
+    _check(result_text.contains("경기 결과"), "result screen missing v18 result framing")
     _check(result_text.contains("판정승"), "result screen missing localized result")
     _check(result_text.contains("CAREER UPDATE"), "result screen missing career progression card")
     _check(result_text.contains("커리어 계속"), "result screen missing continuation CTA")
@@ -202,7 +203,7 @@ func _grid_count(root: Node) -> int:
 func _button_count_with_text(root: Node, text_value: String) -> int:
     var count := 0
     for node in root.find_children("*", "Button", true, false):
-        if node is Button and (node as Button).text == text_value:
+        if node is Button and (node as Button).text.contains(text_value):
             count += 1
     return count
 
@@ -230,7 +231,7 @@ func _finish() -> void:
         main_view.queue_free()
     _cleanup_save_files()
     if failures.is_empty():
-        print("v08-first-five-minutes-smoke: PASS")
+        print("v18-first-five-minutes-smoke: PASS")
         quit(0)
         return
     for failure in failures:
