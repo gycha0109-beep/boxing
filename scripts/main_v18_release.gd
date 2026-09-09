@@ -3,10 +3,10 @@ extends "res://scripts/main_v18.gd"
 # Final release authority for the approved v18 commercial shell. Keep visual
 # composition in main_v18.gd; this wrapper only enforces release ergonomics
 # and pins the shell to validated binary image resources.
-const V18_HERO_TEXTURE: Texture2D = preload("res://assets/visual/v18/hero_player.jpg")
-const V18_TRAINING_TEXTURE: Texture2D = preload("res://assets/visual/v18/training_atlas.jpg")
-const V18_OPPONENT_TEXTURE: Texture2D = preload("res://assets/visual/v18/opponent_atlas.jpg")
-const V18_RING_TEXTURE: Texture2D = preload("res://assets/visual/v18/fight_ring_scene.jpg")
+const V18_HERO_TEXTURE: Texture2D = preload("res://assets/visual/v18/hero_player.webp")
+const V18_TRAINING_TEXTURE: Texture2D = preload("res://assets/visual/v18/training_atlas.webp")
+const V18_OPPONENT_TEXTURE: Texture2D = preload("res://assets/visual/v18/opponent_atlas.webp")
+const V18_RING_TEXTURE: Texture2D = preload("res://assets/visual/v18/fight_ring_scene.webp")
 
 func _v18_photo(key: String) -> Texture2D:
     match key:
