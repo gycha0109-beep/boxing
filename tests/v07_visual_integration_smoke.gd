@@ -63,7 +63,12 @@ func _run() -> void:
     await process_frame
     await process_frame
 
-    _check(str(main_view.get_script().resource_path) == "res://scripts/main_v16.gd", "Main scene is not using the compact commercial v1.1 UI shell")
+    _check(str(main_view.get_script().resource_path) == "res://scripts/main_v18_release.gd", "Main scene is not using the commercial v18 release shell")
+    _check(load("res://assets/visual/v18/hero_player.webp") != null, "v18 hero WebP failed to load")
+    _check(load("res://assets/visual/v18/training_atlas.webp") != null, "v18 training atlas WebP failed to load")
+    _check(load("res://assets/visual/v18/opponent_atlas.webp") != null, "v18 opponent atlas WebP failed to load")
+    _check(load("res://assets/visual/v18/fight_ring_scene.webp") != null, "v18 fight ring WebP failed to load")
+
     var stage: FightStage = _find_stage(main_view)
     _check(is_instance_valid(stage), "v1.1 actual fight screen rendered no FightStage")
     if is_instance_valid(stage):
@@ -105,7 +110,7 @@ func _finish() -> void:
     if is_instance_valid(main_view):
         main_view.queue_free()
     if failures.is_empty():
-        print("v11-visual-identity-and-ui-smoke: PASS")
+        print("v18-visual-identity-and-ui-smoke: PASS")
         quit(0)
         return
     for failure in failures:
