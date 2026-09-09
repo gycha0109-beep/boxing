@@ -15,17 +15,25 @@ const V18_RING_2 = preload("res://scripts/ui/v18_assets/fight_ring_scene_02.gd")
 
 var _v18_texture_cache: Dictionary = {}
 
+func _v18_decode_chunks(chunks: Array) -> PackedByteArray:
+    var raw := PackedByteArray()
+    for encoded_value in chunks:
+        var decoded: PackedByteArray = Marshalls.base64_to_raw(str(encoded_value))
+        if decoded.is_empty():
+            return PackedByteArray()
+        raw.append_array(decoded)
+    return raw
+
 func _v18_photo(key: String) -> Texture2D:
     if _v18_texture_cache.has(key):
         return _v18_texture_cache[key] as Texture2D
-    var encoded := ""
+    var raw := PackedByteArray()
     match key:
-        "hero": encoded = V18_HERO_0.CHUNK + V18_HERO_1.CHUNK
-        "training": encoded = V18_TRAINING_0.CHUNK + V18_TRAINING_1.CHUNK
-        "opponents": encoded = V18_OPPONENT_0.CHUNK + V18_OPPONENT_1.CHUNK
-        "ring": encoded = V18_RING_0.CHUNK + V18_RING_1.CHUNK + V18_RING_2.CHUNK
+        "hero": raw = _v18_decode_chunks([V18_HERO_0.CHUNK, V18_HERO_1.CHUNK])
+        "training": raw = _v18_decode_chunks([V18_TRAINING_0.CHUNK, V18_TRAINING_1.CHUNK])
+        "opponents": raw = _v18_decode_chunks([V18_OPPONENT_0.CHUNK, V18_OPPONENT_1.CHUNK])
+        "ring": raw = _v18_decode_chunks([V18_RING_0.CHUNK, V18_RING_1.CHUNK, V18_RING_2.CHUNK])
         _: return null
-    var raw: PackedByteArray = Marshalls.base64_to_raw(encoded)
     if raw.is_empty():
         return null
     var image := Image.new()
@@ -84,7 +92,7 @@ func _v17_player_hero(section_title: String, quote: String) -> void:
     hero.add_child(row)
     var portrait := TextureRect.new()
     portrait.texture = _v18_player_texture()
-    portrait.custom_minimum_size = Vector2(164, 224)
+    portrait.custom_minimum_size = Vector2(150, 205)
     portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
     portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
     portrait.clip_contents = true
@@ -92,37 +100,31 @@ func _v17_player_hero(section_title: String, quote: String) -> void:
     row.add_child(portrait)
     var right := VBoxContainer.new()
     right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    right.add_theme_constant_override("separation", 6)
+    right.add_theme_constant_override("separation", 4)
     row.add_child(right)
     _v17_eyebrow(right, "TWELVE COUNT · BOXING CAREER")
     var boxer: Dictionary = GameState.state.get("boxer", {})
     var career: Dictionary = GameState.state.get("career", {})
-    _v17_title(right, str(boxer.get("name", "BOXER")), 27)
-    _v17_copy(right, "%s #%d · %d승 %d패 %d무 · %s" % [GameState.tier_label(), int(career.get("rank", 0)), int(career.get("wins", 0)), int(career.get("losses", 0)), int(career.get("draws", 0)), GameState.age_text()], false)
+    _v17_title(right, str(boxer.get("name", "BOXER")), 26)
+    _v17_copy(right, "%s #%d  |  %d승 %d패 %d무  |  %s" % [GameState.tier_label(), int(career.get("rank", 0)), int(career.get("wins", 0)), int(career.get("losses", 0)), int(career.get("draws", 0)), GameState.age_text()], false)
     _v17_copy(right, quote, true)
-    var section := Label.new()
-    section.text = section_title
-    section.add_theme_font_size_override("font_size", 18)
-    section.add_theme_color_override("font_color", V17_GOLD)
-    right.add_child(section)
+    _v17_copy(right, section_title, false)
     _v17_metrics(right)
 
 func _v17_offer_hero() -> void:
-    var hero := _v17_panel(body, true)
+    var hero := _v17_panel(body, false)
     var row := HBoxContainer.new()
     row.add_theme_constant_override("separation", 10)
     hero.add_child(row)
     var left := VBoxContainer.new()
     left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    left.add_theme_constant_override("separation", 7)
     row.add_child(left)
     _v17_eyebrow(left, "경기")
-    _v17_title(left, "다음 상대를\n선택하세요", 29)
-    _v17_copy(left, "더 강한 상대와 싸울수록,\n전설에 가까워집니다.", true)
-    _v17_copy(left, "FIGHT · IMPROVE · BECOME A LEGEND.", true)
+    _v17_title(left, "다음 상대를 선택하세요", 28)
+    _v17_copy(left, "더 강한 상대와 싸울수록, 전설에 가까워집니다.", true)
     var portrait := TextureRect.new()
     portrait.texture = _v18_player_texture()
-    portrait.custom_minimum_size = Vector2(176, 205)
+    portrait.custom_minimum_size = Vector2(124, 145)
     portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
     portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
     portrait.clip_contents = true
@@ -130,119 +132,105 @@ func _v17_offer_hero() -> void:
     row.add_child(portrait)
 
 func _v17_training_art(parent: VBoxContainer, action_id: String) -> void:
-    var art := Control.new()
-    art.custom_minimum_size = Vector2(0, 118)
+    var art := TextureRect.new()
+    art.texture = _v18_training_texture(action_id)
+    art.custom_minimum_size = Vector2(0, 104)
+    art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+    art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
     art.clip_contents = true
+    art.mouse_filter = Control.MOUSE_FILTER_IGNORE
     parent.add_child(art)
-    var photo := TextureRect.new()
-    photo.texture = _v18_training_texture(action_id)
-    photo.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-    photo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-    photo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-    photo.mouse_filter = Control.MOUSE_FILTER_IGNORE
-    art.add_child(photo)
-    var shade := ColorRect.new()
-    shade.color = Color(0.005, 0.012, 0.020, 0.14)
-    shade.anchor_left = 0.0
-    shade.anchor_top = 0.70
-    shade.anchor_right = 1.0
-    shade.anchor_bottom = 1.0
-    shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
-    art.add_child(shade)
 
-func _v17_matchup_strip(title_text: String, subtitle: String) -> void:
-    _v17_section_heading(title_text, subtitle)
-    var panel := _v17_panel(body, false)
+func _v17_opponent_contract(opponent: Dictionary, highlighted: bool) -> void:
+    var card := _v17_panel(body, highlighted)
     var row := HBoxContainer.new()
     row.add_theme_constant_override("separation", 10)
-    panel.add_child(row)
-    var player_photo := TextureRect.new()
-    player_photo.texture = _v18_player_texture()
-    player_photo.custom_minimum_size = Vector2(120, 148)
-    player_photo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-    player_photo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-    player_photo.clip_contents = true
-    row.add_child(player_photo)
-    var center := VBoxContainer.new()
-    center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    center.add_theme_constant_override("separation", 4)
-    row.add_child(center)
-    var boxer: Dictionary = GameState.state.get("boxer", {})
-    _v17_eyebrow(center, "내 선수")
-    _v17_title(center, str(boxer.get("name", "BOXER")), 20)
-    _v17_copy(center, "체중 %.1fkg · 피로 %d%% · 건강 %d%%" % [float(boxer.get("weight_kg", 0.0)), int(boxer.get("fatigue", 0)), int(boxer.get("health", 0))], true)
-    _v17_eyebrow(center, "NEXT OPPONENT")
-    _v17_title(center, "%s [%s]" % [_v17_opponent_name(current_opponent), _v17_country(current_opponent)], 19)
-    _v17_copy(center, "%s · #%d" % [_style_label(str(current_opponent.get("style", ""))), int(current_opponent.get("rank", 0))], true)
-    var opponent_photo := TextureRect.new()
-    opponent_photo.texture = _v17_opponent_texture(current_opponent)
-    opponent_photo.custom_minimum_size = Vector2(110, 148)
-    opponent_photo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-    opponent_photo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-    opponent_photo.clip_contents = true
-    row.add_child(opponent_photo)
+    card.add_child(row)
+    var portrait := TextureRect.new()
+    portrait.texture = _v17_opponent_texture(opponent)
+    portrait.custom_minimum_size = Vector2(122, 160)
+    portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+    portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+    portrait.clip_contents = true
+    portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    row.add_child(portrait)
+    var info := VBoxContainer.new()
+    info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    info.add_theme_constant_override("separation", 4)
+    row.add_child(info)
+    _v17_title(info, "%s  %s" % [_v17_opponent_name(opponent), _v17_flag(_v17_country(opponent))], 21)
+    _v17_copy(info, "%s · %s" % [_tier_label(str(opponent.get("tier", ""))), _style_label(str(opponent.get("style", "")))], false)
+    _v17_copy(info, _v17_opponent_quote(opponent), true)
+    var stats: Dictionary = opponent.get("stats", {})
+    _v17_copy(info, "파워 %d   스피드 %d   테크닉 %d" % [int(stats.get("power", 0)), int(stats.get("speed", 0)), int(stats.get("technique", 0))], false)
+    _v17_copy(info, "수비 %d   체력 %d" % [int(stats.get("defense", 0)), int(stats.get("conditioning", 0))], true)
+    var purse := Label.new()
+    purse.text = "파이트머니  %s원" % _v17_money(int(opponent.get("purse", 0)))
+    purse.add_theme_font_size_override("font_size", 19)
+    purse.add_theme_color_override("font_color", V17_GOLD)
+    info.add_child(purse)
+    _v17_copy(info, "승리 +%dpt  |  패배 -%dpt" % [int(opponent.get("career_points_win", 0)), abs(int(opponent.get("career_points_loss", 0)))], true)
+    var actions := HBoxContainer.new()
+    actions.add_theme_constant_override("separation", 6)
+    info.add_child(actions)
+    var analyze := _v17_dark_button("상대 분석")
+    analyze.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    analyze.pressed.connect(Callable(self, "_choose_opponent").bind(opponent))
+    actions.add_child(analyze)
+    var accept := _v17_gold_button("도전 수락  ›")
+    accept.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    accept.pressed.connect(Callable(self, "_choose_opponent").bind(opponent))
+    actions.add_child(accept)
 
-func _render_weigh_in() -> void:
-    _clear_body()
-    _render_status()
-    if current_opponent.is_empty():
-        current_opponent = _find_opponent(str(GameState.state.get("selected_opponent", "")))
-    if current_opponent.is_empty():
-        GameState.state["weigh_in_acknowledged"] = true
-        SaveService.save_game(GameState.state)
-        super._render_phase()
-        return
-    var back := _v17_secondary_button("← 게임플랜 다시 선택")
-    back.pressed.connect(Callable(self, "_return_to_game_plan_selection"))
-    body.add_child(back)
-    _v17_eyebrow(body, "FIGHT WEEK · OFFICIAL WEIGH-IN")
-    _v17_title(body, "공식 계체", 30)
-    var matchup := _v17_panel(body, false)
-    var row := HBoxContainer.new()
-    row.add_theme_constant_override("separation", 12)
-    matchup.add_child(row)
-    _v17_weigh_fighter(row, _v18_player_texture(), str(GameState.state.boxer.get("name", "BOXER")), "KR")
-    var vs := Label.new()
-    vs.text = "VS"
-    vs.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-    vs.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-    vs.add_theme_font_size_override("font_size", 20)
-    vs.add_theme_color_override("font_color", V17_GOLD)
-    vs.custom_minimum_size = Vector2(40, 0)
-    row.add_child(vs)
-    _v17_weigh_fighter(row, _v17_opponent_texture(current_opponent), _v17_opponent_name(current_opponent), _v17_country(current_opponent))
-    var weigh_in: Dictionary = GameState.state.get("last_weigh_in", {})
-    var status_id := str(weigh_in.get("status", "pass"))
-    var limit := float(GameState.career_balance.weight_class.limit_kg)
-    var boxer_weight := float(GameState.state.boxer.get("weight_kg", limit))
-    var verdict := Label.new()
-    verdict.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-    verdict.add_theme_font_size_override("font_size", 26)
-    match status_id:
-        "emergency_cut":
-            verdict.text = "긴급 감량 통과"
-            verdict.add_theme_color_override("font_color", V17_GOLD)
-        "miss":
-            verdict.text = "계체 실패"
-            verdict.add_theme_color_override("font_color", V17_DANGER)
-        _:
-            verdict.text = "계체 통과"
-            verdict.add_theme_color_override("font_color", V17_SUCCESS)
-    body.add_child(verdict)
-    var weight := Label.new()
-    weight.text = "%.2f KG  /  LIMIT %.1f KG" % [boxer_weight, limit]
-    weight.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-    weight.add_theme_font_size_override("font_size", 18)
-    body.add_child(weight)
-    var plan := GameState.get_selected_game_plan()
-    var plan_box := _v17_panel(body, false)
-    _v17_eyebrow(plan_box, "확정된 게임플랜")
-    _v17_title(plan_box, str(plan.get("name", "균형 운영")), 19)
-    _v17_copy(plan_box, str(plan.get("description", "")), true)
-    var enter := _v17_gold_button("FIGHT NIGHT 입장")
-    enter.custom_minimum_size.y = 66
-    enter.pressed.connect(Callable(self, "_acknowledge_weigh_in"))
-    body.add_child(enter)
+func _v17_weigh_fighter(parent: HBoxContainer, texture: Texture2D, name_text: String, country: String) -> void:
+    var col := VBoxContainer.new()
+    col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    parent.add_child(col)
+    var portrait := TextureRect.new()
+    if country == "KR":
+        portrait.texture = _v18_player_texture()
+    elif not current_opponent.is_empty():
+        portrait.texture = _v18_opponent_photo(current_opponent)
+    else:
+        portrait.texture = texture
+    portrait.custom_minimum_size = Vector2(0, 150)
+    portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+    portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+    portrait.clip_contents = true
+    portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    col.add_child(portrait)
+    var name := Label.new()
+    name.text = "%s %s" % [name_text, _v17_flag(country)]
+    name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    name.add_theme_font_size_override("font_size", 16)
+    col.add_child(name)
+
+func _v18_photo_hud(parent: HBoxContainer, texture: Texture2D, name_text: String, country: String, hp: float, stamina: float, right_align: bool) -> void:
+    var wrap := HBoxContainer.new()
+    wrap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    wrap.add_theme_constant_override("separation", 6)
+    parent.add_child(wrap)
+    var portrait := TextureRect.new()
+    portrait.texture = texture
+    portrait.custom_minimum_size = Vector2(48, 58)
+    portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+    portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+    portrait.clip_contents = true
+    portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    if not right_align:
+        wrap.add_child(portrait)
+    var box := VBoxContainer.new()
+    box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    wrap.add_child(box)
+    var name := Label.new()
+    name.text = "%s %s" % [name_text, _v17_flag(country)]
+    name.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT if right_align else HORIZONTAL_ALIGNMENT_LEFT
+    name.add_theme_font_size_override("font_size", 13)
+    box.add_child(name)
+    _v17_meter(box, "HP", hp, V17_HP)
+    _v17_meter(box, "STA", stamina, V17_BLUE)
+    if right_align:
+        wrap.add_child(portrait)
 
 func _render_fight(animated_exchange: Dictionary = {}) -> void:
     fighter_profile_root = null
@@ -272,46 +260,52 @@ func _render_fight(animated_exchange: Dictionary = {}) -> void:
     exchange_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
     exchange_label.add_theme_font_size_override("font_size", 15)
     round_row.add_child(exchange_label)
-    var timer := Label.new()
-    timer.text = "2:48"
-    timer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    timer.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-    timer.add_theme_font_size_override("font_size", 17)
-    timer.add_theme_color_override("font_color", V17_GOLD)
-    round_row.add_child(timer)
+    var clock := Label.new()
+    clock.text = "2:48"
+    clock.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    clock.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+    clock.add_theme_font_size_override("font_size", 17)
+    round_row.add_child(clock)
+
     _v17_eyebrow(body, "RING")
-    if _v17_country(current_opponent) == "US":
-        var ring_photo := TextureRect.new()
-        ring_photo.texture = _v18_photo("ring")
-        ring_photo.custom_minimum_size = Vector2(0, 306)
-        ring_photo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-        ring_photo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-        ring_photo.clip_contents = true
-        ring_photo.mouse_filter = Control.MOUSE_FILTER_IGNORE
-        body.add_child(ring_photo)
+    var use_photo_ring := _v17_country(current_opponent) == "US"
+    if use_photo_ring:
+        var stage_photo := TextureRect.new()
+        stage_photo.texture = _v18_photo("ring")
+        stage_photo.custom_minimum_size = Vector2(0, 318)
+        stage_photo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+        stage_photo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+        stage_photo.clip_contents = true
+        stage_photo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+        body.add_child(stage_photo)
     else:
         var stage := FightStage.new()
         stage.configure(str(GameState.state.boxer.get("name", "BOXER")), _v17_opponent_name(current_opponent), snap, telegraph)
         stage.opponent_style = _v17_visual_style(current_opponent)
         stage.title_fight = bool(current_opponent.get("title_fight", false))
-        stage.custom_minimum_size = Vector2(0, 306)
+        stage.custom_minimum_size = Vector2(0, 318)
         body.add_child(stage)
         if not animated_exchange.is_empty():
             stage.play_exchange(animated_exchange)
+
     var hud := _v17_panel(body, false)
     var hud_row := HBoxContainer.new()
     hud_row.add_theme_constant_override("separation", 8)
     hud.add_child(hud_row)
-    _v18_fighter_hud(hud_row, _v18_player_texture(), str(GameState.state.boxer.get("name", "BOXER")), "KR", float(snap.player_hp), float(snap.player_stamina), false)
+    _v18_photo_hud(hud_row, _v18_player_texture(), str(GameState.state.boxer.get("name", "BOXER")), "KR", float(snap.player_hp), float(snap.player_stamina), false)
     var vs_hud := Label.new()
     vs_hud.text = "VS"
     vs_hud.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
     vs_hud.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-    vs_hud.custom_minimum_size = Vector2(32, 0)
-    vs_hud.add_theme_font_size_override("font_size", 19)
+    vs_hud.custom_minimum_size = Vector2(30, 0)
+    vs_hud.add_theme_font_size_override("font_size", 17)
     vs_hud.add_theme_color_override("font_color", V17_GOLD)
     hud_row.add_child(vs_hud)
-    _v18_fighter_hud(hud_row, _v17_opponent_texture(current_opponent), _v17_opponent_name(current_opponent), _v17_country(current_opponent), float(snap.opponent_hp), float(snap.opponent_stamina), true)
+    var opponent_photo := _v18_opponent_photo(current_opponent)
+    if opponent_photo == null:
+        opponent_photo = super._v17_opponent_texture(current_opponent)
+    _v18_photo_hud(hud_row, opponent_photo, _v17_opponent_name(current_opponent), _v17_country(current_opponent), float(snap.opponent_hp), float(snap.opponent_stamina), true)
+
     var last_exchange: Dictionary = snap.get("last_exchange", {})
     if bool(snap.finished):
         GameState.apply_fight_result(str(snap.result), current_opponent, snap)
@@ -322,20 +316,11 @@ func _render_fight(animated_exchange: Dictionary = {}) -> void:
         body.add_child(settle)
         _configure_mobile_scroll()
         return
+
     var read := _v17_panel(body, false)
     var read_row := HBoxContainer.new()
-    read_row.add_theme_constant_override("separation", 10)
+    read_row.add_theme_constant_override("separation", 8)
     read.add_child(read_row)
-    var read_left := VBoxContainer.new()
-    read_left.custom_minimum_size = Vector2(70, 0)
-    read_row.add_child(read_left)
-    _v17_copy(read_left, "상황 분석", true)
-    var bulb := Label.new()
-    bulb.text = "◉"
-    bulb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-    bulb.add_theme_font_size_override("font_size", 22)
-    bulb.add_theme_color_override("font_color", V17_GOLD)
-    read_left.add_child(bulb)
     var read_mid := VBoxContainer.new()
     read_mid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     read_row.add_child(read_mid)
@@ -343,47 +328,19 @@ func _render_fight(animated_exchange: Dictionary = {}) -> void:
     _v17_copy(read_mid, CombatPresentation.telegraph_title(telegraph), false)
     _v17_copy(read_mid, _compact_read_hint(str(telegraph.get("action_id", ""))), true)
     var rec := VBoxContainer.new()
-    rec.custom_minimum_size = Vector2(104, 0)
+    rec.custom_minimum_size = Vector2(130, 0)
     read_row.add_child(rec)
     _v17_copy(rec, "추천 공략", true)
     _v17_copy(rec, _v17_recommendation(str(telegraph.get("action_id", ""))), false)
-    _v17_title(body, "다음 행동", 16)
+    var next_heading := Label.new()
+    next_heading.text = "다음 행동"
+    next_heading.add_theme_font_size_override("font_size", 15)
+    next_heading.add_theme_color_override("font_color", V17_MUTED)
+    body.add_child(next_heading)
     var action_grid := _v17_grid(3)
     for action_id in V05_ACTION_IDS:
         _v17_fight_action(action_grid, action_id, selected_plan)
+    var spacer := Control.new()
+    spacer.custom_minimum_size = Vector2(0, 78)
+    action_grid.add_child(spacer)
     _configure_mobile_scroll()
-
-func _v18_fighter_hud(parent: HBoxContainer, texture: Texture2D, name_text: String, country: String, hp: float, stamina: float, right_align: bool) -> void:
-    var row := HBoxContainer.new()
-    row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    row.add_theme_constant_override("separation", 5)
-    parent.add_child(row)
-    var portrait := TextureRect.new()
-    portrait.texture = texture
-    portrait.custom_minimum_size = Vector2(50, 66)
-    portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-    portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-    portrait.clip_contents = true
-    if right_align:
-        var info_right := VBoxContainer.new()
-        info_right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-        row.add_child(info_right)
-        var name_right := Label.new()
-        name_right.text = "%s %s" % [name_text, _v17_flag(country)]
-        name_right.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-        name_right.add_theme_font_size_override("font_size", 12)
-        info_right.add_child(name_right)
-        _v17_meter(info_right, "HP", hp, V17_HP)
-        _v17_meter(info_right, "STA", stamina, V17_BLUE)
-        row.add_child(portrait)
-    else:
-        row.add_child(portrait)
-        var info_left := VBoxContainer.new()
-        info_left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-        row.add_child(info_left)
-        var name_left := Label.new()
-        name_left.text = "%s %s" % [_v17_flag(country), name_text]
-        name_left.add_theme_font_size_override("font_size", 12)
-        info_left.add_child(name_left)
-        _v17_meter(info_left, "HP", hp, V17_HP)
-        _v17_meter(info_left, "STA", stamina, V17_BLUE)
