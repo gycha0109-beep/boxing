@@ -76,6 +76,25 @@ func _render_tactical_preparation() -> void:
     back.pressed.connect(Callable(self, "_return_from_tactical_to_offers"))
     body.add_child(back)
 
+func _configure_mobile_scroll() -> void:
+    if not is_instance_valid(body):
+        return
+    # v17 inserted a MarginContainer between body and the content scroll.
+    # Resolve the shell scroll explicitly so fight mode remains a fixed HUD.
+    var scroll := find_child("V17ContentScroll", true, false) as ScrollContainer
+    if scroll == null:
+        super._configure_mobile_scroll()
+        return
+    scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+    if str(GameState.state.get("phase", "")) == "fight":
+        scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+        scroll.scroll_vertical = 0
+    else:
+        scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+        scroll.scroll_deadzone = MOBILE_SCROLL_DEADZONE
+    scroll.mouse_filter = Control.MOUSE_FILTER_PASS
+    _configure_scroll_input_tree(body)
+
 func _v17_top_bar() -> Control:
     var bar := super._v17_top_bar()
     _v18_release_touch_targets(bar)
