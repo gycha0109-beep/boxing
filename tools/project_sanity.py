@@ -6,9 +6,10 @@ ROOT = Path(__file__).resolve().parents[1]
 
 required = [
     "project.godot", "scenes/Main.tscn",
-    "scripts/main.gd", "scripts/main_v05.gd", "scripts/main_v06.gd", "scripts/main_v07.gd", "scripts/main_v08.gd", "scripts/main_v10.gd", "scripts/main_v12.gd", "scripts/main_v13.gd", "scripts/main_v14.gd", "scripts/main_v15.gd", "scripts/main_v16.gd",
+    "scripts/main.gd", "scripts/main_v05.gd", "scripts/main_v06.gd", "scripts/main_v07.gd", "scripts/main_v08.gd", "scripts/main_v10.gd", "scripts/main_v12.gd", "scripts/main_v13.gd", "scripts/main_v14.gd", "scripts/main_v15.gd", "scripts/main_v16.gd", "scripts/main_v17.gd", "scripts/main_v18.gd",
     "scripts/core/game_state.gd", "scripts/core/game_state_v12.gd", "scripts/core/game_state_v14.gd", "scripts/core/game_state_v15.gd", "scripts/core/combat_engine.gd", "scripts/core/save_service.gd", "scripts/core/legacy_service.gd",
     "scripts/ui/combat_presentation.gd", "scripts/ui/fight_stage.gd", "scripts/ui/impact_feedback.gd", "scripts/ui/fight_fx_director.gd", "scripts/ui/arena_audio.gd", "scripts/ui/music_director.gd", "scripts/ui/safe_area_layout.gd", "scripts/ui/visual_asset_catalog.gd",
+    "scripts/ui/v18_assets/hero_player_00.gd", "scripts/ui/v18_assets/hero_player_01.gd", "scripts/ui/v18_assets/training_atlas_00.gd", "scripts/ui/v18_assets/training_atlas_01.gd", "scripts/ui/v18_assets/opponent_atlas_00.gd", "scripts/ui/v18_assets/opponent_atlas_01.gd", "scripts/ui/v18_assets/fight_ring_scene_00.gd", "scripts/ui/v18_assets/fight_ring_scene_01.gd", "scripts/ui/v18_assets/fight_ring_scene_02.gd",
     "data/balance.json", "data/camp_actions.json", "data/opponents.json", "data/career_balance.json", "data/traits.json", "data/events.json", "data/injuries.json", "data/fighter_identities.json", "data/game_plans.json", "data/legacy_definitions.json", "data/fight_preparations.json", "data/equipment.json",
     "tools/sim_combat.py", "tools/simulate_careers.py", "tools/simulate_gameplans.py", "tools/test_gameplans.py", "tools/validate_visual_assets_v07.py", "tools/validate_release_font_v10.py", "tools/import_visual_assets_v07.ps1",
     "tests/runtime_state_smoke.gd", "tests/legacy_retirement_smoke.gd", "tests/legacy_slot_effect_smoke.gd", "tests/pre_fight_preparation_smoke.gd", "tests/boxer_creation_ladder_smoke.gd", "tests/equipment_economy_smoke.gd", "tests/audio_music_smoke.gd", "tests/v03_gameplan_smoke.gd", "tests/v04_combat_ux_smoke.gd", "tests/v04_fight_ui_smoke.gd", "tests/v05_fight_presentation_smoke.gd", "tests/v06_device_polish_smoke.gd", "tests/v07_visual_integration_smoke.gd", "tests/v08_first_five_minutes_smoke.gd", "tests/v10_release_font_smoke.gd", "tests/mobile_scroll_back_smoke.gd", "tests/fight_fixed_hud_smoke.gd",
@@ -24,7 +25,7 @@ project = (ROOT / "project.godot").read_text()
 scene = (ROOT / "scenes/Main.tscn").read_text()
 assert 'run/main_scene="res://scenes/Main.tscn"' in project
 assert 'GameState="*res://scripts/core/game_state_v15.gd"' in project
-assert 'res://scripts/main_v16.gd' in scene
+assert 'res://scripts/main_v18.gd' in scene
 
 main_chain = {
     "scripts/main_v05.gd": 'extends "res://scripts/main.gd"',
@@ -37,6 +38,8 @@ main_chain = {
     "scripts/main_v14.gd": 'extends "res://scripts/main_v13.gd"',
     "scripts/main_v15.gd": 'extends "res://scripts/main_v14.gd"',
     "scripts/main_v16.gd": 'extends "res://scripts/main_v15.gd"',
+    "scripts/main_v17.gd": 'extends "res://scripts/main_v16.gd"',
+    "scripts/main_v18.gd": 'extends "res://scripts/main_v17.gd"',
 }
 for path, marker in main_chain.items():
     assert marker in (ROOT / path).read_text(), f"main inheritance broken: {path}"
@@ -57,6 +60,12 @@ for marker in ["MusicDirector", "func _sync_music_for_phase()", "func _wire_ui_s
 main_v16 = (ROOT / "scripts/main_v16.gd").read_text()
 for marker in ["func _render_camp()", "func _render_offers()", "func _render_game_plan()", "func _render_tactical_preparation()", "func _render_condition_preparation()", "func _render_style_select()", "func _v16_stat_row(", "func _show_stat_help(", "GridContainer", "opponent_portrait_texture_for_name"]:
     assert marker in main_v16
+
+main_v18 = (ROOT / "scripts/main_v18.gd").read_text()
+for marker in ["func _v18_photo(", "func _v18_training_texture(", "func _v18_opponent_photo(", "func _render_fight(", '"RING"', '"다음 행동"', '"2:48"', 'return "Marcus Bell"']:
+    assert marker in main_v18
+for asset_marker in ["V18_HERO_0", "V18_TRAINING_0", "V18_OPPONENT_0", "V18_RING_0"]:
+    assert asset_marker in main_v18
 
 visual_catalog = (ROOT / "scripts/ui/visual_asset_catalog.gd").read_text()
 for marker in ["VISUAL_PROFILE_BY_NAME", "VISUAL_STYLE_BY_PROFILE", "opponent_visual_profile_for_name", "opponent_visual_style_for_name", "opponent_portrait_texture_for_name", '"박태호": "korean"', '"에번 브룩스": "black"']:
