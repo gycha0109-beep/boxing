@@ -50,7 +50,7 @@ func _run() -> void:
     await process_frame
     await process_frame
 
-    _check(str(main_view.get_script().resource_path) == "res://scripts/main_v16.gd", "mobile UX smoke is not exercising v16")
+    _check(str(main_view.get_script().resource_path) == "res://scripts/main_v18_release.gd", "mobile UX smoke is not exercising the active v18 release shell")
     var scroll := _find_scroll(main_view)
     _check(is_instance_valid(scroll), "mobile UI has no ScrollContainer")
     if is_instance_valid(scroll):
