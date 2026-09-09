@@ -93,15 +93,24 @@ func _set_impact_flash(value: float) -> void:
 
 func _draw() -> void:
     var w: float = size.x
-    var h: float = max(size.y, 320.0)
+    var h: float = size.y
     if w < 80.0: return
     var arena_texture := VisualAssetCatalog.arena_texture(title_fight)
-    if arena_texture != null: draw_texture_rect(arena_texture, Rect2(Vector2.ZERO, Vector2(w, h)), false, Color(0.82, 0.82, 0.86, 1.0))
+    if arena_texture != null:
+        var source_size := arena_texture.get_size()
+        var scale_factor := maxf(w / source_size.x, h / source_size.y)
+        var crop_size := Vector2(w, h) / scale_factor
+        var crop_origin := Vector2((source_size.x - crop_size.x) * 0.5, maxf(0, source_size.y - crop_size.y - 60.0))
+        draw_texture_rect_region(arena_texture, Rect2(0, 0, w, h), Rect2(crop_origin, crop_size), Color(0.65, 0.67, 0.72, 1.0))
     else: _draw_procedural_arena(w, h)
     var player_x: float = COMMERCIAL_PLAYER_X if commercial_assets_active else 0.32
     var opponent_x: float = COMMERCIAL_OPPONENT_X if commercial_assets_active else 0.68
-    var player_center := Vector2(w * player_x, h * 0.88) + _fighter_motion(true)
-    var opponent_center := Vector2(w * opponent_x, h * 0.88) + _fighter_motion(false)
+    var player_center := Vector2(w * player_x, h - 18.0) + _fighter_motion(true)
+    var opponent_center := Vector2(w * opponent_x, h - 18.0) + _fighter_motion(false)
+    for feet in [player_center, opponent_center]:
+        draw_set_transform(feet, 0, Vector2(1, 0.18))
+        draw_circle(Vector2.ZERO, 52, Color(0, 0, 0, 0.45))
+    draw_set_transform(Vector2.ZERO)
     _draw_fighter_asset_or_fallback(player_center, 1.0, true, "", PLAYER, player_pose)
     _draw_fighter_asset_or_fallback(opponent_center, -1.0, false, opponent_style, OPPONENT, opponent_pose)
     if not telegraph_action.is_empty():
@@ -133,14 +142,21 @@ func _draw_procedural_arena(w: float, h: float) -> void:
     draw_line(Vector2(w - 14.0, h * 0.22), Vector2(w - 14.0, h * 0.88), Color(0.75, 0.76, 0.80), 4.0)
 
 func _draw_fighter_asset_or_fallback(center: Vector2, facing: float, is_player: bool, style_id: String, tint: Color, pose: String) -> void:
-    var texture := VisualAssetCatalog.fighter_texture(is_player, style_id, pose)
+    var texture := VisualAssetCatalog.identity_fighter_texture(is_player, style_id)
     if texture == null: _draw_fighter(center, facing, tint, pose); return
     var source_rect := _texture_used_rect(texture)
     if source_rect.size.x <= 0 or source_rect.size.y <= 0: _draw_fighter(center, facing, tint, pose); return
-    var target_height := _commercial_pose_height(pose)
+    var target_height := minf(size.y - 42.0, (size.x * 0.42 - 24.0) * float(source_rect.size.y) / float(source_rect.size.x))
     var target_width := target_height * float(source_rect.size.x) / float(source_rect.size.y)
     var destination_rect := Rect2(-target_width * 0.5, -target_height, target_width, target_height)
-    draw_set_transform(center, 0.0, Vector2(facing, 1.0))
+    # Keep the same face during exchanges; motion and impact communicate action.
+    # A knockdown rotates the intact body into the ring instead of swapping people.
+    var angle := -facing * PI * 0.42 if pose == "down" else (-facing * 0.06 * animation_progress if pose == "hurt" else 0.0)
+    if pose == "down":
+        target_height *= 0.48
+        target_width *= 0.48
+        destination_rect = Rect2(-target_width * 0.5, -target_height, target_width, target_height)
+    draw_set_transform(center, angle, Vector2(facing, 1.0))
     draw_texture_rect_region(texture, destination_rect, Rect2(Vector2(source_rect.position), Vector2(source_rect.size)), Color.WHITE, false, true)
     draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 

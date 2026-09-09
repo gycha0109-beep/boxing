@@ -13,6 +13,7 @@ func _init() -> void:
 
 func _run() -> void:
     DisplayServer.window_set_size(Vector2i(430, 932))
+    get_root().gui_embed_subwindows = true
     DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(CAPTURE_DIR))
     _cleanup_save_files()
     await process_frame
@@ -56,6 +57,23 @@ func _run() -> void:
     main_view._confirm_talent()
     await process_frame
     await _capture("02_camp.png")
+    main_view._v17_open_overlay("profile")
+    await _capture("10_profile.png")
+    for stat_id in ["power", "speed", "technique", "defense", "conditioning"]:
+        var help := main_view.find_child("StatHelp_" + stat_id, true, false) as Button
+        if help == null:
+            _fail("stat help button missing: " + stat_id)
+            return
+        help.pressed.emit()
+        await process_frame
+        if not main_view.stat_help_dialog.visible:
+            _fail("stat help popup did not open: " + stat_id)
+            return
+        if stat_id == "speed":
+            await _capture("16_stat_help.png")
+        main_view.stat_help_dialog.hide()
+    main_view._v17_open_match()
+    await process_frame
 
     main_view._open_equipment_shop()
     await process_frame
@@ -71,17 +89,14 @@ func _run() -> void:
     await process_frame
     await _capture("04_fight_offer.png")
 
-    # park_tae-ho is the v18 US/black-photo fixture. Use it deliberately so
-    # the approved mockup's photo-ring path is exercised rather than only the
-    # dynamic FightStage fallback.
-    var opponent: Dictionary = opponents[3]
-    if str(opponent.get("id", "")) != "park_tae-ho":
-        _fail("v18 photo-ring fixture changed unexpectedly")
-        return
+    # Use the real US opponent, never a renamed Korean fixture.
+    var opponent: Dictionary = opponents[13]
     main_view._choose_opponent(opponent)
     await process_frame
+    await _capture("11_tactical_preparation.png")
     main_view._choose_tactical_preparation("distance_drill")
     await process_frame
+    await _capture("12_condition_preparation.png")
     main_view._choose_condition_preparation("sharpness")
     await process_frame
     await _capture("05_scouting_game_plan.png")
@@ -95,7 +110,7 @@ func _run() -> void:
     await process_frame
     await process_frame
     var fight_text := "\n".join(_collect_text(main_view))
-    for marker in ["RING", "Marcus Bell", "2:48", "OPPONENT READ", "다음 행동"]:
+    for marker in ["RING", str(opponent.name), "2:48", "OPPONENT READ", "다음 행동"]:
         if not fight_text.contains(marker):
             _fail("v18 fight opening missing marker: %s" % marker)
             return
@@ -111,13 +126,51 @@ func _run() -> void:
     await process_frame
     await _capture("09_result.png")
 
+    for fixture in [{"index": 0, "file": "13_fight_korean.png"}, {"index": 12, "file": "14_fight_latino.png"}, {"index": 15, "file": "15_fight_european.png"}]:
+        game_state.new_career("무명 복서", "technician")
+        game_state.state["first_launch_acknowledged"] = true
+        game_state.state["weigh_in_acknowledged"] = true
+        game_state.state.phase = "fight_offer"
+        var rival: Dictionary = opponents[fixture.index]
+        game_state.select_opponent(rival)
+        game_state.select_tactical_preparation("distance_drill")
+        game_state.select_condition_preparation("sharpness")
+        game_state.select_game_plan("balanced")
+        main_view.current_opponent = rival
+        main_view.combat = null
+        main_view._render_phase()
+        await _capture(fixture.file)
+
     print("visual-capture-v18-commercial: PASS")
     _cleanup_save_files()
     quit(0)
 
 func _capture(filename: String) -> void:
     await process_frame
+    var scroll := main_view.find_child("V17ContentScroll", true, false) as ScrollContainer
+    var content := main_view.body as Control
+    if content.get_global_rect().end.x > 431:
+        _fail("horizontal content overflow in " + filename)
+        return
+    if filename == "02_camp.png":
+        for card in main_view.find_children("CampCard_*", "VBoxContainer", true, false):
+            if card.get_global_rect().end.y > scroll.get_global_rect().end.y + 1:
+                _fail("four primary camp CTAs do not fit the first screen: " + str(card.name))
+                return
+    if "fight_" in filename and filename != "04_fight_offer.png":
+        if scroll.vertical_scroll_mode != ScrollContainer.SCROLL_MODE_DISABLED or content.get_global_rect().end.y > scroll.get_global_rect().end.y + 1:
+            _fail("fixed fight HUD overflows in " + filename)
+            return
+        if main_view.find_children("*", "FightStage", true, false).size() != 1:
+            _fail("live fight must contain one dynamic stage in " + filename)
+            return
+        for button in main_view._buttons_under(content):
+            if not scroll.get_global_rect().encloses(button.get_global_rect()):
+                _fail("fight action is clipped in " + filename)
+                return
     await process_frame
+    _redraw_tree(main_view)
+    await RenderingServer.frame_post_draw
     var image := get_root().get_viewport().get_texture().get_image()
     if image.get_width() != 430 or image.get_height() != 932:
         _fail("unexpected viewport size %dx%d" % [image.get_width(), image.get_height()])
@@ -128,6 +181,10 @@ func _capture(filename: String) -> void:
         _fail("failed to save %s" % path)
         return
     print("captured: %s" % path)
+
+func _redraw_tree(node: Node) -> void:
+    if node is CanvasItem: node.queue_redraw()
+    for child in node.get_children(): _redraw_tree(child)
 
 func _collect_text(root: Node) -> Array[String]:
     var values: Array[String] = []

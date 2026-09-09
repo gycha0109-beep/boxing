@@ -20,21 +20,14 @@ func _v18_photo(key: String) -> Texture2D:
 func _render_camp() -> void:
     _v17_player_hero("훈련 캠프 선택", "땀은 배신하지 않는다.")
 
-    var stats_panel := _v17_panel(body, false)
-    _v17_eyebrow(stats_panel, "FIGHTER STATS")
-    _v17_title(stats_panel, "현재 능력치", 18)
-    var boxer: Dictionary = GameState.state.get("boxer", {})
-    for stat_id in ["power", "speed", "technique", "defense", "conditioning"]:
-        _v16_stat_row(stats_panel, stat_id, int(boxer.get(stat_id, 0)))
-
-    _v17_career_progress_strip()
-    _v17_section_heading("훈련 캠프 선택", "이번 캠프에서는 한 가지 성장에 집중합니다.")
+    _v17_section_heading("훈련 캠프 선택", "")
     var core_ids := ["mitts", "roadwork", "heavy_bag", "defense_drill"]
     var grid := _v17_grid(2)
-    for action_value in camp_actions:
-        var action: Dictionary = action_value
-        if str(action.get("id", "")) in core_ids:
-            _v17_training_card(grid, action)
+    for action_id in core_ids:
+        for action_value in camp_actions:
+            var action: Dictionary = action_value
+            if str(action.get("id", "")) == action_id:
+                _v17_training_card(grid, action)
 
     var manage := _v17_secondary_button("회복 · 체중 · 스파링 관리 %s" % ("접기 ▲" if v17_manage_expanded else "보기 ▼"))
     manage.pressed.connect(func():
@@ -96,9 +89,201 @@ func _configure_mobile_scroll() -> void:
     _configure_scroll_input_tree(body)
 
 func _v17_top_bar() -> Control:
-    var bar := super._v17_top_bar()
-    _v18_release_touch_targets(bar)
+    var bar := HBoxContainer.new()
+    bar.custom_minimum_size.y = 76
+    bar.add_theme_constant_override("separation", 4)
+    var menu := Button.new()
+    menu.icon = _v18_line_icon("menu")
+    menu.flat = true
+    menu.custom_minimum_size = Vector2(56, 56)
+    menu.pressed.connect(Callable(self, "_v17_open_overlay").bind("profile"))
+    bar.add_child(menu)
+    var brand := VBoxContainer.new()
+    brand.alignment = BoxContainer.ALIGNMENT_CENTER
+    brand.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    brand.add_theme_constant_override("separation", 0)
+    bar.add_child(brand)
+    var crown := TextureRect.new()
+    crown.texture = _v18_line_icon("crown")
+    crown.custom_minimum_size.y = 18
+    crown.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+    crown.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+    brand.add_child(crown)
+    var title := _v17_title(brand, "TWELVE COUNT", 21)
+    title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    title.add_theme_color_override("font_color", V17_GOLD)
+    var subtitle := _v17_copy(brand, "B O X I N G   C A R E E R", true)
+    subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    subtitle.add_theme_font_size_override("font_size", 8)
+    var account := VBoxContainer.new()
+    account.custom_minimum_size.x = 76
+    account.alignment = BoxContainer.ALIGNMENT_CENTER
+    bar.add_child(account)
+    v17_money_label = _v17_copy(account, "0원", false)
+    v17_money_label.add_theme_font_size_override("font_size", 11)
+    var gear := Button.new()
+    gear.icon = _v18_line_icon("settings")
+    gear.flat = true
+    gear.custom_minimum_size = Vector2(56, 56)
+    gear.disabled = true
+    gear.tooltip_text = "설정 준비 중"
+    bar.add_child(gear)
     return bar
+
+func _apply_v07_system_font() -> void:
+    super._apply_v07_system_font()
+    # The variable font's default axis is Thin. Explicitly select readable weights.
+    var regular := _v18_font(450)
+    for type_name in ["Label", "Button", "LineEdit"]:
+        theme.set_font("font", type_name, regular)
+
+func _apply_safe_area() -> void:
+    if not is_inside_tree(): return
+    safe_insets = SafeAreaLayout.current_insets(get_viewport_rect().size)
+    var margin := _shell_margin()
+    if margin == null: return
+    for side in ["left", "right", "top", "bottom"]:
+        var padding := 12 if side in ["left", "right"] else 8
+        margin.add_theme_constant_override("margin_" + side, padding + int(ceil(float(safe_insets.get(side, 0)))))
+
+func _v18_font(weight: int) -> FontVariation:
+    var font := FontVariation.new()
+    font.base_font = load(RELEASE_FONT_PATH)
+    font.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): float(weight)}
+    return font
+
+func _v17_title(parent: Container, text_value: String, font_size: int) -> Label:
+    var label := super._v17_title(parent, text_value, font_size)
+    label.add_theme_font_override("font", _v18_font(750))
+    return label
+
+func _v17_eyebrow(parent: Container, text_value: String) -> Label:
+    var label := super._v17_eyebrow(parent, text_value)
+    label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+    label.add_theme_font_size_override("font_size", 10)
+    return label
+
+func _v17_section_heading(title_text: String, subtitle: String) -> void:
+    var title := _v17_title(body, title_text, 24)
+    title.add_theme_color_override("font_color", V17_GOLD)
+    if not subtitle.is_empty():
+        _v17_copy(body, subtitle, true)
+
+func _v17_metrics(parent: VBoxContainer) -> void:
+    var boxer: Dictionary = GameState.state.get("boxer", {})
+    var career: Dictionary = GameState.state.get("career", {})
+    var grid := GridContainer.new()
+    grid.columns = 4
+    grid.add_theme_constant_override("h_separation", 8)
+    parent.add_child(grid)
+    _v17_metric(grid, "체중", "%.1fkg" % float(boxer.get("weight_kg", 0)), V17_TEXT)
+    _v17_metric(grid, "피로", "%d%%" % int(boxer.get("fatigue", 0)), V17_DANGER)
+    _v17_metric(grid, "건강", "%d%%" % int(boxer.get("health", 0)), V17_GOLD)
+    _v17_metric(grid, "보유금", "%s원" % _v17_money(int(career.get("money", 0))), V17_TEXT)
+
+func _v17_training_card(parent: GridContainer, action: Dictionary) -> void:
+    var affordable := int(GameState.state.career.get("money", 0)) >= int(action.get("cost", 0))
+    var card := _v17_panel(parent, false)
+    card.name = "CampCard_" + str(action.id)
+    card.add_theme_constant_override("separation", 4)
+    _v17_training_art(card, str(action.id))
+    _v17_title(card, _v17_training_name(action), 17)
+    var description := _v17_copy(card, _v17_training_description(str(action.id)), true)
+    description.custom_minimum_size.y = 34
+    var meta := _v17_copy(card, "%s원 · 부상 %.1f%%" % [_v17_money(int(action.cost)), float(action.risk) * 100], false)
+    meta.add_theme_font_size_override("font_size", 11)
+    _v17_effect_grid(card, action.get("effects", {}))
+    var choose := _v17_gold_button("캠프 선택  ›" if affordable else "자금 부족")
+    choose.disabled = not affordable
+    choose.pressed.connect(Callable(self, "_choose_camp_action").bind(action))
+    card.add_child(choose)
+
+func _v17_panel(parent: Container, highlighted: bool) -> VBoxContainer:
+    var panel := super._v17_panel(parent, highlighted)
+    panel.add_theme_constant_override("separation", 4)
+    panel.get_parent().add_theme_stylebox_override("panel", _v17_box_style(V17_PANEL_2 if highlighted else V17_PANEL, V17_GOLD if highlighted else V17_BORDER, 10, 8))
+    return panel
+
+func _v17_chip(parent: Container, text_value: String, color: Color) -> Label:
+    var label := super._v17_chip(parent, text_value, color)
+    label.get_parent().add_theme_stylebox_override("panel", _v17_box_style(Color("102131"), Color(color.r, color.g, color.b, 0.45), 5, 2))
+    return label
+
+func _show_stat_help(stat_id: String) -> void:
+    if not is_instance_valid(stat_help_dialog):
+        stat_help_dialog = AcceptDialog.new()
+        stat_help_dialog.name = "StatHelpDialog"
+        stat_help_dialog.borderless = true
+        stat_help_dialog.dialog_autowrap = true
+        stat_help_dialog.theme = theme.duplicate()
+        stat_help_dialog.theme.set_stylebox("panel", "AcceptDialog", _v17_box_style(V17_PANEL, V17_BLUE, 10, 16))
+        stat_help_dialog.theme.set_font("font", "Label", _v18_font(500))
+        stat_help_dialog.get_label().add_theme_font_size_override("font_size", 15)
+        stat_help_dialog.get_ok_button().text = "닫기"
+        stat_help_dialog.get_ok_button().custom_minimum_size = Vector2(80, 44)
+        add_child(stat_help_dialog)
+    stat_help_dialog.title = _stat_label(stat_id)
+    stat_help_dialog.dialog_text = "%s\n\n%s" % [_stat_label(stat_id), GameState.stat_help(stat_id)]
+    stat_help_dialog.popup_centered(Vector2i(300, 150))
+
+func _v17_prep_symbol(parent: VBoxContainer, prep_id: String) -> void:
+    var art := TextureRect.new()
+    art.texture = _v18_line_icon("rest" if prep_id in ["rest", "full_rest"] else ("weight" if prep_id == "weight_control" else "training"))
+    art.custom_minimum_size = Vector2(40, 40)
+    art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+    art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT
+    parent.add_child(art)
+
+func _v17_gold_button(text_value: String) -> Button:
+    var button := super._v17_gold_button(text_value)
+    button.custom_minimum_size.y = 44
+    button.add_theme_font_override("font", _v18_font(700))
+    var gradient := Gradient.new()
+    gradient.set_color(0, Color("f2c875"))
+    gradient.set_color(1, Color("a57632"))
+    var texture := GradientTexture2D.new()
+    texture.gradient = gradient
+    texture.fill_from = Vector2(0.5, 0)
+    texture.fill_to = Vector2(0.5, 1)
+    var style := StyleBoxTexture.new()
+    style.texture = texture
+    style.content_margin_left = 8
+    style.content_margin_right = 8
+    style.content_margin_top = 8
+    style.content_margin_bottom = 8
+    button.add_theme_stylebox_override("normal", style)
+    return button
+
+func _v17_dark_button(text_value: String) -> Button:
+    var button := super._v17_dark_button(text_value)
+    button.custom_minimum_size.y = 44
+    return button
+
+func _v17_nav_button(parent: HBoxContainer, key: String, text_value: String, callback: Callable) -> void:
+    super._v17_nav_button(parent, key, text_value, callback)
+    var button: Button = v17_nav_buttons[key]
+    button.text = text_value.get_slice("\n", 1)
+    button.icon = _v18_line_icon(key)
+    button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    button.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
+
+func _v18_line_icon(key: String) -> Texture2D:
+    var paths := {
+        "menu": '<path d="M4 6h24M4 16h24M4 26h24"/>',
+        "rest": '<path d="M3 5v24m26-16v16M3 24h26M3 15h22a4 4 0 0 1 4 4v5H3z"/><circle cx="9" cy="10" r="3"/>',
+        "weight": '<rect x="5" y="3" width="22" height="26" rx="4"/><path d="M10 9a8 8 0 0 1 12 0l-6 6zM16 6v7"/>',
+        "settings": '<circle cx="16" cy="16" r="8"/><circle cx="16" cy="16" r="3"/><path d="M16 2v5m0 18v5M2 16h5m18 0h5M6 6l4 4m12 12l4 4M26 6l-4 4M10 22l-4 4"/>',
+        "crown": '<path d="M4 9l6 6 6-11 6 11 6-6-3 16H7zM7 29h18"/>',
+        "profile": '<circle cx="16" cy="9" r="6"/><path d="M5 29v-5a11 11 0 0 1 22 0v5z"/>',
+        "match": '<path d="M8 23L5 16Q4 5 15 4q12 0 12 10l-5 9-5 6zM8 23l9 6"/>',
+        "training": '<path d="M3 10v12m5-16v20m16-20v20m5-16v12M8 16h16"/>',
+        "career": '<path d="M9 3h14v11a7 7 0 0 1-14 0zM9 6H3v6q0 7 8 7m12-13h6v6q0 7-8 7M16 21v8m-7 0h14"/>',
+        "shop": '<path d="M5 13v16h22V13M3 13l3-9h20l3 9zM12 29V19h8v10"/>'
+    }
+    var svg := '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 32 32"><g fill="none" stroke="#e7bd70" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">%s</g></svg>' % str(paths.get(key, paths.menu))
+    var image := Image.new()
+    image.load_svg_from_string(svg)
+    return ImageTexture.create_from_image(image)
 
 func _v18_release_touch_targets(node: Node) -> void:
     if node is Button:

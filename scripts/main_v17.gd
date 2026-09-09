@@ -14,10 +14,6 @@ const V17_SUCCESS := Color(0.29, 0.78, 0.58, 1.0)
 const V17_BLUE := Color(0.25, 0.63, 0.96, 1.0)
 const V17_HP := Color(0.91, 0.20, 0.25, 1.0)
 
-const V17_ALIAS := {
-    "seo_min-jae": {"name": "Carlos Mendez", "country": "MX", "profile": "latino"},
-    "park_tae-ho": {"name": "Marcus Reed", "country": "US", "profile": "black"},
-}
 
 var v17_money_label: Label
 var v17_nav_buttons: Dictionary = {}
@@ -168,7 +164,7 @@ func _render_condition_preparation() -> void:
         _render_phase()
         return
     _v17_matchup_strip("경기 주간 준비", "최상의 컨디션으로 승리를 준비하세요.")
-    _v17_section_heading("이번 주, 어떤 준비를 하시겠습니까?", "추가 영구 성장 없이 이번 경기 컨디션만 바뀝니다.")
+    _v17_section_heading("이번 주, 어떤 준비를 하시겠습니까?", "지금의 준비가 링 위의 차이를 만듭니다.")
     var grid := _v17_grid(2)
     for prep_value in GameState.condition_preparations():
         var prep: Dictionary = prep_value
@@ -236,7 +232,7 @@ func _render_weigh_in() -> void:
     var row := HBoxContainer.new()
     row.add_theme_constant_override("separation", 12)
     matchup.add_child(row)
-    _v17_weigh_fighter(row, VisualAssetCatalog.portrait_texture(true), str(GameState.state.boxer.get("name", "BOXER")), "KR")
+    _v17_weigh_fighter(row, VisualAssetCatalog.identity_portrait_texture(true), str(GameState.state.boxer.get("name", "BOXER")), "KR")
     var vs := Label.new()
     vs.text = "VS"
     vs.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -406,7 +402,8 @@ func _v16_stat_row(parent: VBoxContainer, stat_id: String, value: int) -> void:
     help.text = "?"
     help.flat = true
     help.tooltip_text = GameState.stat_help(stat_id)
-    help.custom_minimum_size = Vector2(28, 28)
+    help.custom_minimum_size = Vector2(44, 44)
+    help.name = "StatHelp_" + stat_id
     help.add_theme_font_size_override("font_size", 12)
     help.add_theme_color_override("font_color", V17_MUTED)
     help.add_theme_stylebox_override("normal", _v17_circle_style(Color(0.035, 0.055, 0.075, 1.0), V17_BORDER))
@@ -420,6 +417,7 @@ func _v16_stat_row(parent: VBoxContainer, stat_id: String, value: int) -> void:
     bar.value = clampi(value, 0, 100)
     bar.show_percentage = false
     bar.custom_minimum_size = Vector2(0, 10)
+    bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
     bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     var bg := StyleBoxFlat.new()
     bg.bg_color = Color(0.10, 0.14, 0.19, 1.0)
@@ -672,7 +670,7 @@ func _v17_fighter_hud(parent: HBoxContainer, name_text: String, country: String,
 func _v17_meter(parent: VBoxContainer, label_text: String, value: float, fill_color: Color) -> void:
     var row := HBoxContainer.new(); row.add_theme_constant_override("separation", 5); parent.add_child(row); var label := Label.new(); label.text = "%s %d" % [label_text, int(round(value))]; label.custom_minimum_size = Vector2(45, 0); label.add_theme_font_size_override("font_size", 10); label.add_theme_color_override("font_color", V17_MUTED); row.add_child(label); var bar := ProgressBar.new(); bar.min_value = 0; bar.max_value = 100; bar.value = clamp(value, 0, 100); bar.show_percentage = false; bar.custom_minimum_size = Vector2(0, 8); bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL; var bg := StyleBoxFlat.new(); bg.bg_color = Color(0.09, 0.13, 0.18, 1.0); bg.set_corner_radius_all(5); var fill := StyleBoxFlat.new(); fill.bg_color = fill_color; fill.set_corner_radius_all(5); bar.add_theme_stylebox_override("background", bg); bar.add_theme_stylebox_override("fill", fill); row.add_child(bar)
 func _v17_fight_action(parent: GridContainer, action_id: String, selected_plan: Dictionary) -> void:
-    var action: Dictionary = combat.balance.actions[action_id]; var recommended := bool(selected_plan.get("action_modifiers", {}).has(action_id)); var button := Button.new(); var stamina := int(action.get("stamina", 0)); var stamina_text := "STA +%d" % abs(stamina) if stamina < 0 else "STA %d" % stamina; button.text = "%s\n%s%s" % [_action_label(action_id), "★ PLAN\n" if recommended else "", stamina_text]; button.custom_minimum_size = Vector2(0, 80); button.size_flags_horizontal = Control.SIZE_EXPAND_FILL; button.mouse_filter = Control.MOUSE_FILTER_PASS; button.add_theme_font_size_override("font_size", 13); button.add_theme_color_override("font_color", V17_GOLD if recommended else V17_TEXT); button.add_theme_stylebox_override("normal", _v17_box_style(Color(0.035, 0.060, 0.088, 1.0), V17_GOLD if recommended else V17_BORDER, 11, 8)); button.add_theme_stylebox_override("pressed", _v17_box_style(Color(0.10, 0.075, 0.035, 1.0), V17_GOLD, 11, 8)); button.pressed.connect(Callable(self, "_choose_fight_action").bind(action_id)); parent.add_child(button)
+    var action: Dictionary = combat.balance.actions[action_id]; var recommended := bool(selected_plan.get("action_modifiers", {}).has(action_id)); var button := Button.new(); var stamina := int(action.get("stamina", 0)); var stamina_text := "STA +%d" % abs(stamina) if stamina < 0 else "STA %d" % stamina; button.text = "%s\n%s%s" % [_action_label(action_id), "★ PLAN\n" if recommended else "", stamina_text]; button.custom_minimum_size = Vector2(0, 66); button.size_flags_horizontal = Control.SIZE_EXPAND_FILL; button.mouse_filter = Control.MOUSE_FILTER_PASS; button.add_theme_font_size_override("font_size", 13); button.add_theme_color_override("font_color", V17_GOLD if recommended else V17_TEXT); button.add_theme_stylebox_override("normal", _v17_box_style(Color(0.035, 0.060, 0.088, 1.0), V17_GOLD if recommended else V17_BORDER, 11, 8)); button.add_theme_stylebox_override("pressed", _v17_box_style(Color(0.10, 0.075, 0.035, 1.0), V17_GOLD, 11, 8)); button.pressed.connect(Callable(self, "_choose_fight_action").bind(action_id)); parent.add_child(button)
 func _v17_recommendation(action_id: String) -> String:
     match action_id:
         "guard": return "바디로 체력을 깎아보세요"
@@ -749,18 +747,11 @@ func _v17_training_symbol(action_id: String) -> String:
         "weight_cut": return "◇"
         _: return "●"
 func _v17_opponent_name(opponent: Dictionary) -> String:
-    var opponent_id := str(opponent.get("id", "")); return str(V17_ALIAS[opponent_id].get("name", opponent.get("name", "OPPONENT"))) if V17_ALIAS.has(opponent_id) else str(opponent.get("name", "OPPONENT"))
+    return str(opponent.get("name", "OPPONENT"))
 func _v17_country(opponent: Dictionary) -> String:
-    var opponent_id := str(opponent.get("id", ""));
-    if V17_ALIAS.has(opponent_id): return str(V17_ALIAS[opponent_id].get("country", "INT"))
-    var name := str(opponent.get("name", ""));
-    if name == "나카무라 렌": return "JP"
-    if name in ["미겔 산토스", "마테오 실바"]: return "MX"
-    if name == "에번 브룩스": return "US"
-    if name == "빅토르 코즐로프": return "RU"
-    return "KR"
+    return VisualAssetCatalog.opponent_country_badge(str(opponent.get("name", "")))
 func _v17_visual_profile(opponent: Dictionary) -> String:
-    var opponent_id := str(opponent.get("id", "")); return str(V17_ALIAS[opponent_id].get("profile", "korean")) if V17_ALIAS.has(opponent_id) else VisualAssetCatalog.opponent_visual_profile_for_name(str(opponent.get("name", "")))
+    return VisualAssetCatalog.opponent_visual_profile_for_name(str(opponent.get("name", "")))
 func _v17_visual_style(opponent: Dictionary) -> String:
     match _v17_visual_profile(opponent):
         "black": return "swarmer"
@@ -781,6 +772,7 @@ func _v17_flag(country: String) -> String:
         "MX": return "[MX]"
         "JP": return "[JP]"
         "RU": return "[RU]"
+        "BR": return "[BR]"
         _: return ""
 func _v17_opponent_quote(opponent: Dictionary) -> String:
     match str(opponent.get("id", "")):
@@ -789,10 +781,7 @@ func _v17_opponent_quote(opponent: Dictionary) -> String:
         "park_tae-ho": return "“한 방이면 끝이다.”"
         _: return "“링 위에서 답을 보여주겠다.”"
 func _v17_summary_opponent_name(summary: Dictionary) -> String:
-    var stored := str(summary.get("opponent_name", "OPPONENT"));
-    if stored == "서민재": return "Carlos Mendez"
-    if stored == "박태호": return "Marcus Reed"
-    return stored
+    return str(summary.get("opponent_name", "OPPONENT"))
 func _v17_money(value: int) -> String:
     var s := str(abs(value)); var out := "";
     while s.length() > 3: out = "," + s.right(3) + out; s = s.left(s.length() - 3)

@@ -158,7 +158,12 @@ func _feed_ui_cue(cue_id: String) -> void:
         _:
             pass
 
-    ui_playback.clear_buffer()
+    # AudioStreamGeneratorPlayback cannot clear an active playback. Restart the
+    # tiny UI stream to discard the previous click without touching music/SFX.
+    ui_player.stop()
+    ui_player.play()
+    ui_playback = ui_player.get_stream_playback() as AudioStreamGeneratorPlayback
+    if ui_playback == null: return
     var frame_count: int = int(min(ui_playback.get_frames_available(), int(MIX_RATE * duration)))
     for i in range(frame_count):
         var t: float = float(i) / MIX_RATE

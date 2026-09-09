@@ -13,14 +13,14 @@ const VISUAL_PROFILE_BY_NAME := {
     "이준석": "korean", "배성호": "korean", "김성민": "korean", "최현우": "korean",
     "임태건": "korean", "강무진": "korean", "윤재혁": "korean", "나카무라 렌": "korean",
     "미겔 산토스": "latino", "에번 브룩스": "black", "마테오 실바": "latino",
-    "빅토르 코즐로프": "european",
+    "빅토르 코즐로프": "european", "디에고 레예스": "latino",
 }
 const COUNTRY_BY_NAME := {
     "한도윤": "KR", "서민재": "KR", "장우진": "KR", "박태호": "KR",
     "이준석": "KR", "배성호": "KR", "김성민": "KR", "최현우": "KR",
     "임태건": "KR", "강무진": "KR", "윤재혁": "KR", "나카무라 렌": "JP",
     "미겔 산토스": "MX", "에번 브룩스": "US", "마테오 실바": "BR",
-    "빅토르 코즐로프": "RU",
+    "빅토르 코즐로프": "RU", "디에고 레예스": "MX",
 }
 const VISUAL_STYLE_BY_PROFILE := {
     # The legacy slugger pose set is player-derived and is the stable East-Asian set.
@@ -39,6 +39,49 @@ const PORTRAIT_STYLE_BY_PROFILE := {
 static var _texture_cache: Dictionary = {}
 static var _opponent_cache: Dictionary = {}
 static var _opponents_loaded: bool = false
+const IDENTITY_ATLAS := "res://assets/visual/v18/fighters/identity_atlas.png"
+static var _identity_cache: Dictionary = {}
+
+# One source per visual family, shared by portrait, weigh-in and live ring.
+# Crop alpha bounds inside the authored cells; never scale the axes separately.
+static func identity_fighter_texture(is_player: bool, style_id: String = "") -> Texture2D:
+    var column: int = 0 if is_player else {"slugger": 1, "swarmer": 2, "outboxer": 3, "counter": 4}.get(normalize_style(style_id), 1)
+    var key := "fighter_%d" % column
+    if _identity_cache.has(key): return _identity_cache[key]
+    var source := texture(IDENTITY_ATLAS)
+    if source == null: return fighter_texture(is_player, style_id, "idle")
+    var cell_width := source.get_width() / 5.0
+    var cell := Rect2i(int(column * cell_width), 0, int(cell_width), source.get_height())
+    # Disregard near-transparent generator dust when choosing framing bounds.
+    var cell_image := source.get_image().get_region(cell)
+    var first := Vector2i(cell.size.x, cell.size.y)
+    var last := Vector2i.ZERO
+    for y in range(cell.size.y):
+        for x in range(cell.size.x):
+            if cell_image.get_pixel(x, y).a > 0.125:
+                first = first.min(Vector2i(x, y))
+                last = last.max(Vector2i(x, y))
+    var used := Rect2i(first, last - first + Vector2i.ONE)
+    var atlas := AtlasTexture.new()
+    atlas.atlas = source
+    atlas.region = Rect2(Vector2(cell.position + used.position), Vector2(used.size))
+    _identity_cache[key] = atlas
+    return atlas
+
+static func identity_portrait_texture(is_player: bool, style_id: String = "") -> Texture2D:
+    var key := "portrait_%s_%s" % [str(is_player), style_id]
+    if _identity_cache.has(key): return _identity_cache[key]
+    var fighter := identity_fighter_texture(is_player, style_id) as AtlasTexture
+    if fighter == null: return portrait_texture(is_player, style_id)
+    var portrait := AtlasTexture.new()
+    portrait.atlas = fighter.atlas
+    var region := fighter.region
+    region.position.x += region.size.x * 0.15
+    region.size.x *= 0.75
+    region.size.y *= 0.43
+    portrait.region = region
+    _identity_cache[key] = portrait
+    return portrait
 
 static func normalize_style(style_id: String) -> String:
     match style_id.strip_edges().to_lower():

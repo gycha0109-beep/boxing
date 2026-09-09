@@ -63,8 +63,10 @@ for marker in ["func _render_camp()", "func _render_offers()", "func _render_gam
     assert marker in main_v16
 
 main_v18 = (ROOT / "scripts/main_v18.gd").read_text()
-for marker in ["func _v18_decode_chunks(", "append_array(decoded)", "func _v18_photo(", "func _v18_training_texture(", "func _v18_opponent_photo(", "func _render_fight(", '"RING"', '"다음 행동"', '"2:48"', 'return "Marcus Bell"']:
+for marker in ["func _v18_decode_chunks(", "append_array(decoded)", "func _v18_photo(", "func _v18_training_texture(", "func _v18_opponent_photo(", "func _render_fight(", '"RING"', '"다음 행동"', 'identity_portrait_texture', 'FightStage.new()']:
     assert marker in main_v18
+assert 'return "Marcus Bell"' not in main_v18, "UI must not rename a data-defined opponent"
+assert 'stage_photo' not in main_v18, "live combat must not use a baked fighter photo"
 for asset_marker in ["V18_HERO_0", "V18_TRAINING_0", "V18_OPPONENT_0", "V18_RING_0"]:
     assert asset_marker in main_v18
 
