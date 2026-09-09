@@ -13,7 +13,10 @@ LEGACY_SHELL = ROOT / "scripts/main_v12.gd"
 PREPARATION_SHELL = ROOT / "scripts/main_v13.gd"
 ECONOMY_SHELL = ROOT / "scripts/main_v14.gd"
 AUDIO_SHELL = ROOT / "scripts/main_v15.gd"
-ACTIVE_SHELL = ROOT / "scripts/main_v16.gd"
+COMPACT_SHELL = ROOT / "scripts/main_v16.gd"
+COMMERCIAL_SHELL = ROOT / "scripts/main_v17.gd"
+PHOTO_SHELL = ROOT / "scripts/main_v18.gd"
+ACTIVE_SHELL = ROOT / "scripts/main_v18_release.gd"
 IMPORT_WORKFLOW = ROOT / ".github/workflows/import-korean-font-v10.yml"
 
 EXPECTED_FONT_BLOB = "b386890ba945e1f39448a6b59f20c5d194f58808"
@@ -46,9 +49,15 @@ def main() -> None:
     preparation_shell_text = PREPARATION_SHELL.read_text(encoding="utf-8")
     economy_shell_text = ECONOMY_SHELL.read_text(encoding="utf-8")
     audio_shell_text = AUDIO_SHELL.read_text(encoding="utf-8")
+    compact_shell_text = COMPACT_SHELL.read_text(encoding="utf-8")
+    commercial_shell_text = COMMERCIAL_SHELL.read_text(encoding="utf-8")
+    photo_shell_text = PHOTO_SHELL.read_text(encoding="utf-8")
     active_shell_text = ACTIVE_SHELL.read_text(encoding="utf-8")
-    require('res://scripts/main_v16.gd' in scene_text, "Main scene is not routed through the active v16 UI shell")
-    require('extends "res://scripts/main_v15.gd"' in active_shell_text, "active v16 shell no longer preserves audio flow")
+    require('res://scripts/main_v18_release.gd' in scene_text, "Main scene is not routed through the active v18 release shell")
+    require('extends "res://scripts/main_v18.gd"' in active_shell_text, "active release shell no longer preserves v18 photo flow")
+    require('extends "res://scripts/main_v17.gd"' in photo_shell_text, "v18 photo shell no longer preserves commercial UI flow")
+    require('extends "res://scripts/main_v16.gd"' in commercial_shell_text, "commercial shell no longer preserves compact UI flow")
+    require('extends "res://scripts/main_v15.gd"' in compact_shell_text, "compact shell no longer preserves audio flow")
     require('extends "res://scripts/main_v14.gd"' in audio_shell_text, "audio shell no longer preserves economy flow")
     require('extends "res://scripts/main_v13.gd"' in economy_shell_text, "economy shell no longer preserves preparation flow")
     require('extends "res://scripts/main_v12.gd"' in preparation_shell_text, "preparation shell no longer preserves Legacy shell")
