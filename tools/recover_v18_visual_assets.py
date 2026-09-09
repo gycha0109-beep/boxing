@@ -19,6 +19,25 @@ SETS = {
     "fight_ring_scene.jpg": ["fight_ring_scene_00.gd", "fight_ring_scene_01.gd", "fight_ring_scene_02.gd"],
 }
 
+# The original v18 images were split at exactly 15,000 base64 characters.
+# GitHub's earlier text-write path clipped the final 12 chars from every
+# 15,000-char chunk. These suffixes are taken from the locally verified source
+# files and are only applied when a checked-in chunk is exactly 14,988 chars.
+REPAIR_SUFFIX = {
+    "hero_player_00.gd": "3iMSmgaVxsr7",
+    "training_atlas_00.gd": "5ZftAmjLHa+h",
+    "opponent_atlas_00.gd": "uXgHjvoWY4CX",
+    "fight_ring_scene_00.gd": "bzXcQmkEEw7Y",
+    "fight_ring_scene_01.gd": "oB1gjC1rOIuz",
+}
+
+EXPECTED_SIZES = {
+    "hero_player.jpg": (210, 338),
+    "training_atlas.jpg": (520, 188),
+    "opponent_atlas.jpg": (160, 605),
+    "fight_ring_scene.jpg": (460, 333),
+}
+
 CHUNK_RE = re.compile(r'const\s+CHUNK\s*:=\s*"([A-Za-z0-9+/=]+)"')
 
 
@@ -27,7 +46,15 @@ def read_chunk(name: str) -> str:
     match = CHUNK_RE.search(text)
     if match is None:
         raise SystemExit(f"missing CHUNK in {name}")
-    return match.group(1)
+    value = match.group(1)
+    suffix = REPAIR_SUFFIX.get(name)
+    if suffix is not None:
+        if len(value) == 14_988:
+            print(f"{name}: repairing clipped 12-char suffix")
+            value += suffix
+        elif len(value) != 15_000:
+            raise SystemExit(f"{name}: unexpected chunk length {len(value)}")
+    return value
 
 
 def padded(value: str) -> str:
@@ -42,13 +69,15 @@ def candidates(chunks: list[str]):
     yield "decode-each-and-append", lambda: b"".join(base64.b64decode(padded(chunk), validate=True) for chunk in chunks)
 
 
-def verify_jpeg(data: bytes) -> tuple[int, int]:
+def verify_jpeg(data: bytes, expected_size: tuple[int, int]) -> tuple[int, int]:
     if not (data.startswith(b"\xff\xd8") and data.endswith(b"\xff\xd9")):
         raise ValueError("JPEG SOI/EOI markers missing")
     with Image.open(io.BytesIO(data)) as image:
         if image.format != "JPEG":
             raise ValueError(f"unexpected format: {image.format}")
         size = image.size
+        if size != expected_size:
+            raise ValueError(f"unexpected size: {size}, expected {expected_size}")
         image.verify()
     return size
 
@@ -60,7 +89,7 @@ def recover(output_name: str, source_names: list[str]) -> None:
     for mode, decode in candidates(chunks):
         try:
             data = decode()
-            size = verify_jpeg(data)
+            size = verify_jpeg(data, EXPECTED_SIZES[output_name])
         except Exception as exc:  # diagnostic path intentionally broad
             errors.append(f"{mode}: {type(exc).__name__}: {exc}")
             continue
