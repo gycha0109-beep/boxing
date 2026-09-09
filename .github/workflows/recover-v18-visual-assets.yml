@@ -1,0 +1,47 @@
+name: Recover v18 Visual Assets
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feat/legacy-state-foundation-v1.2
+    paths:
+      - tools/recover_v18_visual_assets.py
+      - scripts/ui/v18_assets/**
+      - .github/workflows/recover-v18-visual-assets.yml
+
+permissions:
+  contents: write
+
+jobs:
+  recover:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: feat/legacy-state-foundation-v1.2
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Install JPEG verifier
+        run: python -m pip install --disable-pip-version-check pillow==11.3.0
+      - name: Recover and validate v18 JPEGs
+        run: python tools/recover_v18_visual_assets.py
+      - name: Verify recovered inventory
+        run: |
+          set -euo pipefail
+          test "$(find assets/visual/v18 -maxdepth 1 -name '*.jpg' | wc -l)" -eq 4
+          file assets/visual/v18/*.jpg
+      - name: Commit recovered binary assets
+        run: |
+          set -euo pipefail
+          git add assets/visual/v18
+          if git diff --cached --quiet; then
+            echo "No recovered asset changes"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "assets(visual): recover validated v18 commercial JPEGs"
+          git push origin HEAD:feat/legacy-state-foundation-v1.2
