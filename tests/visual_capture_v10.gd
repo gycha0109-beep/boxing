@@ -1,7 +1,7 @@
 extends SceneTree
 
 const Save = preload("res://scripts/core/save_service.gd")
-const CAPTURE_DIR := "res://visual-captures/v1.0-font"
+const CAPTURE_DIR := "res://visual-captures/v1.2-v18"
 
 var main_view: Control
 var game_state: Node
@@ -24,7 +24,7 @@ func _run() -> void:
 
     opponents = _load_array("res://data/opponents.json")
     camps = _load_array("res://data/camp_actions.json")
-    if opponents.is_empty() or camps.is_empty():
+    if opponents.size() < 4 or camps.is_empty():
         _fail("capture fixtures are incomplete")
         return
 
@@ -43,8 +43,8 @@ func _run() -> void:
     await process_frame
     await process_frame
 
-    if str(main_view.get_script().resource_path) != "res://scripts/main_v16.gd":
-        _fail("capture is not using the active v16 mobile UI shell above the audio/economy/preparation/Legacy runtime")
+    if str(main_view.get_script().resource_path) != "res://scripts/main_v18.gd":
+        _fail("capture is not using the active v18 commercial visual shell above the audio/economy/preparation/Legacy runtime")
         return
 
     await _capture("01_title.png")
@@ -71,7 +71,13 @@ func _run() -> void:
     await process_frame
     await _capture("04_fight_offer.png")
 
-    var opponent: Dictionary = opponents[0]
+    # park_tae-ho is the v18 US/black-photo fixture. Use it deliberately so
+    # the approved mockup's photo-ring path is exercised rather than only the
+    # dynamic FightStage fallback.
+    var opponent: Dictionary = opponents[3]
+    if str(opponent.get("id", "")) != "park_tae-ho":
+        _fail("v18 photo-ring fixture changed unexpectedly")
+        return
     main_view._choose_opponent(opponent)
     await process_frame
     main_view._choose_tactical_preparation("distance_drill")
@@ -88,6 +94,11 @@ func _run() -> void:
     main_view._acknowledge_weigh_in()
     await process_frame
     await process_frame
+    var fight_text := "\n".join(_collect_text(main_view))
+    for marker in ["RING", "Marcus Bell", "2:48", "OPPONENT READ", "다음 행동"]:
+        if not fight_text.contains(marker):
+            _fail("v18 fight opening missing marker: %s" % marker)
+            return
     await _capture("07_fight_opening.png")
 
     main_view._choose_fight_action("jab")
@@ -100,7 +111,7 @@ func _run() -> void:
     await process_frame
     await _capture("09_result.png")
 
-    print("visual-capture-v10-font: PASS")
+    print("visual-capture-v18-commercial: PASS")
     _cleanup_save_files()
     quit(0)
 
