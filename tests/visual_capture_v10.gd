@@ -152,7 +152,11 @@ func _run() -> void:
         main_view._render_phase()
         await _capture(fixture.file)
 
-    var stage := main_view.find_child("FightStage", true, false) as FightStage
+    var stages := main_view.find_children("*", "FightStage", true, false)
+    if stages.size() != 1:
+        _fail("expected exactly one FightStage for hurt/knockdown capture")
+        return
+    var stage := stages[0] as FightStage
     stage.telegraph_action = ""
     stage.player_pose = "hurt"
     stage.opponent_pose = "hurt"
