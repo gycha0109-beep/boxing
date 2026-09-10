@@ -1,0 +1,100 @@
+name: Assistant Visual Patch
+
+on:
+  push:
+    branches:
+      - feat/legacy-state-foundation-v1.2
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.event.head_commit.message == 'chore: run assistant visual patch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/legacy-state-foundation-v1.2
+          fetch-depth: 0
+
+      - name: Apply focused visual patch
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text(encoding="utf-8")
+              if old not in text:
+                  raise SystemExit(f"missing replacement target in {path}: {old[:80]!r}")
+              p.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          catalog = Path("scripts/ui/visual_asset_catalog.gd")
+          text = catalog.read_text(encoding="utf-8")
+          old = '''const IDENTITY_ATLAS := "res://assets/visual/v18/fighters/identity_atlas.png"\nstatic var _identity_cache: Dictionary = {}'''
+          new = '''const IDENTITY_ATLAS := "res://assets/visual/v18/fighters/identity_atlas.png"\nconst UNIQUE_IDENTITY_ROOT := "res://assets/visual/v18/fighters/opponents"\nstatic var _identity_cache: Dictionary = {}'''
+          if old not in text:
+              raise SystemExit("identity atlas anchor missing")
+          text = text.replace(old, new, 1)
+
+          pattern = r'''static func identity_portrait_texture\(is_player: bool, style_id: String = ""\) -> Texture2D:\n.*?\n(?=static func normalize_style)'''
+          replacement = '''static func identity_portrait_texture(is_player: bool, style_id: String = "") -> Texture2D:\n    var key := "portrait_%s_%s" % [str(is_player), style_id]\n    if _identity_cache.has(key): return _identity_cache[key]\n    var fighter := identity_fighter_texture(is_player, style_id)\n    var portrait := _identity_portrait_from_texture(fighter)\n    if portrait == null: return portrait_texture(is_player, style_id)\n    _identity_cache[key] = portrait\n    return portrait\n\nstatic func opponent_identity_path_for_name(opponent_name: String) -> String:\n    _load_opponents()\n    var meta: Dictionary = _opponent_cache.get(opponent_name, {})\n    var opponent_id := str(meta.get("id", "")).strip_edges()\n    if opponent_id.is_empty(): return ""\n    return "%s/%s.png" % [UNIQUE_IDENTITY_ROOT, opponent_id]\n\nstatic func has_unique_identity_for_name(opponent_name: String) -> bool:\n    var path := opponent_identity_path_for_name(opponent_name)\n    return not path.is_empty() and ResourceLoader.exists(path)\n\nstatic func identity_fighter_texture_for_name(opponent_name: String) -> Texture2D:\n    var key := "named_fighter_" + opponent_name\n    if _identity_cache.has(key): return _identity_cache[key]\n    var unique_path := opponent_identity_path_for_name(opponent_name)\n    var fighter: Texture2D = null\n    if not unique_path.is_empty() and ResourceLoader.exists(unique_path):\n        fighter = texture(unique_path)\n    if fighter == null:\n        fighter = identity_fighter_texture(false, opponent_visual_style_for_name(opponent_name))\n    _identity_cache[key] = fighter\n    return fighter\n\nstatic func identity_portrait_texture_for_name(opponent_name: String) -> Texture2D:\n    var key := "named_portrait_" + opponent_name\n    if _identity_cache.has(key): return _identity_cache[key]\n    var fighter := identity_fighter_texture_for_name(opponent_name)\n    var portrait := _identity_portrait_from_texture(fighter)\n    if portrait == null:\n        portrait = identity_portrait_texture(false, opponent_visual_style_for_name(opponent_name))\n    _identity_cache[key] = portrait\n    return portrait\n\nstatic func _identity_portrait_from_texture(fighter: Texture2D) -> Texture2D:\n    if fighter == null: return null\n    var portrait := AtlasTexture.new()\n    var region := Rect2()\n    if fighter is AtlasTexture:\n        var fighter_atlas := fighter as AtlasTexture\n        portrait.atlas = fighter_atlas.atlas\n        region = fighter_atlas.region\n    else:\n        portrait.atlas = fighter\n        var image := fighter.get_image()\n        var used := Rect2i(0, 0, fighter.get_width(), fighter.get_height())\n        if image != null:\n            var detected := image.get_used_rect()\n            if detected.size.x > 0 and detected.size.y > 0: used = detected\n        region = Rect2(Vector2(used.position), Vector2(used.size))\n    region.position.x += region.size.x * 0.12\n    region.size.x *= 0.78\n    region.size.y *= 0.46\n    portrait.region = region\n    return portrait\n\n'''
+          text, count = re.subn(pattern, replacement, text, count=1, flags=re.S)
+          if count != 1:
+              raise SystemExit(f"portrait function replacement count={count}")
+          catalog.write_text(text, encoding="utf-8")
+
+          main = Path("scripts/main_v18.gd")
+          text = main.read_text(encoding="utf-8")
+          pairs = [
+              ('return VisualAssetCatalog.identity_portrait_texture(false, _v17_visual_style(opponent))', 'return VisualAssetCatalog.identity_portrait_texture_for_name(str(opponent.get("name", "")))'),
+              ('portrait.custom_minimum_size = Vector2(0, 80)', 'portrait.custom_minimum_size = Vector2(0, 92)'),
+              ('portrait.custom_minimum_size = Vector2(122, 160)', 'portrait.custom_minimum_size = Vector2(128, 166)'),
+              ('portrait.custom_minimum_size = Vector2(36, 62)', 'portrait.custom_minimum_size = Vector2(42, 64)'),
+          ]
+          for old, new in pairs:
+              if old not in text:
+                  raise SystemExit(f"main_v18 target missing: {old}")
+              text = text.replace(old, new, 1)
+          main.write_text(text, encoding="utf-8")
+
+          stage = Path("scripts/ui/fight_stage.gd")
+          text = stage.read_text(encoding="utf-8")
+          pattern = r'''func _draw_fighter_asset_or_fallback\(center: Vector2, facing: float, is_player: bool, style_id: String, tint: Color, pose: String\) -> void:\n.*?\n(?=func _identity_height)'''
+          replacement = '''func _draw_fighter_asset_or_fallback(center: Vector2, facing: float, is_player: bool, style_id: String, tint: Color, pose: String) -> void:\n    var texture := VisualAssetCatalog.identity_fighter_texture(true, style_id) if is_player else VisualAssetCatalog.identity_fighter_texture_for_name(opponent_name)\n    if texture == null: _draw_fighter(center, facing, tint, pose); return\n    var source_rect := _texture_used_rect(texture)\n    if source_rect.size.x <= 0 or source_rect.size.y <= 0: _draw_fighter(center, facing, tint, pose); return\n    var target_height := _identity_height(is_player, style_id)\n    if pose == "down":\n        _draw_articulated_knockdown(texture, source_rect, center, facing, target_height)\n        return\n    var target_width := target_height * float(source_rect.size.x) / float(source_rect.size.y)\n    var destination_rect := Rect2(-target_width * 0.5, -target_height, target_width, target_height)\n    var angle := -facing * 0.06 * animation_progress if pose == "hurt" else 0.0\n    var bounds := Rect2(Vector2.ZERO, Vector2.ZERO)\n    for point in [destination_rect.position, Vector2(destination_rect.end.x, destination_rect.position.y), destination_rect.end, Vector2(destination_rect.position.x, destination_rect.end.y)]:\n        bounds = bounds.expand((point * Vector2(facing, 1.0)).rotated(angle))\n    var origin := Vector2(clampf(center.x, 8.0 - bounds.position.x, size.x - 8.0 - bounds.end.x), size.y - 18.0 - bounds.end.y)\n    for sole in [Vector2(-0.40, -0.005), Vector2(0.36, -0.025)]:\n        var contact := origin + (Vector2(sole.x * target_width * facing, sole.y * target_height)).rotated(angle)\n        draw_set_transform(contact, 0, Vector2(1, 0.20))\n        draw_circle(Vector2.ZERO, target_width * 0.105, Color(0, 0, 0, 0.42))\n    draw_set_transform(origin, angle, Vector2(facing, 1.0))\n    draw_texture_rect_region(texture, destination_rect, Rect2(Vector2(source_rect.position), Vector2(source_rect.size)), Color.WHITE, false, true)\n    draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)\n\nfunc _draw_articulated_knockdown(texture: Texture2D, source_rect: Rect2i, center: Vector2, facing: float, standing_height: float) -> void:\n    var split_y := clampi(int(round(source_rect.size.y * 0.58)), 1, source_rect.size.y - 1)\n    var upper_source := Rect2(Vector2(source_rect.position), Vector2(source_rect.size.x, split_y))\n    var lower_source := Rect2(Vector2(source_rect.position.x, source_rect.position.y + split_y), Vector2(source_rect.size.x, source_rect.size.y - split_y))\n    var total_length := minf(size.x * 0.44, standing_height * 0.78)\n    var upper_length := total_length * 0.60\n    var lower_length := total_length * 0.46\n    var upper_width := maxf(34.0, upper_length * upper_source.size.x / maxf(1.0, upper_source.size.y))\n    var lower_width := maxf(30.0, lower_length * lower_source.size.x / maxf(1.0, lower_source.size.y))\n    var upper_rect := Rect2(-upper_width * 0.5, -upper_length, upper_width, upper_length)\n    var lower_rect := Rect2(-lower_width * 0.5, 0.0, lower_width, lower_length)\n    var upper_angle := -facing * PI * 0.40\n    var lower_angle := -facing * PI * 0.20\n    var bounds := Rect2(Vector2.ZERO, Vector2.ZERO)\n    for point in [upper_rect.position, Vector2(upper_rect.end.x, upper_rect.position.y), upper_rect.end, Vector2(upper_rect.position.x, upper_rect.end.y)]:\n        bounds = bounds.expand((point * Vector2(facing, 1.0)).rotated(upper_angle))\n    for point in [lower_rect.position, Vector2(lower_rect.end.x, lower_rect.position.y), lower_rect.end, Vector2(lower_rect.position.x, lower_rect.end.y)]:\n        bounds = bounds.expand((point * Vector2(facing, 1.0)).rotated(lower_angle))\n    var hip := Vector2(clampf(center.x, 10.0 - bounds.position.x, size.x - 10.0 - bounds.end.x), size.y - 18.0 - bounds.end.y)\n    draw_set_transform(Vector2(hip.x + bounds.get_center().x, size.y - 18.5), 0.0, Vector2(1.0, 0.12))\n    draw_circle(Vector2.ZERO, total_length * 0.40, Color(0, 0, 0, 0.30))\n    draw_set_transform(hip, upper_angle, Vector2(facing, 1.0))\n    draw_texture_rect_region(texture, upper_rect, upper_source, Color.WHITE, false, true)\n    draw_set_transform(hip, lower_angle, Vector2(facing, 1.0))\n    draw_texture_rect_region(texture, lower_rect, lower_source, Color.WHITE, false, true)\n    draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)\n\n'''
+          text, count = re.subn(pattern, replacement, text, count=1, flags=re.S)
+          if count != 1:
+              raise SystemExit(f"fight stage replacement count={count}")
+          old = 'var texture := VisualAssetCatalog.identity_fighter_texture(is_player, style_id)\n    if texture == null: return COMMERCIAL_STAND_HEIGHT'
+          new = 'var texture := VisualAssetCatalog.identity_fighter_texture(true, style_id) if is_player else VisualAssetCatalog.identity_fighter_texture_for_name(opponent_name)\n    if texture == null: return COMMERCIAL_STAND_HEIGHT'
+          if old not in text:
+              raise SystemExit("identity height target missing")
+          text = text.replace(old, new, 1)
+          stage.write_text(text, encoding="utf-8")
+
+          smoke = Path("tests/v07_visual_integration_smoke.gd")
+          text = smoke.read_text(encoding="utf-8")
+          anchor = '''    _check(VisualAssetCatalog.opponent_visual_style_for_name("에번 브룩스") == "swarmer", "Black opponent fight set mapping mismatch")\n'''
+          addition = anchor + '''    _check(VisualAssetCatalog.opponent_identity_path_for_name("박태호").ends_with("fighters/opponents/park_tae-ho.png"), "named opponent identity path is not stable")\n    _check(VisualAssetCatalog.identity_fighter_texture_for_name("박태호") != null, "named opponent fighter fallback unavailable")\n    _check(VisualAssetCatalog.identity_portrait_texture_for_name("박태호") != null, "named opponent portrait fallback unavailable")\n'''
+          if anchor not in text:
+              raise SystemExit("v07 smoke anchor missing")
+          smoke.write_text(text.replace(anchor, addition, 1), encoding="utf-8")
+          PY
+
+      - name: Diff sanity
+        run: git diff --check
+
+      - name: Deterministic project sanity
+        run: python3 tools/project_sanity.py
+
+      - name: Commit focused visual pass
+        shell: bash
+        run: |
+          git config user.name "OpenAI Worker"
+          git config user.email "noreply@openai.com"
+          git add scripts/ui/visual_asset_catalog.gd scripts/main_v18.gd scripts/ui/fight_stage.gd tests/v07_visual_integration_smoke.gd
+          git commit -m "refactor(visual): add named identity slots and articulated knockdowns"
+          git push origin HEAD:feat/legacy-state-foundation-v1.2
