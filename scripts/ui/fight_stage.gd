@@ -139,7 +139,7 @@ func _draw_procedural_arena(w: float, h: float) -> void:
     draw_line(Vector2(w - 14.0, h * 0.22), Vector2(w - 14.0, h * 0.88), Color(0.75, 0.76, 0.80), 4.0)
 
 func _draw_fighter_asset_or_fallback(center: Vector2, facing: float, is_player: bool, style_id: String, tint: Color, pose: String) -> void:
-    var texture := VisualAssetCatalog.identity_fighter_texture(is_player, style_id)
+    var texture := VisualAssetCatalog.identity_fighter_texture(true, style_id) if is_player else VisualAssetCatalog.identity_fighter_texture_for_name(opponent_name)
     if texture == null: _draw_fighter(center, facing, tint, pose); return
     var source_rect := _texture_used_rect(texture)
     if source_rect.size.x <= 0 or source_rect.size.y <= 0: _draw_fighter(center, facing, tint, pose); return
@@ -208,7 +208,7 @@ func _draw_articulated_knockdown(texture: Texture2D, source_rect: Rect2i, center
     draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 func _identity_height(is_player: bool, style_id: String) -> float:
-    var texture := VisualAssetCatalog.identity_fighter_texture(is_player, style_id)
+    var texture := VisualAssetCatalog.identity_fighter_texture(true, style_id) if is_player else VisualAssetCatalog.identity_fighter_texture_for_name(opponent_name)
     if texture == null: return COMMERCIAL_STAND_HEIGHT
     var source := _texture_used_rect(texture)
     return minf(size.y - 42.0, (size.x * 0.42 - 24.0) * float(source.size.y) / maxf(1.0, float(source.size.x)))
