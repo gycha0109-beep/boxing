@@ -21,10 +21,10 @@ func _run() -> void:
     _check(VisualAssetCatalog.identity_fighter_texture_for_name("박태호") != null, "named opponent fighter must load")
     _check(VisualAssetCatalog.identity_portrait_texture_for_name("박태호") != null, "named opponent portrait must load")
     _check(VisualAssetCatalog.opponent_visual_profile_for_name("에번 브룩스") == "black", "Evan Brooks visual identity must be Black")
-    _check(VisualAssetCatalog.opponent_portrait_path_for_name("에번 브룩스").ends_with("portraits/portrait_swarmer_a.png"), "Black opponent portrait mapping mismatch")
+    _check(VisualAssetCatalog.opponent_portrait_path_for_name("에번 브룩스").ends_with("fighters/opponents/evan_brooks.webp"), "Black opponent portrait must use Evan Brooks unique identity")
     _check(VisualAssetCatalog.opponent_visual_style_for_name("에번 브룩스") == "swarmer", "Black opponent fight set mapping mismatch")
 
-    var unique_names := ["한도윤", "서민재", "장우진", "박태호", "이준석", "배성호", "김성민", "최현우", "임태건", "강무진", "윤재혁", "나카무라 렌"]
+    var unique_names := ["한도윤", "서민재", "장우진", "박태호", "이준석", "배성호", "김성민", "최현우", "임태건", "강무진", "윤재혁", "나카무라 렌", "미겔 산토스", "에번 브룩스", "마테오 실바", "빅토르 코즐로프", "디에고 레예스"]
     for index in range(unique_names.size()):
         var opponent_name: String = unique_names[index]
         var identity_path := VisualAssetCatalog.opponent_identity_path_for_name(opponent_name)
