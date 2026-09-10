@@ -6,6 +6,7 @@ on:
       - feat/legacy-state-foundation-v1.2
     paths:
       - .github/workflows/android-qa-playtest.yml
+      - .github/workflows/visual-capture-v10.yml
       - project.godot
       - export_presets.cfg
       - scenes/**
