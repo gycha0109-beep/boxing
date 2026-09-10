@@ -18,12 +18,20 @@ func _run() -> void:
     _check(VisualAssetCatalog.opponent_portrait_path_for_name("박태호").ends_with("fighters/opponents/slugger/op_slugger_a_idle.png"), "Korean opponent portrait must match the East-Asian fight visual rather than the player portrait")
     _check(VisualAssetCatalog.opponent_portrait_path_for_name("박태호") != VisualAssetCatalog.portrait_path(true), "Korean opponent portrait must remain distinct from the player portrait")
     _check(VisualAssetCatalog.opponent_visual_style_for_name("박태호") == "slugger", "Korean opponent fight set must use the stable East-Asian pose set")
-    _check(VisualAssetCatalog.opponent_identity_path_for_name("박태호").ends_with("fighters/opponents/park_tae-ho.png"), "per-opponent identity slot must use the stable roster id")
+    _check(VisualAssetCatalog.opponent_identity_path_for_name("박태호").ends_with("fighters/opponents/park_tae-ho.webp"), "per-opponent identity slot must use the stable roster id")
     _check(VisualAssetCatalog.identity_fighter_texture_for_name("박태호") != null, "named opponent fighter must have a validated family fallback")
     _check(VisualAssetCatalog.identity_portrait_texture_for_name("박태호") != null, "named opponent portrait must have a validated family fallback")
     _check(VisualAssetCatalog.opponent_visual_profile_for_name("에번 브룩스") == "black", "Evan Brooks visual identity must be Black")
     _check(VisualAssetCatalog.opponent_portrait_path_for_name("에번 브룩스").ends_with("portraits/portrait_swarmer_a.png"), "Black opponent portrait mapping mismatch")
     _check(VisualAssetCatalog.opponent_visual_style_for_name("에번 브룩스") == "swarmer", "Black opponent fight set mapping mismatch")
+
+    for opening_name in ["한도윤", "서민재", "장우진"]:
+        _check(VisualAssetCatalog.has_unique_identity_for_name(opening_name), "opening roster identity asset missing: " + opening_name)
+        _check(VisualAssetCatalog.opponent_identity_path_for_name(opening_name).ends_with(".webp"), "opening roster identity must be WebP: " + opening_name)
+        _check(VisualAssetCatalog.identity_fighter_texture_for_name(opening_name) != null, "opening roster fighter failed to load: " + opening_name)
+        _check(VisualAssetCatalog.identity_portrait_texture_for_name(opening_name) != null, "opening roster portrait failed to load: " + opening_name)
+    _check(VisualAssetCatalog.opponent_identity_path_for_name("한도윤") != VisualAssetCatalog.opponent_identity_path_for_name("서민재"), "opening roster identities must not share one path")
+    _check(VisualAssetCatalog.opponent_identity_path_for_name("서민재") != VisualAssetCatalog.opponent_identity_path_for_name("장우진"), "opening roster identities must not share one path")
 
     var identity_regions: Array[Rect2] = []
     for style in ["", "slugger", "swarmer", "outboxer", "counter"]:
