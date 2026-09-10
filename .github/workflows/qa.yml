@@ -106,6 +106,8 @@ jobs:
         run: timeout 60s Godot_v${GODOT_VERSION}_linux.x86_64 --headless --path . --script res://tests/v06_device_polish_smoke.gd
       - name: Verify v0.7 commercial visual mapping and procedural fallback
         run: timeout 60s Godot_v${GODOT_VERSION}_linux.x86_64 --headless --path . --script res://tests/v07_visual_integration_smoke.gd
+      - name: Verify named roster identity coverage policy
+        run: timeout 60s Godot_v${GODOT_VERSION}_linux.x86_64 --headless --path . --script res://tests/roster_identity_coverage_smoke.gd
       - name: Verify v0.8 first-five-minutes release flow and BGM transitions
         run: timeout 60s Godot_v${GODOT_VERSION}_linux.x86_64 --headless --path . --script res://tests/v08_first_five_minutes_smoke.gd
       - name: Verify v1.0 bundled Korean release font

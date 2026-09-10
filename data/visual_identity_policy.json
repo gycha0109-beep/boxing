@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "unique_ids": [
+    "han_do-yun",
+    "seo_min-jae",
+    "jang_woo-jin",
+    "park_tae-ho",
+    "lee_jun-seok",
+    "bae_seong-ho",
+    "kim_seong-min",
+    "choi_hyeon-woo",
+    "lim_tae-gun",
+    "kang_moo-jin",
+    "yoon_jae-hyeok",
+    "ren_nakamura"
+  ],
+  "fallback_ids": [
+    "miguel_santos",
+    "evan_brooks",
+    "mateo_silva",
+    "viktor_kozlov",
+    "diego_reyes"
+  ]
+}
