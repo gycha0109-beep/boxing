@@ -40,6 +40,7 @@ static var _texture_cache: Dictionary = {}
 static var _opponent_cache: Dictionary = {}
 static var _opponents_loaded: bool = false
 const IDENTITY_ATLAS := "res://assets/visual/v18/fighters/identity_atlas.png"
+const UNIQUE_IDENTITY_ROOT := "res://assets/visual/v18/fighters/opponents"
 static var _identity_cache: Dictionary = {}
 
 # One source per visual family, shared by portrait, weigh-in and live ring.
@@ -71,16 +72,68 @@ static func identity_fighter_texture(is_player: bool, style_id: String = "") -> 
 static func identity_portrait_texture(is_player: bool, style_id: String = "") -> Texture2D:
     var key := "portrait_%s_%s" % [str(is_player), style_id]
     if _identity_cache.has(key): return _identity_cache[key]
-    var fighter := identity_fighter_texture(is_player, style_id) as AtlasTexture
-    if fighter == null: return portrait_texture(is_player, style_id)
-    var portrait := AtlasTexture.new()
-    portrait.atlas = fighter.atlas
-    var region := fighter.region
-    region.position.x += region.size.x * 0.15
-    region.size.x *= 0.75
-    region.size.y *= 0.43
-    portrait.region = region
+    var fighter := identity_fighter_texture(is_player, style_id)
+    var portrait := _identity_portrait_from_texture(fighter)
+    if portrait == null: return portrait_texture(is_player, style_id)
     _identity_cache[key] = portrait
+    return portrait
+
+# A bespoke full-body opponent image can now be dropped at
+# assets/visual/v18/fighters/opponents/<opponent-id>.png without changing UI code.
+# Until that asset exists, the validated shared visual-family atlas remains the fallback.
+static func opponent_identity_path_for_name(opponent_name: String) -> String:
+    _load_opponents()
+    var meta: Dictionary = _opponent_cache.get(opponent_name, {})
+    var opponent_id := str(meta.get("id", "")).strip_edges()
+    if opponent_id.is_empty(): return ""
+    return "%s/%s.png" % [UNIQUE_IDENTITY_ROOT, opponent_id]
+
+static func has_unique_identity_for_name(opponent_name: String) -> bool:
+    var path := opponent_identity_path_for_name(opponent_name)
+    return not path.is_empty() and ResourceLoader.exists(path)
+
+static func identity_fighter_texture_for_name(opponent_name: String) -> Texture2D:
+    var key := "named_fighter_" + opponent_name
+    if _identity_cache.has(key): return _identity_cache[key]
+    var unique_path := opponent_identity_path_for_name(opponent_name)
+    var fighter: Texture2D = null
+    if not unique_path.is_empty() and ResourceLoader.exists(unique_path):
+        fighter = texture(unique_path)
+    if fighter == null:
+        fighter = identity_fighter_texture(false, opponent_visual_style_for_name(opponent_name))
+    _identity_cache[key] = fighter
+    return fighter
+
+static func identity_portrait_texture_for_name(opponent_name: String) -> Texture2D:
+    var key := "named_portrait_" + opponent_name
+    if _identity_cache.has(key): return _identity_cache[key]
+    var fighter := identity_fighter_texture_for_name(opponent_name)
+    var portrait := _identity_portrait_from_texture(fighter)
+    if portrait == null:
+        portrait = identity_portrait_texture(false, opponent_visual_style_for_name(opponent_name))
+    _identity_cache[key] = portrait
+    return portrait
+
+static func _identity_portrait_from_texture(fighter: Texture2D) -> Texture2D:
+    if fighter == null: return null
+    var portrait := AtlasTexture.new()
+    var region := Rect2()
+    if fighter is AtlasTexture:
+        var fighter_atlas := fighter as AtlasTexture
+        portrait.atlas = fighter_atlas.atlas
+        region = fighter_atlas.region
+    else:
+        portrait.atlas = fighter
+        var image := fighter.get_image()
+        var used := Rect2i(0, 0, fighter.get_width(), fighter.get_height())
+        if image != null:
+            var detected := image.get_used_rect()
+            if detected.size.x > 0 and detected.size.y > 0: used = detected
+        region = Rect2(Vector2(used.position), Vector2(used.size))
+    region.position.x += region.size.x * 0.12
+    region.size.x *= 0.78
+    region.size.y *= 0.46
+    portrait.region = region
     return portrait
 
 static func normalize_style(style_id: String) -> String:
@@ -114,6 +167,9 @@ static func opponent_country_badge(opponent_name: String) -> String:
     return str(COUNTRY_BY_NAME.get(opponent_name, "INT"))
 
 static func opponent_portrait_path_for_name(opponent_name: String) -> String:
+    var unique_path := opponent_identity_path_for_name(opponent_name)
+    if not unique_path.is_empty() and ResourceLoader.exists(unique_path):
+        return unique_path
     var profile: String = opponent_visual_profile_for_name(opponent_name)
     if profile == "korean":
         # Use the exact visual family that FightStage will render. This keeps the
@@ -124,6 +180,8 @@ static func opponent_portrait_path_for_name(opponent_name: String) -> String:
     return portrait_path(false, portrait_style)
 
 static func opponent_portrait_texture_for_name(opponent_name: String) -> Texture2D:
+    if has_unique_identity_for_name(opponent_name):
+        return identity_portrait_texture_for_name(opponent_name)
     return texture(opponent_portrait_path_for_name(opponent_name))
 
 static func arena_path(title_fight: bool) -> String:
