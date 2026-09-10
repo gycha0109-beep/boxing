@@ -64,7 +64,7 @@ func _v18_training_texture(action_id: String) -> Texture2D:
         _: return _v18_atlas(atlas, Rect2(0, 0, 260, 94))
 
 func _v18_opponent_photo(opponent: Dictionary) -> Texture2D:
-    return VisualAssetCatalog.identity_portrait_texture(false, _v17_visual_style(opponent))
+    return VisualAssetCatalog.identity_portrait_texture_for_name(str(opponent.get("name", "")))
 
 func _v17_opponent_name(opponent: Dictionary) -> String:
     return str(opponent.get("name", "OPPONENT"))
