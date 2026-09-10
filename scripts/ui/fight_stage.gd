@@ -183,8 +183,10 @@ func _draw_articulated_knockdown(texture: Texture2D, source_rect: Rect2i, center
     var lower_width := lower_length * lower_source.size.x / maxf(1.0, lower_source.size.y)
     var upper_rect := Rect2(-upper_width * 0.50, -upper_length + 3.0, upper_width, upper_length)
     var lower_rect := Rect2(-lower_width * 0.48, -2.0, lower_width, lower_length)
-    var upper_angle := -facing * PI * 0.38
-    var lower_angle := -facing * PI * 0.17
+    # Torso is nearly horizontal on the canvas; legs remain bent rather than
+    # pointing down like a second standing pose.
+    var upper_angle := -facing * PI * 0.47
+    var lower_angle := -facing * PI * 0.34
 
     var bounds := Rect2(Vector2.ZERO, Vector2.ZERO)
     for point in [upper_rect.position, Vector2(upper_rect.end.x, upper_rect.position.y), upper_rect.end, Vector2(upper_rect.position.x, upper_rect.end.y)]:
