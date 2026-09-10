@@ -79,14 +79,14 @@ static func identity_portrait_texture(is_player: bool, style_id: String = "") ->
     return portrait
 
 # Drop a bespoke transparent full-body opponent image at
-# assets/visual/v18/fighters/opponents/<opponent-id>.png. Portrait, weigh-in,
-# HUD and live ring can then resolve the exact same source by opponent name.
+# assets/visual/v18/fighters/opponents/<opponent-id>.webp. Portrait, weigh-in,
+# HUD and live ring then resolve the exact same source by opponent name.
 static func opponent_identity_path_for_name(opponent_name: String) -> String:
     _load_opponents()
     var meta: Dictionary = _opponent_cache.get(opponent_name, {})
     var opponent_id := str(meta.get("id", "")).strip_edges()
     if opponent_id.is_empty(): return ""
-    return "%s/%s.png" % [UNIQUE_IDENTITY_ROOT, opponent_id]
+    return "%s/%s.webp" % [UNIQUE_IDENTITY_ROOT, opponent_id]
 
 static func has_unique_identity_for_name(opponent_name: String) -> bool:
     var path := opponent_identity_path_for_name(opponent_name)
