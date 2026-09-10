@@ -69,6 +69,32 @@ func _render_tactical_preparation() -> void:
     back.pressed.connect(Callable(self, "_return_from_tactical_to_offers"))
     body.add_child(back)
 
+func _render_offers() -> void:
+    _v17_offer_hero()
+    var grid := _v17_grid(2)
+    var offers: Array = GameState.get_fight_offers(opponents)
+    for index in range(offers.size()):
+        var opponent: Dictionary = offers[index]
+        var card := _v17_panel(grid, index == 0)
+        card.name = "OpponentCard_" + str(opponent.get("id", index))
+        var portrait := TextureRect.new()
+        portrait.texture = _v17_opponent_texture(opponent)
+        portrait.custom_minimum_size = Vector2(0, 80)
+        portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+        portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+        card.add_child(portrait)
+        _v17_title(card, "%s %s" % [_v17_opponent_name(opponent), _v17_flag(_v17_country(opponent))], 16)
+        _v17_copy(card, _style_label(str(opponent.get("style", ""))), true)
+        var stats: Dictionary = opponent.get("stats", {})
+        _v17_copy(card, "파워 %d · 스피드 %d\n테크닉 %d · 수비 %d · 체력 %d" % [int(stats.get("power", 0)), int(stats.get("speed", 0)), int(stats.get("technique", 0)), int(stats.get("defense", 0)), int(stats.get("conditioning", 0))], false)
+        var purse := _v17_title(card, "%s원" % _v17_money(int(opponent.get("purse", 0))), 18)
+        purse.add_theme_color_override("font_color", V17_GOLD)
+        _v17_copy(card, "승리 +%dpt · 패배 -%dpt" % [int(opponent.get("career_points_win", 0)), abs(int(opponent.get("career_points_loss", 0)))], true)
+        var choose := _v17_gold_button("도전 수락  ›")
+        choose.pressed.connect(Callable(self, "_choose_opponent").bind(opponent))
+        card.add_child(choose)
+    _v17_career_progress_strip()
+
 func _configure_mobile_scroll() -> void:
     if not is_instance_valid(body):
         return
@@ -190,13 +216,28 @@ func _v17_training_card(parent: GridContainer, action: Dictionary) -> void:
     _v17_title(card, _v17_training_name(action), 17)
     var description := _v17_copy(card, _v17_training_description(str(action.id)), true)
     description.custom_minimum_size.y = 34
+    description.add_theme_font_size_override("font_size", 11)
     var meta := _v17_copy(card, "%s원 · 부상 %.1f%%" % [_v17_money(int(action.cost)), float(action.risk) * 100], false)
     meta.add_theme_font_size_override("font_size", 11)
     _v17_effect_grid(card, action.get("effects", {}))
+    var space := Control.new()
+    space.size_flags_vertical = Control.SIZE_EXPAND_FILL
+    card.add_child(space)
     var choose := _v17_gold_button("캠프 선택  ›" if affordable else "자금 부족")
     choose.disabled = not affordable
     choose.pressed.connect(Callable(self, "_choose_camp_action").bind(action))
     card.add_child(choose)
+
+func _v17_fight_action(parent: GridContainer, action_id: String, selected_plan: Dictionary) -> void:
+    super._v17_fight_action(parent, action_id, selected_plan)
+    var button := parent.get_child(parent.get_child_count() - 1) as Button
+    var icon_id: String = {"jab": "speed", "power": "power", "body": "conditioning", "guard": "defense", "counter": "technique"}.get(action_id, "power")
+    # Existing licensed icon pack; do not add an extra gameplay action to fill the grid.
+    var path := "res://assets/visual/v0.7/icons/icon_%s.png" % icon_id
+    if ResourceLoader.exists(path):
+        button.icon = load(path)
+        button.expand_icon = true
+        button.add_theme_constant_override("icon_max_width", 24)
 
 func _v17_panel(parent: Container, highlighted: bool) -> VBoxContainer:
     var panel := super._v17_panel(parent, highlighted)
@@ -238,15 +279,13 @@ func _v17_gold_button(text_value: String) -> Button:
     var button := super._v17_gold_button(text_value)
     button.custom_minimum_size.y = 44
     button.add_theme_font_override("font", _v18_font(700))
-    var gradient := Gradient.new()
-    gradient.set_color(0, Color("f2c875"))
-    gradient.set_color(1, Color("a57632"))
-    var texture := GradientTexture2D.new()
-    texture.gradient = gradient
-    texture.fill_from = Vector2(0.5, 0)
-    texture.fill_to = Vector2(0.5, 1)
+    var svg := '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="56"><defs><linearGradient id="gold" x2="0" y2="1"><stop stop-color="#f2c875"/><stop offset="1" stop-color="#a57632"/></linearGradient></defs><rect x="1" y="1" width="62" height="54" rx="9" fill="url(#gold)" stroke="#edc77e"/></svg>'
+    var image := Image.new()
+    image.load_svg_from_string(svg)
     var style := StyleBoxTexture.new()
-    style.texture = texture
+    style.texture = ImageTexture.create_from_image(image)
+    for side in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
+        style.set_texture_margin(side, 12)
     style.content_margin_left = 8
     style.content_margin_right = 8
     style.content_margin_top = 8

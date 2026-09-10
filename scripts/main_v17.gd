@@ -163,7 +163,7 @@ func _render_condition_preparation() -> void:
         SaveService.save_game(GameState.state)
         _render_phase()
         return
-    _v17_matchup_strip("경기 주간 준비", "최상의 컨디션으로 승리를 준비하세요.")
+    _v17_matchup_strip("경기 주간 준비", "추가 영구 성장 없이, 경기 당일 컨디션을 준비하세요.")
     _v17_section_heading("이번 주, 어떤 준비를 하시겠습니까?", "지금의 준비가 링 위의 차이를 만듭니다.")
     var grid := _v17_grid(2)
     for prep_value in GameState.condition_preparations():

@@ -94,12 +94,21 @@ func _run() -> void:
         _check(str(music_node.get("current_mode")) == "career", "camp did not switch to career BGM")
     var camp_text := "\n".join(_collect_text(main_view))
     _check(camp_text.contains("훈련 캠프 선택"), "camp missing v18 training framing")
-    _check(camp_text.contains("FIGHTER STATS"), "camp missing compact five-stat panel")
-    _check(camp_text.contains("CAREER LADDER"), "first camp missing career ladder framing")
     _check(camp_text.contains("장비 · 체육관 투자"), "first camp missing optional equipment investment entry")
     _check(_grid_count(main_view) >= 1, "training choices are not grouped into a scan-friendly grid")
     _check(_button_count_with_text(main_view, "캠프 선택") >= 4, "training grid does not expose clear camp CTAs")
-    _check(_button_count_with_text(main_view, "?") >= 5, "fighter stats do not expose per-stat help buttons")
+    main_view._v17_open_overlay("profile")
+    await process_frame
+    _check("\n".join(_collect_text(main_view)).contains("능력치"), "profile missing five-stat panel")
+    for stat_id in ["power", "speed", "technique", "defense", "conditioning"]:
+        var help := main_view.find_child("StatHelp_" + stat_id, true, false) as Button
+        _check(is_instance_valid(help), "profile missing help for " + stat_id)
+        if is_instance_valid(help):
+            help.pressed.emit()
+            await process_frame
+            _check(main_view.stat_help_dialog.visible, "stat help did not open for " + stat_id)
+            _check(main_view.stat_help_dialog.dialog_text.contains(game_state.stat_help(stat_id)), "stat help content mismatch for " + stat_id)
+            main_view.stat_help_dialog.hide()
     main_view._show_stat_help("speed")
     await process_frame
     var help_dialog: AcceptDialog = main_view.get_node_or_null("StatHelpDialog") as AcceptDialog
@@ -109,6 +118,8 @@ func _run() -> void:
         _check(not help_dialog.dialog_text.strip_edges().is_empty(), "stat help dialog has no explanation")
         help_dialog.hide()
 
+    main_view._v17_open_match()
+    await process_frame
     main_view._choose_camp_action(camps[0])
     await process_frame
     _check(str(game_state.state.phase) == "fight_offer", "camp choice did not enter fight offers")

@@ -76,6 +76,8 @@ func _v17_opponent_texture(opponent: Dictionary) -> Texture2D:
     return super._v17_opponent_texture(opponent)
 
 func _v17_player_hero(section_title: String, quote: String) -> void:
+    if section_title == "경기 결과":
+        _v17_section_heading(section_title, "")
     var hero := _v17_panel(body, false)
     var row := HBoxContainer.new()
     row.add_theme_constant_override("separation", 12)
@@ -110,11 +112,11 @@ func _v17_offer_hero() -> void:
     left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     row.add_child(left)
     _v17_eyebrow(left, "경기")
-    _v17_title(left, "다음 상대를\n선택하세요", 24)
+    _v17_title(left, "다음 상대를 선택하세요", 24)
     _v17_copy(left, "더 강한 상대와 싸울수록, 전설에 가까워집니다.", true)
     var portrait := TextureRect.new()
     portrait.texture = _v18_player_texture()
-    portrait.custom_minimum_size = Vector2(124, 145)
+    portrait.custom_minimum_size = Vector2(110, 100)
     portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
     portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
     portrait.clip_contents = true

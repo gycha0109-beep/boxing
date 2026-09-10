@@ -100,22 +100,19 @@ func _draw() -> void:
         var source_size := arena_texture.get_size()
         var scale_factor := maxf(w / source_size.x, h / source_size.y)
         var crop_size := Vector2(w, h) / scale_factor
-        var crop_origin := Vector2((source_size.x - crop_size.x) * 0.5, maxf(0, source_size.y - crop_size.y - 60.0))
+        # Exclude the title arena's foreground apron: boots belong on the canvas.
+        var bottom_inset := 180.0 if title_fight else 60.0
+        var crop_origin := Vector2((source_size.x - crop_size.x) * 0.5, maxf(0, source_size.y - crop_size.y - bottom_inset))
         draw_texture_rect_region(arena_texture, Rect2(0, 0, w, h), Rect2(crop_origin, crop_size), Color(0.65, 0.67, 0.72, 1.0))
     else: _draw_procedural_arena(w, h)
     var player_x: float = COMMERCIAL_PLAYER_X if commercial_assets_active else 0.32
     var opponent_x: float = COMMERCIAL_OPPONENT_X if commercial_assets_active else 0.68
     var player_center := Vector2(w * player_x, h - 18.0) + _fighter_motion(true)
     var opponent_center := Vector2(w * opponent_x, h - 18.0) + _fighter_motion(false)
-    for feet in [player_center, opponent_center]:
-        draw_set_transform(feet, 0, Vector2(1, 0.18))
-        draw_circle(Vector2.ZERO, 52, Color(0, 0, 0, 0.45))
-    draw_set_transform(Vector2.ZERO)
     _draw_fighter_asset_or_fallback(player_center, 1.0, true, "", PLAYER, player_pose)
     _draw_fighter_asset_or_fallback(opponent_center, -1.0, false, opponent_style, OPPONENT, opponent_pose)
     if not telegraph_action.is_empty():
-        var read_offset := 116.0
-        if commercial_assets_active: read_offset = max(126.0, _commercial_pose_height(opponent_pose) - 38.0)
+        var read_offset := _identity_height(false, opponent_style) + 12.0
         var read_center := opponent_center + Vector2(0.0, -read_offset)
         var pulse: float = 1.0 + 0.12 * sin(Time.get_ticks_msec() / 140.0)
         draw_arc(read_center, 14.0 * pulse, 0.0, TAU, 28, READ, 2.0)
@@ -146,19 +143,41 @@ func _draw_fighter_asset_or_fallback(center: Vector2, facing: float, is_player: 
     if texture == null: _draw_fighter(center, facing, tint, pose); return
     var source_rect := _texture_used_rect(texture)
     if source_rect.size.x <= 0 or source_rect.size.y <= 0: _draw_fighter(center, facing, tint, pose); return
-    var target_height := minf(size.y - 42.0, (size.x * 0.42 - 24.0) * float(source_rect.size.y) / float(source_rect.size.x))
+    var target_height := _identity_height(is_player, style_id)
     var target_width := target_height * float(source_rect.size.x) / float(source_rect.size.y)
     var destination_rect := Rect2(-target_width * 0.5, -target_height, target_width, target_height)
     # Keep the same face during exchanges; motion and impact communicate action.
     # A knockdown rotates the intact body into the ring instead of swapping people.
     var angle := -facing * PI * 0.42 if pose == "down" else (-facing * 0.06 * animation_progress if pose == "hurt" else 0.0)
     if pose == "down":
-        target_height *= 0.48
-        target_width *= 0.48
+        var fit := minf(1.0, size.x * 0.44 / target_height)
+        target_height *= fit
+        target_width *= fit
         destination_rect = Rect2(-target_width * 0.5, -target_height, target_width, target_height)
-    draw_set_transform(center, angle, Vector2(facing, 1.0))
+    # Anchor the transformed body to the canvas, including hurt/knockdown poses.
+    # Never rotate around an ankle and leave the other boot below the ring floor.
+    var bounds := Rect2(Vector2.ZERO, Vector2.ZERO)
+    for point in [destination_rect.position, Vector2(destination_rect.end.x, destination_rect.position.y), destination_rect.end, Vector2(destination_rect.position.x, destination_rect.end.y)]:
+        bounds = bounds.expand((point * Vector2(facing, 1.0)).rotated(angle))
+    var origin := Vector2(clampf(center.x, 8.0 - bounds.position.x, size.x - 8.0 - bounds.end.x), size.y - 18.0 - bounds.end.y)
+    if pose == "down":
+        draw_set_transform(Vector2(origin.x + bounds.get_center().x, size.y - 19.0), 0, Vector2(1, 0.10))
+        draw_circle(Vector2.ZERO, bounds.size.x * 0.46, Color(0, 0, 0, 0.28))
+    else:
+        # Sole positions in the shared atlas; the forward boot sits slightly higher.
+        for sole in [Vector2(-0.40, -0.005), Vector2(0.36, -0.025)]:
+            var contact := origin + (Vector2(sole.x * target_width * facing, sole.y * target_height)).rotated(angle)
+            draw_set_transform(contact, 0, Vector2(1, 0.20))
+            draw_circle(Vector2.ZERO, target_width * 0.105, Color(0, 0, 0, 0.42))
+    draw_set_transform(origin, angle, Vector2(facing, 1.0))
     draw_texture_rect_region(texture, destination_rect, Rect2(Vector2(source_rect.position), Vector2(source_rect.size)), Color.WHITE, false, true)
     draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+func _identity_height(is_player: bool, style_id: String) -> float:
+    var texture := VisualAssetCatalog.identity_fighter_texture(is_player, style_id)
+    if texture == null: return COMMERCIAL_STAND_HEIGHT
+    var source := _texture_used_rect(texture)
+    return minf(size.y - 42.0, (size.x * 0.42 - 24.0) * float(source.size.y) / maxf(1.0, float(source.size.x)))
 
 func _texture_used_rect(texture: Texture2D) -> Rect2i:
     var key := texture.resource_path
@@ -178,7 +197,8 @@ func _commercial_pose_height(pose: String) -> float:
         "body", "hurt": return COMMERCIAL_COMPACT_HEIGHT
         _: return COMMERCIAL_STAND_HEIGHT
 func _commercial_impact_center(center: Vector2, pose: String, action_id: String, horizontal_sign: float) -> Vector2:
-    var visual_height := _commercial_pose_height(pose)
+    var visual_height := _identity_height(horizontal_sign > 0.0, "" if horizontal_sign > 0.0 else opponent_style)
+    if pose == "down": visual_height *= 0.45
     return center + Vector2(14.0 * horizontal_sign, -visual_height * (0.50 if action_id == "body" else 0.72))
 func _draw_procedural_impact(impact_center: Vector2) -> void:
     var flash_color := COUNTER if last_animation_profile == "counter" else IMPACT

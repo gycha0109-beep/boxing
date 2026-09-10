@@ -22,6 +22,20 @@ func _run() -> void:
     _check(VisualAssetCatalog.opponent_portrait_path_for_name("에번 브룩스").ends_with("portraits/portrait_swarmer_a.png"), "Black opponent portrait mapping mismatch")
     _check(VisualAssetCatalog.opponent_visual_style_for_name("에번 브룩스") == "swarmer", "Black opponent fight set mapping mismatch")
 
+    var identity_regions: Array[Rect2] = []
+    for style in ["", "slugger", "swarmer", "outboxer", "counter"]:
+        var is_player: bool = style.is_empty()
+        var fighter := VisualAssetCatalog.identity_fighter_texture(is_player, style) as AtlasTexture
+        var portrait := VisualAssetCatalog.identity_portrait_texture(is_player, style) as AtlasTexture
+        _check(fighter != null and portrait != null, "identity atlas unavailable for " + style)
+        if fighter == null or portrait == null: continue
+        _check(fighter.atlas == portrait.atlas, "portrait and ring use different identity sources: " + style)
+        _check(fighter.region.encloses(portrait.region), "portrait is outside its fighter cell: " + style)
+        _check(fighter.region.size.y > fighter.region.size.x * 1.7, "full-body identity has lost its legs: " + style)
+        for previous in identity_regions:
+            _check(not previous.intersects(fighter.region), "identity families overlap: " + style)
+        identity_regions.append(fighter.region)
+
     var counter_fx := VisualAssetCatalog.fx_path({
         "counter_success": true,
         "player_action": "counter",

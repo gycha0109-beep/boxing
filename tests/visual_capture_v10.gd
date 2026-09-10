@@ -141,6 +141,17 @@ func _run() -> void:
         main_view._render_phase()
         await _capture(fixture.file)
 
+    var stage := main_view.find_child("FightStage", true, false) as FightStage
+    stage.telegraph_action = ""
+    stage.player_pose = "hurt"
+    stage.opponent_pose = "hurt"
+    stage.animation_progress = 1.0
+    await _capture("17_fight_hurt.png")
+    stage.player_pose = "down"
+    stage.opponent_pose = "down"
+    stage.animation_progress = 0.0
+    await _capture("18_fight_knockdown.png")
+
     print("visual-capture-v18-commercial: PASS")
     _cleanup_save_files()
     quit(0)
@@ -156,6 +167,11 @@ func _capture(filename: String) -> void:
         for card in main_view.find_children("CampCard_*", "VBoxContainer", true, false):
             if card.get_global_rect().end.y > scroll.get_global_rect().end.y + 1:
                 _fail("four primary camp CTAs do not fit the first screen: " + str(card.name))
+                return
+    if filename == "04_fight_offer.png":
+        for card in main_view.find_children("OpponentCard_*", "VBoxContainer", true, false):
+            if card.get_global_rect().end.y > scroll.get_global_rect().end.y + 1:
+                _fail("opponent CTA is outside the first viewport: " + str(card.name))
                 return
     if "fight_" in filename and filename != "04_fight_offer.png":
         if scroll.vertical_scroll_mode != ScrollContainer.SCROLL_MODE_DISABLED or content.get_global_rect().end.y > scroll.get_global_rect().end.y + 1:
