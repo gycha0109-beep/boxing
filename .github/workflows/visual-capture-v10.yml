@@ -70,7 +70,7 @@ jobs:
           mkdir -p visual-captures/v1.2-v18
           xvfb-run -a -s "-screen 0 430x932x24" \
             Godot_v${GODOT_VERSION}_linux.x86_64 --path . --script res://tests/visual_capture_v10.gd
-          test "$(find visual-captures/v1.2-v18 -maxdepth 1 -name '*.png' | wc -l)" -eq 20
+          test "$(find visual-captures/v1.2-v18 -maxdepth 1 -name '*.png' | wc -l)" -eq 25
           file visual-captures/v1.2-v18/*.png | tee "$RUNNER_TEMP/capture-files.log"
           if grep -v 'PNG image data, 430 x 932' "$RUNNER_TEMP/capture-files.log"; then
             echo 'one or more v18 release captures are not 430x932 PNGs' >&2

@@ -12,13 +12,12 @@
     "lim_tae-gun",
     "kang_moo-jin",
     "yoon_jae-hyeok",
-    "ren_nakamura"
-  ],
-  "fallback_ids": [
+    "ren_nakamura",
     "miguel_santos",
     "evan_brooks",
     "mateo_silva",
     "viktor_kozlov",
     "diego_reyes"
-  ]
+  ],
+  "fallback_ids": []
 }
