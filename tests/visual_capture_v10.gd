@@ -147,7 +147,7 @@ func _run() -> void:
     stage.opponent_pose = "hurt"
     stage.animation_progress = 1.0
     await _capture("17_fight_hurt.png")
-    stage.player_pose = "down"
+    stage.player_pose = "idle"
     stage.opponent_pose = "down"
     stage.animation_progress = 0.0
     await _capture("18_fight_knockdown.png")
