@@ -24,7 +24,7 @@ func _run() -> void:
     _check(VisualAssetCatalog.opponent_portrait_path_for_name("에번 브룩스").ends_with("portraits/portrait_swarmer_a.png"), "Black opponent portrait mapping mismatch")
     _check(VisualAssetCatalog.opponent_visual_style_for_name("에번 브룩스") == "swarmer", "Black opponent fight set mapping mismatch")
 
-    var unique_names := ["한도윤", "서민재", "장우진", "박태호", "이준석", "배성호"]
+    var unique_names := ["한도윤", "서민재", "장우진", "박태호", "이준석", "배성호", "김성민", "최현우", "임태건", "강무진", "윤재혁", "나카무라 렌"]
     for index in range(unique_names.size()):
         var opponent_name: String = unique_names[index]
         var identity_path := VisualAssetCatalog.opponent_identity_path_for_name(opponent_name)

@@ -126,7 +126,7 @@ func _run() -> void:
     await process_frame
     await _capture("09_result.png")
 
-    for fixture in [{"index": 0, "file": "13_fight_korean.png"}, {"index": 12, "file": "14_fight_latino.png"}, {"index": 15, "file": "15_fight_european.png"}]:
+    for fixture in [{"index": 0, "file": "13_fight_korean.png"}, {"index": 12, "file": "14_fight_latino.png"}, {"index": 15, "file": "15_fight_european.png"}, {"index": 10, "file": "19_fight_yoon.png"}, {"index": 11, "file": "20_fight_nakamura.png"}]:
         game_state.new_career("무명 복서", "technician")
         game_state.state["first_launch_acknowledged"] = true
         game_state.state["weigh_in_acknowledged"] = true
