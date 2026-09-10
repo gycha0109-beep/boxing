@@ -144,33 +144,67 @@ func _draw_fighter_asset_or_fallback(center: Vector2, facing: float, is_player: 
     var source_rect := _texture_used_rect(texture)
     if source_rect.size.x <= 0 or source_rect.size.y <= 0: _draw_fighter(center, facing, tint, pose); return
     var target_height := _identity_height(is_player, style_id)
+    if pose == "down":
+        _draw_articulated_knockdown(texture, source_rect, center, facing, target_height)
+        return
     var target_width := target_height * float(source_rect.size.x) / float(source_rect.size.y)
     var destination_rect := Rect2(-target_width * 0.5, -target_height, target_width, target_height)
-    # Keep the same face during exchanges; motion and impact communicate action.
-    # A knockdown rotates the intact body into the ring instead of swapping people.
-    var angle := -facing * PI * 0.42 if pose == "down" else (-facing * 0.06 * animation_progress if pose == "hurt" else 0.0)
-    if pose == "down":
-        var fit := minf(1.0, size.x * 0.44 / target_height)
-        target_height *= fit
-        target_width *= fit
-        destination_rect = Rect2(-target_width * 0.5, -target_height, target_width, target_height)
-    # Anchor the transformed body to the canvas, including hurt/knockdown poses.
-    # Never rotate around an ankle and leave the other boot below the ring floor.
+    var angle := -facing * 0.06 * animation_progress if pose == "hurt" else 0.0
     var bounds := Rect2(Vector2.ZERO, Vector2.ZERO)
     for point in [destination_rect.position, Vector2(destination_rect.end.x, destination_rect.position.y), destination_rect.end, Vector2(destination_rect.position.x, destination_rect.end.y)]:
         bounds = bounds.expand((point * Vector2(facing, 1.0)).rotated(angle))
     var origin := Vector2(clampf(center.x, 8.0 - bounds.position.x, size.x - 8.0 - bounds.end.x), size.y - 18.0 - bounds.end.y)
-    if pose == "down":
-        draw_set_transform(Vector2(origin.x + bounds.get_center().x, size.y - 19.0), 0, Vector2(1, 0.10))
-        draw_circle(Vector2.ZERO, bounds.size.x * 0.46, Color(0, 0, 0, 0.28))
-    else:
-        # Sole positions in the shared atlas; the forward boot sits slightly higher.
-        for sole in [Vector2(-0.40, -0.005), Vector2(0.36, -0.025)]:
-            var contact := origin + (Vector2(sole.x * target_width * facing, sole.y * target_height)).rotated(angle)
-            draw_set_transform(contact, 0, Vector2(1, 0.20))
-            draw_circle(Vector2.ZERO, target_width * 0.105, Color(0, 0, 0, 0.42))
+    # Sole positions in the shared atlas; the forward boot sits slightly higher.
+    for sole in [Vector2(-0.40, -0.005), Vector2(0.36, -0.025)]:
+        var contact := origin + (Vector2(sole.x * target_width * facing, sole.y * target_height)).rotated(angle)
+        draw_set_transform(contact, 0, Vector2(1, 0.20))
+        draw_circle(Vector2.ZERO, target_width * 0.105, Color(0, 0, 0, 0.42))
     draw_set_transform(origin, angle, Vector2(facing, 1.0))
     draw_texture_rect_region(texture, destination_rect, Rect2(Vector2(source_rect.position), Vector2(source_rect.size)), Color.WHITE, false, true)
+    draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+func _draw_articulated_knockdown(texture: Texture2D, source_rect: Rect2i, center: Vector2, facing: float, standing_height: float) -> void:
+    # Keep the exact fighter identity, but bend the body at the hips instead of
+    # rotating the entire standing sprite like a cardboard cut-out.
+    var split_y := clampi(int(round(source_rect.size.y * 0.58)), 1, source_rect.size.y - 1)
+    var overlap_px := mini(4, split_y - 1)
+    var upper_source := Rect2(
+        Vector2(source_rect.position),
+        Vector2(source_rect.size.x, split_y + overlap_px)
+    )
+    var lower_source := Rect2(
+        Vector2(source_rect.position.x, source_rect.position.y + split_y - overlap_px),
+        Vector2(source_rect.size.x, source_rect.size.y - split_y + overlap_px)
+    )
+    var down_length := minf(size.x * 0.43, standing_height * 0.76)
+    var upper_length := down_length * 0.62
+    var lower_length := down_length * 0.48
+    var upper_width := upper_length * upper_source.size.x / maxf(1.0, upper_source.size.y)
+    var lower_width := lower_length * lower_source.size.x / maxf(1.0, lower_source.size.y)
+    var upper_rect := Rect2(-upper_width * 0.50, -upper_length + 3.0, upper_width, upper_length)
+    var lower_rect := Rect2(-lower_width * 0.48, -2.0, lower_width, lower_length)
+    var upper_angle := -facing * PI * 0.38
+    var lower_angle := -facing * PI * 0.17
+
+    var bounds := Rect2(Vector2.ZERO, Vector2.ZERO)
+    for point in [upper_rect.position, Vector2(upper_rect.end.x, upper_rect.position.y), upper_rect.end, Vector2(upper_rect.position.x, upper_rect.end.y)]:
+        bounds = bounds.expand((point * Vector2(facing, 1.0)).rotated(upper_angle))
+    for point in [lower_rect.position, Vector2(lower_rect.end.x, lower_rect.position.y), lower_rect.end, Vector2(lower_rect.position.x, lower_rect.end.y)]:
+        bounds = bounds.expand((point * Vector2(facing, 1.0)).rotated(lower_angle))
+
+    var hip := Vector2(
+        clampf(center.x, 10.0 - bounds.position.x, size.x - 10.0 - bounds.end.x),
+        size.y - 18.0 - bounds.end.y
+    )
+    draw_set_transform(Vector2(hip.x + bounds.get_center().x, size.y - 18.5), 0.0, Vector2(1.0, 0.12))
+    draw_circle(Vector2.ZERO, maxf(34.0, bounds.size.x * 0.46), Color(0, 0, 0, 0.30))
+
+    # Legs first, torso second: the small overlap hides the hip seam and leaves
+    # the head/gloves readable above the canvas instead of clipping into it.
+    draw_set_transform(hip, lower_angle, Vector2(facing, 1.0))
+    draw_texture_rect_region(texture, lower_rect, lower_source, Color.WHITE, false, true)
+    draw_set_transform(hip, upper_angle, Vector2(facing, 1.0))
+    draw_texture_rect_region(texture, upper_rect, upper_source, Color.WHITE, false, true)
     draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 func _identity_height(is_player: bool, style_id: String) -> float:
