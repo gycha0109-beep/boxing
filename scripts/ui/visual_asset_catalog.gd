@@ -42,22 +42,10 @@ static var _opponents_loaded: bool = false
 const IDENTITY_ATLAS := "res://assets/visual/v18/fighters/identity_atlas.png"
 const UNIQUE_IDENTITY_ROOT := "res://assets/visual/v18/fighters/opponents"
 static var _identity_cache: Dictionary = {}
-static var _active_opponent_name: String = ""
 
 # One source per visual family, shared by portrait, weigh-in and live ring.
 # Crop alpha bounds inside the authored cells; never scale the axes separately.
-# If an exact opponent asset exists, the render context selects it before the
-# shared family atlas so portrait and live-ring identity stay on the same source.
 static func identity_fighter_texture(is_player: bool, style_id: String = "") -> Texture2D:
-    if not is_player and not _active_opponent_name.is_empty():
-        var unique_path := opponent_identity_path_for_name(_active_opponent_name)
-        if not unique_path.is_empty() and ResourceLoader.exists(unique_path):
-            var named_key := "named_fighter_" + _active_opponent_name
-            if _identity_cache.has(named_key): return _identity_cache[named_key]
-            var named_texture := texture(unique_path)
-            if named_texture != null:
-                _identity_cache[named_key] = named_texture
-                return named_texture
     var column: int = 0 if is_player else {"slugger": 1, "swarmer": 2, "outboxer": 3, "counter": 4}.get(normalize_style(style_id), 1)
     var key := "fighter_%d" % column
     if _identity_cache.has(key): return _identity_cache[key]
@@ -82,8 +70,7 @@ static func identity_fighter_texture(is_player: bool, style_id: String = "") -> 
     return atlas
 
 static func identity_portrait_texture(is_player: bool, style_id: String = "") -> Texture2D:
-    var identity_suffix := _active_opponent_name if not is_player else "player"
-    var key := "portrait_%s_%s_%s" % [str(is_player), style_id, identity_suffix]
+    var key := "portrait_%s_%s" % [str(is_player), style_id]
     if _identity_cache.has(key): return _identity_cache[key]
     var fighter := identity_fighter_texture(is_player, style_id)
     var portrait := _identity_portrait_from_texture(fighter)
@@ -91,9 +78,9 @@ static func identity_portrait_texture(is_player: bool, style_id: String = "") ->
     _identity_cache[key] = portrait
     return portrait
 
-# A bespoke full-body opponent image can now be dropped at
-# assets/visual/v18/fighters/opponents/<opponent-id>.png without changing UI code.
-# Until that asset exists, the validated shared visual-family atlas remains the fallback.
+# Drop a bespoke transparent full-body opponent image at
+# assets/visual/v18/fighters/opponents/<opponent-id>.png. Portrait, weigh-in,
+# HUD and live ring can then resolve the exact same source by opponent name.
 static func opponent_identity_path_for_name(opponent_name: String) -> String:
     _load_opponents()
     var meta: Dictionary = _opponent_cache.get(opponent_name, {})
@@ -143,8 +130,7 @@ static func _identity_portrait_from_texture(fighter: Texture2D) -> Texture2D:
             var detected := image.get_used_rect()
             if detected.size.x > 0 and detected.size.y > 0: used = detected
         region = Rect2(Vector2(used.position), Vector2(used.size))
-    # Tighter head-and-shoulders crop makes the same card footprint read like a portrait,
-    # rather than a miniature full-body image.
+    # Tighter head-and-shoulders crop makes the same card footprint read like a portrait.
     region.position.x += region.size.x * 0.10
     region.size.x *= 0.80
     region.size.y *= 0.38
@@ -172,7 +158,6 @@ static func portrait_path(is_player: bool, style_id: String = "") -> String:
     return "%s/portraits/portrait_%s_a.png" % [ROOT, normalize_style(style_id)]
 
 static func opponent_visual_profile_for_name(opponent_name: String) -> String:
-    _active_opponent_name = opponent_name
     return str(VISUAL_PROFILE_BY_NAME.get(opponent_name, "korean"))
 
 static func opponent_visual_style_for_name(opponent_name: String) -> String:
