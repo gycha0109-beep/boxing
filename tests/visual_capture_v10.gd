@@ -158,6 +158,14 @@ func _run() -> void:
 
 func _capture(filename: String) -> void:
     await process_frame
+    var fight_capture := "fight_" in filename and filename != "04_fight_offer.png"
+    if fight_capture:
+        var settled: bool = await _wait_for_fixed_fight_layout()
+        if not settled:
+            var failed_scroll := main_view.find_child("V17ContentScroll", true, false) as ScrollContainer
+            var failed_content := main_view.body as Control
+            _fail("fixed fight HUD did not settle in %s (content_end=%.2f viewport_end=%.2f)" % [filename, failed_content.get_global_rect().end.y, failed_scroll.get_global_rect().end.y])
+            return
     var scroll := main_view.find_child("V17ContentScroll", true, false) as ScrollContainer
     var content := main_view.body as Control
     if content.get_global_rect().end.x > 431:
@@ -173,17 +181,10 @@ func _capture(filename: String) -> void:
             if card.get_global_rect().end.y > scroll.get_global_rect().end.y + 1:
                 _fail("opponent CTA is outside the first viewport: " + str(card.name))
                 return
-    if "fight_" in filename and filename != "04_fight_offer.png":
-        if scroll.vertical_scroll_mode != ScrollContainer.SCROLL_MODE_DISABLED or content.get_global_rect().end.y > scroll.get_global_rect().end.y + 1:
+    if fight_capture:
+        if not _fixed_fight_layout_ready(scroll, content):
             _fail("fixed fight HUD overflows in " + filename)
             return
-        if main_view.find_children("*", "FightStage", true, false).size() != 1:
-            _fail("live fight must contain one dynamic stage in " + filename)
-            return
-        for button in main_view._buttons_under(content):
-            if not scroll.get_global_rect().encloses(button.get_global_rect()):
-                _fail("fight action is clipped in " + filename)
-                return
     await process_frame
     _redraw_tree(main_view)
     await RenderingServer.frame_post_draw
@@ -197,6 +198,34 @@ func _capture(filename: String) -> void:
         _fail("failed to save %s" % path)
         return
     print("captured: %s" % path)
+
+func _wait_for_fixed_fight_layout(max_frames: int = 24, required_stable_frames: int = 2) -> bool:
+    var stable_frames := 0
+    for _frame in range(max_frames):
+        await process_frame
+        var scroll := main_view.find_child("V17ContentScroll", true, false) as ScrollContainer
+        var content := main_view.body as Control
+        if _fixed_fight_layout_ready(scroll, content):
+            stable_frames += 1
+            if stable_frames >= required_stable_frames:
+                return true
+        else:
+            stable_frames = 0
+    return false
+
+func _fixed_fight_layout_ready(scroll: ScrollContainer, content: Control) -> bool:
+    if not is_instance_valid(scroll) or not is_instance_valid(content):
+        return false
+    if scroll.vertical_scroll_mode != ScrollContainer.SCROLL_MODE_DISABLED:
+        return false
+    if content.get_global_rect().end.y > scroll.get_global_rect().end.y + 1:
+        return false
+    if main_view.find_children("*", "FightStage", true, false).size() != 1:
+        return false
+    for button in main_view._buttons_under(content):
+        if not scroll.get_global_rect().encloses(button.get_global_rect()):
+            return false
+    return true
 
 func _redraw_tree(node: Node) -> void:
     if node is CanvasItem: node.queue_redraw()
