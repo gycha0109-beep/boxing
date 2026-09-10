@@ -15,23 +15,32 @@ func _run() -> void:
     _check(VisualAssetCatalog.arena_path(true).ends_with("arena/arena_title_night.png"), "title arena mapping mismatch")
 
     _check(VisualAssetCatalog.opponent_visual_profile_for_name("박태호") == "korean", "Park Tae-ho visual identity must be Korean")
-    _check(VisualAssetCatalog.opponent_portrait_path_for_name("박태호").ends_with("fighters/opponents/slugger/op_slugger_a_idle.png"), "Korean opponent portrait must match the East-Asian fight visual rather than the player portrait")
-    _check(VisualAssetCatalog.opponent_portrait_path_for_name("박태호") != VisualAssetCatalog.portrait_path(true), "Korean opponent portrait must remain distinct from the player portrait")
     _check(VisualAssetCatalog.opponent_visual_style_for_name("박태호") == "slugger", "Korean opponent fight set must use the stable East-Asian pose set")
     _check(VisualAssetCatalog.opponent_identity_path_for_name("박태호").ends_with("fighters/opponents/park_tae-ho.webp"), "per-opponent identity slot must use the stable roster id")
-    _check(VisualAssetCatalog.identity_fighter_texture_for_name("박태호") != null, "named opponent fighter must have a validated family fallback")
-    _check(VisualAssetCatalog.identity_portrait_texture_for_name("박태호") != null, "named opponent portrait must have a validated family fallback")
+    _check(VisualAssetCatalog.has_unique_identity_for_name("박태호"), "Park Tae-ho unique identity asset must load")
+    _check(VisualAssetCatalog.identity_fighter_texture_for_name("박태호") != null, "named opponent fighter must load")
+    _check(VisualAssetCatalog.identity_portrait_texture_for_name("박태호") != null, "named opponent portrait must load")
     _check(VisualAssetCatalog.opponent_visual_profile_for_name("에번 브룩스") == "black", "Evan Brooks visual identity must be Black")
     _check(VisualAssetCatalog.opponent_portrait_path_for_name("에번 브룩스").ends_with("portraits/portrait_swarmer_a.png"), "Black opponent portrait mapping mismatch")
     _check(VisualAssetCatalog.opponent_visual_style_for_name("에번 브룩스") == "swarmer", "Black opponent fight set mapping mismatch")
 
-    for opening_name in ["한도윤", "서민재", "장우진"]:
-        _check(VisualAssetCatalog.has_unique_identity_for_name(opening_name), "opening roster identity asset missing: " + opening_name)
-        _check(VisualAssetCatalog.opponent_identity_path_for_name(opening_name).ends_with(".webp"), "opening roster identity must be WebP: " + opening_name)
-        _check(VisualAssetCatalog.identity_fighter_texture_for_name(opening_name) != null, "opening roster fighter failed to load: " + opening_name)
-        _check(VisualAssetCatalog.identity_portrait_texture_for_name(opening_name) != null, "opening roster portrait failed to load: " + opening_name)
-    _check(VisualAssetCatalog.opponent_identity_path_for_name("한도윤") != VisualAssetCatalog.opponent_identity_path_for_name("서민재"), "opening roster identities must not share one path")
-    _check(VisualAssetCatalog.opponent_identity_path_for_name("서민재") != VisualAssetCatalog.opponent_identity_path_for_name("장우진"), "opening roster identities must not share one path")
+    var unique_names := ["한도윤", "서민재", "장우진", "박태호", "이준석", "배성호"]
+    for index in range(unique_names.size()):
+        var opponent_name: String = unique_names[index]
+        var identity_path := VisualAssetCatalog.opponent_identity_path_for_name(opponent_name)
+        _check(VisualAssetCatalog.has_unique_identity_for_name(opponent_name), "unique roster identity asset missing: " + opponent_name)
+        _check(identity_path.ends_with(".webp"), "unique roster identity must be WebP: " + opponent_name)
+        var fighter := VisualAssetCatalog.identity_fighter_texture_for_name(opponent_name)
+        var portrait := VisualAssetCatalog.identity_portrait_texture_for_name(opponent_name)
+        _check(fighter != null, "unique roster fighter failed to load: " + opponent_name)
+        _check(portrait != null, "unique roster portrait failed to load: " + opponent_name)
+        if fighter != null:
+            _check(fighter.get_height() > fighter.get_width() * 1.8, "unique roster fighter must retain full-body aspect: " + opponent_name)
+        if portrait is AtlasTexture:
+            _check((portrait as AtlasTexture).atlas == fighter, "unique portrait must derive from the exact live-ring fighter: " + opponent_name)
+        for previous_index in range(index):
+            var previous_name: String = unique_names[previous_index]
+            _check(identity_path != VisualAssetCatalog.opponent_identity_path_for_name(previous_name), "unique roster identities must not share one path: %s / %s" % [previous_name, opponent_name])
 
     var identity_regions: Array[Rect2] = []
     for style in ["", "slugger", "swarmer", "outboxer", "counter"]:
