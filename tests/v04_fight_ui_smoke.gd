@@ -65,11 +65,17 @@ func _run() -> void:
 
     var initial_text: String = "\n".join(_collect_text(main_view))
     _check(initial_text.contains("ROUND 1"), "fight UI missing round header")
-    _check(initial_text.contains("RING"), "fight UI missing ring card")
-    _check(initial_text.contains("OPPONENT READ"), "fight UI missing opponent read card")
+    _check(initial_text.contains("상대 읽기"), "fight UI missing redesigned opponent read strip")
+    _check(initial_text.contains("코너 조언"), "fight UI missing corner advice")
+    _check(not initial_text.contains("RING"), "legacy RING label returned after redesign")
+    _check(not initial_text.contains("OPPONENT READ"), "legacy English opponent-read card returned after redesign")
     _check(initial_text.contains(str(opponent.name)), "fight UI missing opponent name")
     _check(initial_text.contains("HP"), "fight UI missing HP gauge labels")
     _check(initial_text.contains("STA"), "fight UI missing stamina gauge labels")
+    _check(main_view.find_children("*", "FightStage", true, false).size() == 1, "fight UI does not contain exactly one FightStage")
+
+    var bottom_nav := main_view.find_child("V19BottomNav", true, false) as Control
+    _check(is_instance_valid(bottom_nav) and not bottom_nav.visible, "bottom navigation must stay hidden during live combat")
 
     var button_texts: Array[String] = _collect_button_text(main_view)
     for action_label in ["잽", "강타", "바디", "가드", "카운터"]:
@@ -91,8 +97,10 @@ func _run() -> void:
     _check(not bool(last_exchange.get("finished", true)), "deterministic UI fixture unexpectedly finished the fight")
 
     var after_text: String = "\n".join(_collect_text(main_view))
-    _check(after_text.contains("OPPONENT READ"), "fight UI did not render next opponent read after exchange")
+    _check(after_text.contains("상대 읽기"), "fight UI did not render next tactical read after exchange")
+    _check(after_text.contains("코너 조언"), "fight UI lost corner advice after exchange")
     _check(after_text.contains("다음 행동"), "fight UI lost action decision section after exchange")
+    _check(not after_text.contains("OPPONENT READ"), "legacy opponent-read copy returned after exchange")
     _finish()
 
 func _finish() -> void:
