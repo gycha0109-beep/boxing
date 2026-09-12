@@ -137,6 +137,7 @@ func _verify_diego_runtime_sanitation() -> void:
     var cleaned_visible := _count_visible_pixels(cleaned_image)
     var removed_visible := source_visible - cleaned_visible
     _check(removed_visible > 0, "Diego sanitation removed no visible guide pixels")
+    # No magic percentage threshold: runtime removal must equal the guide classifier exactly.
     _check(removed_visible == source_guides, "Diego sanitation removed pixels outside the exact guide classifier: removed=%d expected=%d" % [removed_visible, source_guides])
 
     var used := cleaned_image.get_used_rect()
