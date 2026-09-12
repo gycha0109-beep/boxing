@@ -1,0 +1,38 @@
+{
+  "forced_retirement_damage": 100,
+  "fight_damage": {
+    "base": 3,
+    "loss": 4,
+    "loss_ko": 14,
+    "win_ko": 4,
+    "hp_divisor": 18.0,
+    "high_fatigue_threshold": 75,
+    "high_fatigue": 5
+  },
+  "milestones": [
+    {
+      "id": "chronic_hands",
+      "name": "손목 만성 통증",
+      "threshold": 25,
+      "stat_penalties": {"power": -1, "technique": -1},
+      "health_ceiling_penalty": 3,
+      "recovery_penalty": 1
+    },
+    {
+      "id": "chronic_ribs",
+      "name": "늑골 만성 손상",
+      "threshold": 50,
+      "stat_penalties": {"conditioning": -2, "defense": -1},
+      "health_ceiling_penalty": 5,
+      "recovery_penalty": 2
+    },
+    {
+      "id": "chronic_neuro",
+      "name": "누적 신경계 손상",
+      "threshold": 75,
+      "stat_penalties": {"speed": -2, "technique": -1, "defense": -1},
+      "health_ceiling_penalty": 7,
+      "recovery_penalty": 3
+    }
+  ]
+}

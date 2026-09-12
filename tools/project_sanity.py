@@ -7,12 +7,12 @@ ROOT = Path(__file__).resolve().parents[1]
 required = [
     "project.godot", "scenes/Main.tscn",
     "scripts/main.gd", "scripts/main_v05.gd", "scripts/main_v06.gd", "scripts/main_v07.gd", "scripts/main_v08.gd", "scripts/main_v10.gd", "scripts/main_v12.gd", "scripts/main_v13.gd", "scripts/main_v14.gd", "scripts/main_v15.gd", "scripts/main_v16.gd", "scripts/main_v17.gd", "scripts/main_v18.gd", "scripts/main_v18_release_base.gd", "scripts/main_v18_release.gd",
-    "scripts/core/game_state.gd", "scripts/core/game_state_v12.gd", "scripts/core/game_state_v14.gd", "scripts/core/game_state_v15.gd", "scripts/core/combat_engine.gd", "scripts/core/save_service.gd", "scripts/core/legacy_service.gd",
-    "scripts/ui/reference_battle_view.gd", "scripts/ui/combat_presentation.gd", "scripts/ui/fight_stage.gd", "scripts/ui/impact_feedback.gd", "scripts/ui/fight_fx_director.gd", "scripts/ui/arena_audio.gd", "scripts/ui/music_director.gd", "scripts/ui/safe_area_layout.gd", "scripts/ui/visual_asset_catalog.gd",
+    "scripts/core/game_state.gd", "scripts/core/game_state_v12.gd", "scripts/core/game_state_v14.gd", "scripts/core/game_state_v15.gd", "scripts/core/game_state_v16.gd", "scripts/core/combat_engine.gd", "scripts/core/save_service.gd", "scripts/core/legacy_service.gd", "scripts/core/world_state_service.gd", "scripts/core/career_risk_service.gd",
+    "scripts/ui/reference_battle_view.gd", "scripts/ui/combat_presentation.gd", "scripts/ui/fight_stage.gd", "scripts/ui/impact_feedback.gd", "scripts/ui/fight_fx_director.gd", "scripts/ui/arena_audio.gd", "scripts/ui/music_director.gd", "scripts/ui/safe_area_layout.gd", "scripts/ui/visual_asset_catalog.gd", "scripts/ui/v19_polish_overlay.gd",
     "scripts/ui/v18_assets/hero_player_00.gd", "scripts/ui/v18_assets/hero_player_01.gd", "scripts/ui/v18_assets/training_atlas_00.gd", "scripts/ui/v18_assets/training_atlas_01.gd", "scripts/ui/v18_assets/opponent_atlas_00.gd", "scripts/ui/v18_assets/opponent_atlas_01.gd", "scripts/ui/v18_assets/fight_ring_scene_00.gd", "scripts/ui/v18_assets/fight_ring_scene_01.gd", "scripts/ui/v18_assets/fight_ring_scene_02.gd",
-    "data/balance.json", "data/camp_actions.json", "data/opponents.json", "data/career_balance.json", "data/traits.json", "data/events.json", "data/injuries.json", "data/fighter_identities.json", "data/game_plans.json", "data/legacy_definitions.json", "data/fight_preparations.json", "data/equipment.json",
+    "data/balance.json", "data/camp_actions.json", "data/opponents.json", "data/career_balance.json", "data/traits.json", "data/events.json", "data/injuries.json", "data/fighter_identities.json", "data/game_plans.json", "data/legacy_definitions.json", "data/fight_preparations.json", "data/equipment.json", "data/career_risk.json", "data/world_roster.json",
     "tools/sim_combat.py", "tools/simulate_careers.py", "tools/simulate_gameplans.py", "tools/test_gameplans.py", "tools/validate_visual_assets_v07.py", "tools/validate_release_font_v10.py", "tools/import_visual_assets_v07.ps1",
-    "tests/runtime_state_smoke.gd", "tests/legacy_retirement_smoke.gd", "tests/legacy_slot_effect_smoke.gd", "tests/pre_fight_preparation_smoke.gd", "tests/boxer_creation_ladder_smoke.gd", "tests/equipment_economy_smoke.gd", "tests/audio_music_smoke.gd", "tests/v03_gameplan_smoke.gd", "tests/v04_combat_ux_smoke.gd", "tests/v04_fight_ui_smoke.gd", "tests/v05_fight_presentation_smoke.gd", "tests/v06_device_polish_smoke.gd", "tests/v07_visual_integration_smoke.gd", "tests/v08_first_five_minutes_smoke.gd", "tests/v10_release_font_smoke.gd", "tests/mobile_scroll_back_smoke.gd", "tests/fight_fixed_hud_smoke.gd",
+    "tests/runtime_state_smoke.gd", "tests/legacy_retirement_smoke.gd", "tests/legacy_slot_effect_smoke.gd", "tests/pre_fight_preparation_smoke.gd", "tests/boxer_creation_ladder_smoke.gd", "tests/equipment_economy_smoke.gd", "tests/league_career_smoke.gd", "tests/world_persistence_smoke.gd", "tests/career_damage_smoke.gd", "tests/audio_music_smoke.gd", "tests/v03_gameplan_smoke.gd", "tests/v04_combat_ux_smoke.gd", "tests/v04_fight_ui_smoke.gd", "tests/v05_fight_presentation_smoke.gd", "tests/v06_device_polish_smoke.gd", "tests/v07_visual_integration_smoke.gd", "tests/v08_first_five_minutes_smoke.gd", "tests/v10_release_font_smoke.gd", "tests/mobile_scroll_back_smoke.gd", "tests/fight_fixed_hud_smoke.gd",
 ]
 missing = [p for p in required if not (ROOT / p).exists()]
 if missing:
@@ -24,8 +24,9 @@ for obsolete in ["scripts/main_v03.gd", "scripts/core/game_state_v03.gd", "scrip
 project = (ROOT / "project.godot").read_text(encoding="utf-8")
 scene = (ROOT / "scenes/Main.tscn").read_text(encoding="utf-8")
 assert 'run/main_scene="res://scenes/Main.tscn"' in project
-assert 'GameState="*res://scripts/core/game_state_v15.gd"' in project
+assert 'GameState="*res://scripts/core/game_state_v16.gd"' in project
 assert 'res://scripts/main_v18_release.gd' in scene
+assert 'res://scripts/ui/v19_polish_overlay.gd' in scene
 
 main_chain = {
     "scripts/main_v05.gd": 'extends "res://scripts/main.gd"',
@@ -98,6 +99,10 @@ visual_catalog = (ROOT / "scripts/ui/visual_asset_catalog.gd").read_text(encodin
 for marker in ["VISUAL_PROFILE_BY_NAME", "VISUAL_STYLE_BY_PROFILE", "opponent_visual_profile_for_name", "opponent_visual_style_for_name", "opponent_portrait_texture_for_name", '"박태호": "korean"', '"에번 브룩스": "black"']:
     assert marker in visual_catalog
 
+polish_overlay = (ROOT / "scripts/ui/v19_polish_overlay.gd").read_text(encoding="utf-8")
+for marker in ["PERSISTENT WORLD", "CAREER RISK", "func _sync_world_opponents()", "world_opponent_definition", "career_damage_value"]:
+    assert marker in polish_overlay
+
 music = (ROOT / "scripts/ui/music_director.gd").read_text(encoding="utf-8")
 for marker in ["class_name MusicDirector", "MUSIC_VOLUME_DB", "UI_VOLUME_DB", "func set_mode(", "func play_ui(", "func duck(", "func track_profile(", "func mode_for_phase(", '"fight_week"', '"legacy"']:
     assert marker in music
@@ -118,7 +123,20 @@ assert 'extends "res://scripts/core/game_state_v14.gd"' in state_v15
 for marker in ["STARTING_BASE_STAT := 44", "EQUIPMENT_PATH", "func purchase_equipment(", "func next_equipment_upgrade(", "func gym_training_percent(", "func apply_camp_action(", 'career_state["equipment_state"]']:
     assert marker in state_v15
 
-for name in ["balance.json","camp_actions.json","opponents.json","career_balance.json","traits.json","events.json","injuries.json","fighter_identities.json","game_plans.json","legacy_definitions.json","fight_preparations.json","equipment.json"]:
+state_v16 = (ROOT / "scripts/core/game_state_v16.gd").read_text(encoding="utf-8")
+assert 'extends "res://scripts/core/game_state_v15.gd"' in state_v16
+for marker in ["World.ensure_world", "CareerRisk.ensure_state", "func start_next_generation()", "World.advance_world", "career_damage_retirement", "func world_summary()", "func career_damage_value()"]:
+    assert marker in state_v16
+
+world_service = (ROOT / "scripts/core/world_state_service.gd").read_text(encoding="utf-8")
+for marker in ["class_name WorldStateService", "CHAMPION_RETIRE_AGE", "func advance_world(", "func current_champion_definition(", "world_history", "title_defenses"]:
+    assert marker in world_service
+
+risk_service = (ROOT / "scripts/core/career_risk_service.gd").read_text(encoding="utf-8")
+for marker in ["class_name CareerRiskService", "func apply_fight_damage(", "func forced_retirement_reached(", "damage_milestones", "health_ceiling", "recovery_penalty"]:
+    assert marker in risk_service
+
+for name in ["balance.json","camp_actions.json","opponents.json","career_balance.json","traits.json","events.json","injuries.json","fighter_identities.json","game_plans.json","legacy_definitions.json","fight_preparations.json","equipment.json","career_risk.json","world_roster.json"]:
     json.loads((ROOT / "data" / name).read_text(encoding="utf-8"))
 
 styles = json.loads((ROOT / "data/fighter_identities.json").read_text(encoding="utf-8"))
@@ -132,6 +150,15 @@ assert len(equipment["personal"]) == 9 and len(equipment["gym"]) == 12
 preparations = json.loads((ROOT / "data/fight_preparations.json").read_text(encoding="utf-8"))
 assert len(preparations.get("tactical", [])) >= 4
 assert len(preparations.get("condition", [])) >= 3
+
+world_roster = json.loads((ROOT / "data/world_roster.json").read_text(encoding="utf-8"))
+assert len(world_roster) == 17
+assert sum(1 for value in world_roster if value.get("champion")) == 1
+assert next(value for value in world_roster if value.get("champion"))["id"] == "viktor_kozlov"
+
+career_risk = json.loads((ROOT / "data/career_risk.json").read_text(encoding="utf-8"))
+assert career_risk["forced_retirement_damage"] == 100
+assert [value["threshold"] for value in career_risk["milestones"]] == [25, 50, 75]
 
 combat = (ROOT / "scripts/core/combat_engine.gd").read_text(encoding="utf-8")
 for action in ["jab","power","body","guard","counter"]:
