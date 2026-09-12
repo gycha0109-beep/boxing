@@ -6,12 +6,54 @@ var _main: Node
 
 func _ready() -> void:
     _main = get_parent()
+    _sanitize_diego_identity_guides()
     process_priority = 100
     set_process(true)
     call_deferred("_apply_polish")
 
 func _process(_delta: float) -> void:
     _apply_polish()
+
+func _sanitize_diego_identity_guides() -> void:
+    # Diego's authored WebP contains two narrow red/green construction guides
+    # beside the shorts. Keep the original packaged asset untouched and remove
+    # only those guide-colour pixels in memory so portrait/live/knockdown share
+    # one cleaned runtime identity source.
+    const OPPONENT_NAME := "디에고 레예스"
+    var path := VisualAssetCatalog.opponent_identity_path_for_name(OPPONENT_NAME)
+    if path.is_empty() or not ResourceLoader.exists(path):
+        return
+    var source := load(path) as Texture2D
+    if source == null:
+        return
+    var image := source.get_image()
+    if image == null:
+        return
+    var width := image.get_width()
+    var height := image.get_height()
+    var left_limit := int(round(width * 0.235))
+    var right_start := int(round(width * 0.725))
+    var y_start := int(round(height * 0.44))
+    var y_end := int(round(height * 0.74))
+    var changed := false
+    for y in range(y_start, y_end):
+        for x in range(width):
+            if x >= left_limit and x <= right_start:
+                continue
+            var pixel := image.get_pixel(x, y)
+            if pixel.a <= 0.5:
+                continue
+            var red_guide := pixel.r > 0.32 and pixel.r > pixel.g * 2.2 and pixel.r > pixel.b * 2.0
+            var green_guide := pixel.g > 0.25 and pixel.g > pixel.r * 2.2 and pixel.g > pixel.b * 1.45
+            if red_guide or green_guide:
+                image.set_pixel(x, y, Color(0, 0, 0, 0))
+                changed = true
+    if not changed:
+        return
+    var cleaned := ImageTexture.create_from_image(image)
+    VisualAssetCatalog._texture_cache[path] = cleaned
+    VisualAssetCatalog._identity_cache["named_fighter_" + OPPONENT_NAME] = cleaned
+    VisualAssetCatalog._identity_cache.erase("named_portrait_" + OPPONENT_NAME)
 
 func _apply_polish() -> void:
     if not is_instance_valid(_main):
