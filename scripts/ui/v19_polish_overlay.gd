@@ -19,6 +19,7 @@ func _sanitize_diego_identity_guides() -> void:
     # beside the shorts. Keep the original packaged asset untouched and remove
     # only those guide-colour pixels in memory so portrait/live/knockdown share
     # one cleaned runtime identity source.
+    # Keep this classifier in sync with roster_identity_coverage_smoke.gd; QA requires exact removed-pixel equality.
     const OPPONENT_NAME := "디에고 레예스"
     var path := VisualAssetCatalog.opponent_identity_path_for_name(OPPONENT_NAME)
     if path.is_empty() or not ResourceLoader.exists(path):
