@@ -137,8 +137,7 @@ func _verify_diego_runtime_sanitation() -> void:
     var cleaned_visible := _count_visible_pixels(cleaned_image)
     var removed_visible := source_visible - cleaned_visible
     _check(removed_visible > 0, "Diego sanitation removed no visible guide pixels")
-    if source_visible > 0:
-        _check(float(removed_visible) / float(source_visible) < 0.05, "Diego sanitation removed too much of the fighter silhouette")
+    _check(removed_visible == source_guides, "Diego sanitation removed pixels outside the exact guide classifier: removed=%d expected=%d" % [removed_visible, source_guides])
 
     var used := cleaned_image.get_used_rect()
     _check(used.size.x > cleaned_image.get_width() * 0.30, "Diego sanitized fighter became implausibly narrow")
