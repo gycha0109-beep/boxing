@@ -19,6 +19,11 @@ func _apply_polish() -> void:
     _polish_tactical_preparation()
     _polish_fight_surface()
 
+func _content_width() -> float:
+    if _main is Control:
+        return maxf(0.0, (_main as Control).size.x - 24.0)
+    return 0.0
+
 func _polish_tactical_preparation() -> void:
     var matchup := _main.find_child("V19TacticalMatchup", true, false) as PanelContainer
     if is_instance_valid(matchup) and not matchup.has_meta("v19_1_compact"):
@@ -41,11 +46,12 @@ func _polish_tactical_preparation() -> void:
     if tactic_nodes.is_empty():
         return
 
+    var body := _main.get("body") as Container
+    if not is_instance_valid(body):
+        return
+
     var list := _main.find_child("V19TacticalList", true, false) as GridContainer
     if not is_instance_valid(list):
-        var body := _main.get("body") as Container
-        if not is_instance_valid(body):
-            return
         list = GridContainer.new()
         list.name = "V19TacticalList"
         list.columns = 1
@@ -57,9 +63,19 @@ func _polish_tactical_preparation() -> void:
         for tactic_node in tactic_nodes:
             (tactic_node as Node).reparent(list)
 
+    var target_width := _content_width()
+    if target_width > 0.0:
+        list.custom_minimum_size.x = target_width
+    list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
     for panel_node in list.get_children():
         var panel := panel_node as PanelContainer
-        if not is_instance_valid(panel) or panel.has_meta("v19_1_compact"):
+        if not is_instance_valid(panel):
+            continue
+        panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+        if target_width > 0.0:
+            panel.custom_minimum_size.x = target_width
+        if panel.has_meta("v19_1_compact"):
             continue
         var panel_style := _main.call("_v17_box_style", Color("071019"), Color("1d2b3a"), 6, 5) as StyleBoxFlat
         if is_instance_valid(panel_style):
@@ -67,6 +83,7 @@ func _polish_tactical_preparation() -> void:
         if panel.get_child_count() > 0:
             var row := panel.get_child(0) as HBoxContainer
             if is_instance_valid(row):
+                row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
                 row.add_theme_constant_override("separation", 7)
                 for child in row.get_children():
                     if child is Label:
@@ -74,7 +91,9 @@ func _polish_tactical_preparation() -> void:
                         number.custom_minimum_size.x = 22
                         number.add_theme_font_size_override("font_size", 11)
                     elif child is VBoxContainer:
-                        var labels := child.find_children("*", "Label", true, false)
+                        var copy := child as VBoxContainer
+                        copy.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+                        var labels := copy.find_children("*", "Label", true, false)
                         if labels.size() > 0:
                             (labels[0] as Label).add_theme_font_size_override("font_size", 14)
                         if labels.size() > 1:
@@ -84,6 +103,7 @@ func _polish_tactical_preparation() -> void:
                     elif child is Button:
                         var choose := child as Button
                         choose.custom_minimum_size = Vector2(58, 56)
+                        choose.size_flags_horizontal = Control.SIZE_SHRINK_END
                         choose.add_theme_font_size_override("font_size", 11)
         panel.set_meta("v19_1_compact", true)
 
