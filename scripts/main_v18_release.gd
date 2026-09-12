@@ -3,6 +3,8 @@ extends "res://scripts/main_v18_release_base.gd"
 # v19 real-device UI pass. No generated image assets: this layer only changes
 # layout, typography, hierarchy and procedural fight feedback on top of the
 # validated v18 release/runtime stack.
+const V19_READ_LABEL := "상대 읽기"
+
 var v19_top_bar: HBoxContainer
 var v19_menu_button: Button
 var v19_money_box: Control
@@ -54,9 +56,9 @@ func _v17_top_bar() -> Control:
     account.custom_minimum_size.x = 70
     account.alignment = BoxContainer.ALIGNMENT_CENTER
     bar.add_child(account)
-    v19_money_label = _v17_copy(account, "0원", false)
-    v19_money_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-    v19_money_label.add_theme_font_size_override("font_size", 11)
+    v17_money_label = _v17_copy(account, "0원", false)
+    v17_money_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+    v17_money_label.add_theme_font_size_override("font_size", 11)
     v19_money_box = account
 
     var settings := Button.new()
@@ -369,7 +371,7 @@ func _v19_tactical_read(telegraph: Dictionary) -> void:
     read.add_theme_constant_override("separation", 1)
     row.add_child(read)
     var read_title := Label.new()
-    read_title.text = "상대 읽기  %d%%" % int(telegraph.get("confidence", 0))
+    read_title.text = "%s  %d%%" % [V19_READ_LABEL, int(telegraph.get("confidence", 0))]
     read_title.add_theme_font_override("font", _v18_font(700))
     read_title.add_theme_font_size_override("font_size", 13)
     read_title.add_theme_color_override("font_color", V17_GOLD)
