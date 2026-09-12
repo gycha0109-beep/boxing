@@ -1,0 +1,19 @@
+[
+  {"id":"han_do-yun","age":21,"gym_id":"seoul_iron","record":{"wins":3,"losses":0,"draws":0},"career_start_year":2030,"traits":["prospect","pressure"]},
+  {"id":"seo_min-jae","age":22,"gym_id":"needle_seoul","record":{"wins":6,"losses":1,"draws":0},"career_start_year":2029,"traits":["prospect","jab"]},
+  {"id":"jang_woo-jin","age":23,"gym_id":"needle_seoul","record":{"wins":9,"losses":1,"draws":0},"career_start_year":2028,"traits":["district","jab"]},
+  {"id":"park_tae-ho","age":25,"gym_id":"hammer_gym","record":{"wins":13,"losses":3,"draws":0},"career_start_year":2026,"traits":["puncher"]},
+  {"id":"lee_jun-seok","age":25,"gym_id":"counter_lab","record":{"wins":15,"losses":2,"draws":1},"career_start_year":2026,"traits":["counter"]},
+  {"id":"bae_seong-ho","age":26,"gym_id":"seoul_iron","record":{"wins":18,"losses":2,"draws":0},"career_start_year":2025,"traits":["regional","pressure"]},
+  {"id":"kim_seong-min","age":26,"gym_id":"seoul_iron","record":{"wins":20,"losses":3,"draws":0},"career_start_year":2024,"traits":["pressure"]},
+  {"id":"choi_hyeon-woo","age":27,"gym_id":"needle_seoul","record":{"wins":22,"losses":2,"draws":1},"career_start_year":2024,"traits":["jab","movement"]},
+  {"id":"lim_tae-gun","age":28,"gym_id":"counter_lab","record":{"wins":24,"losses":2,"draws":0},"career_start_year":2023,"traits":["national","counter"]},
+  {"id":"kang_moo-jin","age":29,"gym_id":"hammer_gym","record":{"wins":25,"losses":4,"draws":0},"career_start_year":2022,"traits":["puncher"]},
+  {"id":"yoon_jae-hyeok","age":28,"gym_id":"counter_lab","record":{"wins":27,"losses":2,"draws":1},"career_start_year":2022,"traits":["counter","elite"]},
+  {"id":"ren_nakamura","age":27,"gym_id":"needle_tokyo","record":{"wins":26,"losses":1,"draws":0},"career_start_year":2023,"traits":["continental","movement"]},
+  {"id":"miguel_santos","age":28,"gym_id":"tormenta_mexico","record":{"wins":29,"losses":3,"draws":0},"career_start_year":2021,"traits":["world","pressure"]},
+  {"id":"evan_brooks","age":27,"gym_id":"needle_usa","record":{"wins":30,"losses":1,"draws":0},"career_start_year":2021,"traits":["world","jab"]},
+  {"id":"mateo_silva","age":30,"gym_id":"hammer_sao_paulo","record":{"wins":31,"losses":2,"draws":0},"career_start_year":2020,"traits":["world","puncher"]},
+  {"id":"viktor_kozlov","age":29,"gym_id":"volkov_boxing","record":{"wins":28,"losses":1,"draws":0},"career_start_year":2019,"traits":["champion","puncher"],"champion":true,"title_defenses":3},
+  {"id":"diego_reyes","age":28,"gym_id":"counter_madrid","record":{"wins":29,"losses":2,"draws":0},"career_start_year":2020,"traits":["world","counter"],"champion":false,"title_defenses":0}
+]
