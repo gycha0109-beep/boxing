@@ -115,7 +115,7 @@ func _verify_diego_runtime_sanitation() -> void:
     _check(overlay_script != null, "v19 polish overlay failed to load for Diego sanitation smoke")
     if overlay_script == null:
         return
-    var overlay := overlay_script.new()
+    var overlay: Object = overlay_script.new()
     _check(overlay != null, "v19 polish overlay failed to instantiate for Diego sanitation smoke")
     if overlay == null:
         return
