@@ -1,24 +1,11 @@
 name: Visual Capture v1.0
 
 on:
-  push:
-    branches:
-      - fix/mobile-scroll-and-back-v1.1
-      - feat/legacy-state-foundation-v1.2
-    paths:
-      - .github/workflows/visual-capture-v10.yml
-      - .github/workflows/android-qa-playtest.yml
-      - scenes/**
-      - scripts/**
-      - assets/**
-      - data/**
-      - tests/visual_capture_v10.gd
   pull_request:
     branches:
       - main
     paths:
       - .github/workflows/visual-capture-v10.yml
-      - .github/workflows/android-qa-playtest.yml
       - scenes/**
       - scripts/**
       - assets/**
