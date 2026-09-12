@@ -49,25 +49,25 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y xvfb
 
-      - name: Capture release flow at 430x932
+      - name: Capture v18 release flow at 430x932
         shell: bash
         run: |
           set -euo pipefail
-          rm -rf visual-captures/v1.0-font
-          mkdir -p visual-captures/v1.0-font
+          rm -rf visual-captures/v1.2-v18
+          mkdir -p visual-captures/v1.2-v18
           xvfb-run -a -s "-screen 0 430x932x24" \
             Godot_v${GODOT_VERSION}_linux.x86_64 --path . --script res://tests/visual_capture_v10.gd
-          test "$(find visual-captures/v1.0-font -maxdepth 1 -name '*.png' | wc -l)" -eq 8
-          file visual-captures/v1.0-font/*.png | tee "$RUNNER_TEMP/capture-files.log"
+          test "$(find visual-captures/v1.2-v18 -maxdepth 1 -name '*.png' | wc -l)" -eq 25
+          file visual-captures/v1.2-v18/*.png | tee "$RUNNER_TEMP/capture-files.log"
           if grep -v 'PNG image data, 430 x 932' "$RUNNER_TEMP/capture-files.log"; then
-            echo 'one or more release captures are not 430x932 PNGs' >&2
+            echo 'one or more v18 release captures are not 430x932 PNGs' >&2
             exit 1
           fi
 
-      - name: Upload release visual captures
+      - name: Upload v18 release visual captures
         uses: actions/upload-artifact@v6
         with:
-          name: twelve-count-v10-bundled-font-430x932
-          path: visual-captures/v1.0-font/*.png
+          name: twelve-count-v18-commercial-430x932
+          path: visual-captures/v1.2-v18/*.png
           if-no-files-found: error
           retention-days: 3

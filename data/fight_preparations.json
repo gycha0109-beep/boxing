@@ -1,0 +1,61 @@
+{
+  "tactical": [
+    {
+      "id": "distance_drill",
+      "name": "거리 적응",
+      "description": "먼저 끊고 빠지는 흐름을 몸에 익힙니다.",
+      "action_modifiers": {
+        "jab": {"speed": 5, "technique": 4},
+        "guard": {"defense": 3}
+      }
+    },
+    {
+      "id": "body_pattern",
+      "name": "바디 패턴",
+      "description": "몸통이 열리는 순간을 반복해서 맞춥니다.",
+      "action_modifiers": {
+        "body": {"power": 5, "technique": 5}
+      }
+    },
+    {
+      "id": "counter_timing",
+      "name": "카운터 타이밍",
+      "description": "큰 공격 뒤 빈틈에 반응하는 감각을 다듬습니다.",
+      "action_modifiers": {
+        "counter": {"speed": 6, "technique": 6}
+      }
+    },
+    {
+      "id": "pressure_entry",
+      "name": "압박 진입",
+      "description": "앞으로 들어가며 교환을 여는 움직임을 맞춥니다.",
+      "action_modifiers": {
+        "power": {"power": 3, "conditioning": 4},
+        "body": {"conditioning": 4}
+      }
+    }
+  ],
+  "condition": [
+    {
+      "id": "full_rest",
+      "name": "완전 휴식",
+      "description": "몸을 쉬게 하고 경기 당일 컨디션을 끌어올립니다.",
+      "immediate": {"fatigue": -12, "health": 2},
+      "global_stats": {}
+    },
+    {
+      "id": "weight_control",
+      "name": "체중 조절",
+      "description": "무리하지 않고 계체에 맞춰 몸을 정리합니다.",
+      "immediate": {"fatigue": 3, "weight": -0.55},
+      "global_stats": {}
+    },
+    {
+      "id": "sharpness",
+      "name": "가벼운 몸풀기",
+      "description": "피로를 쌓지 않고 경기 감각만 날카롭게 만듭니다.",
+      "immediate": {},
+      "global_stats": {"speed": 2, "technique": 2}
+    }
+  ]
+}

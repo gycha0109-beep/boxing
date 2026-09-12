@@ -25,28 +25,33 @@ func _apply_hit_stop(stage: FightStage, event_id: int) -> void:
     var previous_mode: int = stage.process_mode
     stage.process_mode = Node.PROCESS_MODE_DISABLED
     var timer := get_tree().create_timer(last_hit_stop_seconds, true, false, true)
+    var stage_ref: WeakRef = weakref(stage)
     timer.timeout.connect(func() -> void:
-        if event_id == presentation_event_id and is_instance_valid(stage):
-            stage.process_mode = previous_mode
+        var live_stage: FightStage = stage_ref.get_ref()
+        if event_id == presentation_event_id and is_instance_valid(live_stage):
+            live_stage.process_mode = previous_mode
     )
 
 func _apply_screen_shake(stage: FightStage, strength: float, duration: float) -> void:
     if is_instance_valid(shake_tween):
         shake_tween.kill()
     var base_position: Vector2 = stage.position
-    shake_tween = create_tween()
+    shake_tween = stage.create_tween()
+    var stage_ref: WeakRef = weakref(stage)
     shake_tween.set_trans(Tween.TRANS_SINE)
     shake_tween.set_ease(Tween.EASE_OUT)
     shake_tween.tween_method(func(progress: float) -> void:
-        if not is_instance_valid(stage):
+        var live_stage: FightStage = stage_ref.get_ref()
+        if not is_instance_valid(live_stage):
             return
         var decay: float = 1.0 - progress
         var phase: float = progress * TAU * 4.0
-        stage.position = base_position + Vector2(sin(phase), cos(phase * 1.37)) * strength * decay
+        live_stage.position = base_position + Vector2(sin(phase), cos(phase * 1.37)) * strength * decay
     , 0.0, 1.0, duration)
     shake_tween.tween_callback(func() -> void:
-        if is_instance_valid(stage):
-            stage.position = base_position
+        var live_stage: FightStage = stage_ref.get_ref()
+        if is_instance_valid(live_stage):
+            live_stage.position = base_position
     )
 
 static func shake_duration_seconds(profile_id: String) -> float:

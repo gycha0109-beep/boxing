@@ -43,7 +43,12 @@ func _run() -> void:
     await process_frame
     await process_frame
 
-    _check(str(main_view.get_script().resource_path) == "res://scripts/main_v10.gd", "Main scene is not using the v1.0 shell that preserves v0.8 first-five-minutes flow")
+    _check(str(main_view.get_script().resource_path) == "res://scripts/main_v18_release.gd", "Main scene is not using the v18 release shell")
+    var music_node: Node = main_view.get_node_or_null("MusicDirector")
+    _check(is_instance_valid(music_node), "launch flow did not create music director")
+    if is_instance_valid(music_node):
+        _check(str(music_node.get("current_mode")) == "menu", "launch title did not use menu BGM")
+
     var title_text := "\n".join(_collect_text(main_view))
     _check(title_text.contains("ONE FIGHTER. ONE CAREER."), "fresh career did not show launch title gate")
     _check(title_text.contains("프로 커리어 시작"), "launch title missing start CTA")
@@ -52,24 +57,103 @@ func _run() -> void:
     main_view._start_new_career_from_title()
     await process_frame
     _check(bool(game_state.state.get("first_launch_acknowledged", false)), "title acknowledgement was not persisted")
-    _check(str(game_state.state.phase) == "camp", "title CTA did not enter camp")
-    var camp_text := "\n".join(_collect_text(main_view))
-    _check(camp_text.contains("PRO DEBUT · CAMP 01"), "first camp missing debut framing")
-    _check(camp_text.contains("YOUR FIGHTER"), "first camp missing fighter identity card")
+    _check(str(game_state.state.phase) == "style_select", "title CTA did not enter boxer style selection")
+    var natural_talent_id := str(game_state.state.boxer.get("trait_id", ""))
+    var natural_talent: Dictionary = game_state.talent_definition()
+    _check(not natural_talent_id.is_empty(), "new boxer did not receive an innate talent")
+    _check(not natural_talent.is_empty(), "new boxer innate talent has no definition")
 
+    var style_text := "\n".join(_collect_text(main_view))
+    _check(style_text.contains("BOXER CREATION"), "style selection missing compact creation framing")
+    _check(style_text.contains("복싱 스타일은 출발점"), "style selection missing concise guidance")
+    _check(style_text.contains("아웃복서"), "style selection missing out-boxer option")
+    _check(not style_text.contains("능력치가 하는 일"), "style screen regressed to the old long stat-explanation reading block")
+    _check(_grid_count(main_view) >= 1, "style options are not grouped into a scan-friendly grid")
+
+    main_view._choose_boxing_style("out_boxer")
+    await process_frame
+    _check(str(game_state.state.phase) == "talent_reveal", "style choice did not enter natural-talent reveal")
+    _check(str(game_state.state.boxer.get("identity_id", "")) == "out_boxer", "chosen boxing style was not persisted")
+    _check(str(game_state.state.boxer.get("trait_id", "")) == natural_talent_id, "style choice changed the innate talent")
+    var talent_text := "\n".join(_collect_text(main_view))
+    _check(talent_text.contains("NATURAL TALENT"), "talent reveal missing creation framing")
+    _check(talent_text.contains("타고난 재능 · %s" % str(natural_talent.get("name", ""))), "talent reveal does not identify the innate talent")
+    for stat in ["power", "speed", "technique", "defense", "conditioning"]:
+        var bonus := int(natural_talent.get("stat_bonus", {}).get(stat, 0))
+        if bonus == 0:
+            continue
+        var bonus_text := "%s %s%d" % [_stat_label_upper(stat), "+" if bonus > 0 else "", bonus]
+        _check(talent_text.contains(bonus_text), "talent reveal hides direct stat bonus: %s" % bonus_text)
+    for hidden_value in ["0.025", "1.28", "1.12", "0.72", "0.94", "0.78", "1.18", "1.2", "0.82"]:
+        _check(not talent_text.contains(hidden_value), "talent reveal exposes internal tuning coefficient: %s" % hidden_value)
+
+    main_view._confirm_talent()
+    await process_frame
+    _check(str(game_state.state.phase) == "camp", "talent confirmation did not enter camp")
+    if is_instance_valid(music_node):
+        _check(str(music_node.get("current_mode")) == "career", "camp did not switch to career BGM")
+    var camp_text := "\n".join(_collect_text(main_view))
+    _check(camp_text.contains("훈련 캠프 선택"), "camp missing v18 training framing")
+    _check(camp_text.contains("장비 · 체육관 투자"), "first camp missing optional equipment investment entry")
+    _check(_grid_count(main_view) >= 1, "training choices are not grouped into a scan-friendly grid")
+    _check(_button_count_with_text(main_view, "캠프 선택") >= 4, "training grid does not expose clear camp CTAs")
+    main_view._v17_open_overlay("profile")
+    await process_frame
+    _check("\n".join(_collect_text(main_view)).contains("능력치"), "profile missing five-stat panel")
+    for stat_id in ["power", "speed", "technique", "defense", "conditioning"]:
+        var help := main_view.find_child("StatHelp_" + stat_id, true, false) as Button
+        _check(is_instance_valid(help), "profile missing help for " + stat_id)
+        if is_instance_valid(help):
+            help.pressed.emit()
+            await process_frame
+            _check(main_view.stat_help_dialog.visible, "stat help did not open for " + stat_id)
+            _check(main_view.stat_help_dialog.dialog_text.contains(game_state.stat_help(stat_id)), "stat help content mismatch for " + stat_id)
+            main_view.stat_help_dialog.hide()
+    main_view._show_stat_help("speed")
+    await process_frame
+    var help_dialog: AcceptDialog = main_view.get_node_or_null("StatHelpDialog") as AcceptDialog
+    _check(is_instance_valid(help_dialog), "stat help button did not create a help dialog")
+    if is_instance_valid(help_dialog):
+        _check(help_dialog.title == "스피드", "stat help dialog title mismatch")
+        _check(not help_dialog.dialog_text.strip_edges().is_empty(), "stat help dialog has no explanation")
+        help_dialog.hide()
+
+    main_view._v17_open_match()
+    await process_frame
     main_view._choose_camp_action(camps[0])
     await process_frame
     _check(str(game_state.state.phase) == "fight_offer", "camp choice did not enter fight offers")
+    if is_instance_valid(music_node):
+        _check(str(music_node.get("current_mode")) == "fight_week", "fight offer did not switch to fight-week BGM")
     var offer_text := "\n".join(_collect_text(main_view))
-    _check(offer_text.contains("FIGHT WEEK · CONTRACT BOARD"), "fight offers missing fight-week framing")
+    _check(offer_text.contains("다음 상대를 선택하세요"), "fight offers missing v18 opponent-selection framing")
+    _check(offer_text.contains("CAREER LADDER"), "fight offers missing visible career ladder")
+    _check(offer_text.contains("[%s]" % VisualAssetCatalog.opponent_country_badge(str(opponents[0].name))), "fight offer missing identity/country badge")
 
     var opponent: Dictionary = opponents[0]
     main_view._choose_opponent(opponent)
     await process_frame
-    _check(str(game_state.state.phase) == "game_plan", "opponent choice did not enter game plan")
+    _check(str(game_state.state.phase) == "tactical_prep", "opponent choice did not enter tactical preparation")
+    var tactical_text := "\n".join(_collect_text(main_view))
+    _check(tactical_text.contains("전술 준비"), "tactical preparation missing v18 framing")
+    _check(tactical_text.contains(str(opponent.name)), "tactical preparation missing opponent")
+    _check(_grid_count(main_view) >= 1, "tactical options are not grouped into a scan-friendly grid")
+
+    main_view._choose_tactical_preparation("distance_drill")
+    await process_frame
+    _check(str(game_state.state.phase) == "condition_prep", "tactical choice did not enter final condition")
+    var condition_text := "\n".join(_collect_text(main_view))
+    _check(condition_text.contains("경기 주간 준비"), "condition preparation missing v18 fight-week framing")
+    _check(_grid_count(main_view) >= 1, "condition options are not grouped into a scan-friendly grid")
+
+    main_view._choose_condition_preparation("sharpness")
+    await process_frame
+    _check(str(game_state.state.phase) == "game_plan", "condition choice did not enter game plan")
     var plan_text := "\n".join(_collect_text(main_view))
-    _check(plan_text.contains("FIGHT WEEK · SCOUTING DOSSIER"), "game plan missing scouting dossier framing")
-    _check(plan_text.contains(str(opponent.name)), "scouting dossier missing opponent")
+    _check(plan_text.contains("게임플랜"), "game plan missing v18 framing")
+    _check(plan_text.contains("SCOUTING READ"), "game plan missing scouting summary")
+    _check(plan_text.contains(str(opponent.name)), "scouting summary missing opponent")
+    _check(_grid_count(main_view) >= 1, "game-plan choices are not grouped into a scan-friendly grid")
 
     main_view._choose_game_plan("balanced")
     await process_frame
@@ -86,17 +170,30 @@ func _run() -> void:
     await process_frame
     _check(bool(game_state.state.get("weigh_in_acknowledged", false)), "weigh-in acknowledgement was not persisted")
     _check(_find_stage(main_view) != null, "fight stage did not render after weigh-in acknowledgement")
+    if is_instance_valid(music_node):
+        _check(str(music_node.get("current_mode")) == "fight", "fight night did not switch to fight BGM")
 
     game_state.apply_fight_result("WIN_DEC", opponent, {"player_hp": 72.0, "opponent_hp": 44.0})
     main_view._render_phase()
     await process_frame
+    if is_instance_valid(music_node):
+        _check(str(music_node.get("current_mode")) == "career", "result did not return to career BGM")
     var result_text := "\n".join(_collect_text(main_view))
-    _check(result_text.contains("FIGHT NIGHT · OFFICIAL RESULT"), "result screen missing official-result framing")
+    _check(result_text.contains("경기 결과"), "result screen missing v18 result framing")
     _check(result_text.contains("판정승"), "result screen missing localized result")
     _check(result_text.contains("CAREER UPDATE"), "result screen missing career progression card")
     _check(result_text.contains("커리어 계속"), "result screen missing continuation CTA")
 
     _finish()
+
+func _stat_label_upper(stat: String) -> String:
+    match stat:
+        "power": return "파워"
+        "speed": return "스피드"
+        "technique": return "테크닉"
+        "defense": return "수비"
+        "conditioning": return "컨디셔닝"
+        _: return stat
 
 func _find_stage(node: Node) -> FightStage:
     for child in node.get_children():
@@ -106,6 +203,20 @@ func _find_stage(node: Node) -> FightStage:
         if nested != null:
             return nested
     return null
+
+func _grid_count(root: Node) -> int:
+    var count := 0
+    for node in root.find_children("*", "GridContainer", true, false):
+        if node is GridContainer:
+            count += 1
+    return count
+
+func _button_count_with_text(root: Node, text_value: String) -> int:
+    var count := 0
+    for node in root.find_children("*", "Button", true, false):
+        if node is Button and (node as Button).text.contains(text_value):
+            count += 1
+    return count
 
 func _collect_text(root: Node) -> Array[String]:
     var output: Array[String] = []
@@ -122,7 +233,7 @@ func _load_array(path: String) -> Array:
     return parsed if typeof(parsed) == TYPE_ARRAY else []
 
 func _cleanup_save_files() -> void:
-    for path in [Save.SAVE_PATH, Save.BACKUP_PATH, "user://career_v1.json", "user://career_v1.backup.json"]:
+    for path in [Save.SAVE_PATH, Save.BACKUP_PATH, Save.PREVIOUS_SAVE_PATH, Save.PREVIOUS_BACKUP_PATH, "user://career_v1.json", "user://career_v1.backup.json"]:
         if FileAccess.file_exists(path):
             DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 
@@ -131,7 +242,7 @@ func _finish() -> void:
         main_view.queue_free()
     _cleanup_save_files()
     if failures.is_empty():
-        print("v08-first-five-minutes-smoke: PASS")
+        print("v18-first-five-minutes-smoke: PASS")
         quit(0)
         return
     for failure in failures:

@@ -1,0 +1,51 @@
+derived_file	source_key	original_file	modification
+assets/audio/music/character_create/character_create_theme.ogg	oga_character_selection	character_selection_in_game.ogg	OGG normalize -23 LUFS; runtime loop
+assets/audio/music/camp/camp_funked_up.ogg	oga_funked_up	Funked Up.mp3	MP3→OGG; normalize -22 LUFS
+assets/audio/music/fight_week/fight_week_prepare.ogg	oga_prepare_to_fight	prepare_to_fight.mp3	MP3→OGG; normalize -23 LUFS
+assets/audio/music/fight_night/fight_night_ring.ogg	oga_boxing_ring	boxing_ring_-_music.wav	WAV→OGG; normalize -25 LUFS; combat-bed priority
+assets/audio/sfx/crowd/crowd_ambience.ogg	oga_boxing_ring	boxing_match_audience.wav	WAV→OGG; band-limit; normalize -27 LUFS
+assets/audio/sfx/bells/round_bell.wav	oga_boxing_ring	boxing_matchbell.wav	mono 44.1k PCM; band-limit; limiter
+assets/audio/sfx/bells/final_bell.wav	oga_boxing_ring	boxing_matchbell.wav	two-strike final-bell derivative; mono PCM
+assets/audio/sfx/crowd/reaction_small_01.ogg	oga_crowd_shouting	crowd_shouting.ogg	segment start=0.0s duration=1.15s tempo=1.00 gain=-5dB
+assets/audio/sfx/crowd/reaction_small_02.ogg	oga_crowd_shouting	crowd_shouting.ogg	segment start=1.35s duration=1.15s tempo=0.97 gain=-5dB
+assets/audio/sfx/crowd/reaction_big_hit_01.ogg	oga_crowd_shouting	crowd_shouting.ogg	segment start=2.80s duration=1.55s tempo=1.00 gain=-2dB
+assets/audio/sfx/crowd/reaction_big_hit_02.ogg	oga_crowd_shouting	crowd_shouting.ogg	segment start=4.60s duration=1.55s tempo=1.03 gain=-2dB
+assets/audio/sfx/crowd/reaction_knockdown_01.ogg	oga_crowd_shouting	crowd_shouting.ogg	segment start=6.50s duration=2.10s tempo=0.98 gain=0dB
+assets/audio/sfx/crowd/reaction_knockdown_02.ogg	oga_crowd_shouting	crowd_shouting.ogg	segment start=8.90s duration=2.10s tempo=1.02 gain=0dB
+assets/audio/sfx/crowd/reaction_win_01.ogg	oga_cheers	cheers.ogg	trim <=2.4s tempo=0.97 gain=-1dB
+assets/audio/sfx/crowd/reaction_win_02.ogg	oga_cheers	cheers.ogg	trim <=2.4s tempo=1.03 gain=-1dB
+assets/audio/sfx/punches/jab_01.wav	oga_37_hits_punches	hit01.mp3.flac	trim <=0.72s; category=jab; mono 44.1k PCM; phone EQ/limiter
+assets/audio/sfx/punches/jab_02.wav	oga_37_hits_punches	hit02.mp3.flac	trim <=0.72s; category=jab; mono 44.1k PCM; phone EQ/limiter
+assets/audio/sfx/punches/jab_03.wav	oga_37_hits_punches	hit03.mp3.flac	trim <=0.72s; category=jab; mono 44.1k PCM; phone EQ/limiter
+assets/audio/sfx/punches/head_01.wav	oga_37_hits_punches	hit04.mp3.flac	trim <=0.72s; category=head; mono 44.1k PCM; phone EQ/limiter
+assets/audio/sfx/punches/head_02.wav	oga_37_hits_punches	hit05.mp3.flac	trim <=0.72s; category=head; mono 44.1k PCM; phone EQ/limiter
+assets/audio/sfx/punches/head_03.wav	oga_37_hits_punches	hit06.mp3.flac	trim <=0.72s; category=head; mono 44.1k PCM; phone EQ/limiter
+assets/audio/sfx/punches/head_04.wav	oga_37_hits_punches	hit07.mp3.flac	trim <=0.72s; category=head; mono 44.1k PCM; phone EQ/limiter
+assets/audio/sfx/punches/heavy_01.wav	oga_37_hits_punches	hit08.mp3.flac	trim <=0.72s; category=heavy; mono 44.1k PCM; phone EQ/limiter
+assets/audio/sfx/punches/heavy_02.wav	oga_37_hits_punches	hit09.mp3.flac	trim <=0.72s; category=heavy; mono 44.1k PCM; phone EQ/limiter
+assets/audio/sfx/punches/heavy_03.wav	oga_37_hits_punches	hit10.mp3.flac	trim <=0.72s; category=heavy; mono 44.1k PCM; phone EQ/limiter
+assets/audio/sfx/punches/counter_01.wav	oga_37_hits_punches	hit11.mp3.flac	trim <=0.72s; category=counter; mono 44.1k PCM; phone EQ/limiter
+assets/audio/sfx/punches/counter_02.wav	oga_37_hits_punches	hit12.mp3.flac	trim <=0.72s; category=counter; mono 44.1k PCM; phone EQ/limiter
+assets/audio/sfx/punches/counter_03.wav	oga_37_hits_punches	hit13.mp3.flac	trim <=0.72s; category=counter; mono 44.1k PCM; phone EQ/limiter
+assets/audio/sfx/punches/body_01.wav	oga_37_hits_punches	hit14.mp3.flac	trim <=0.72s; category=body; mono 44.1k PCM; phone EQ/limiter
+assets/audio/sfx/punches/body_02.wav	oga_37_hits_punches	hit15.mp3.flac	trim <=0.72s; category=body; mono 44.1k PCM; phone EQ/limiter
+assets/audio/sfx/punches/body_03.wav	oga_37_hits_punches	hit16.mp3.flac	trim <=0.72s; category=body; mono 44.1k PCM; phone EQ/limiter
+assets/audio/sfx/blocks/block_01.wav	oga_impact_blocks	impact.1.ogg	trim <=0.50s; mono 44.1k PCM; metallic-top suppression; glove-body EQ
+assets/audio/sfx/blocks/block_02.wav	oga_impact_blocks	impact.10.ogg	trim <=0.50s; mono 44.1k PCM; metallic-top suppression; glove-body EQ
+assets/audio/sfx/blocks/block_03.wav	oga_impact_blocks	impact.2.ogg	trim <=0.50s; mono 44.1k PCM; metallic-top suppression; glove-body EQ
+assets/audio/sfx/blocks/block_04.wav	oga_impact_blocks	impact.3.ogg	trim <=0.50s; mono 44.1k PCM; metallic-top suppression; glove-body EQ
+assets/audio/sfx/blocks/block_05.wav	oga_impact_blocks	impact.4.ogg	trim <=0.50s; mono 44.1k PCM; metallic-top suppression; glove-body EQ
+assets/audio/sfx/swings/swing_01.wav	oga_swishes	swish-1.wav	trim <=0.46s; mono 44.1k PCM; -6dB event attenuation
+assets/audio/sfx/swings/swing_02.wav	oga_swishes	swish-10.wav	trim <=0.46s; mono 44.1k PCM; -6dB event attenuation
+assets/audio/sfx/swings/swing_03.wav	oga_swishes	swish-11.wav	trim <=0.46s; mono 44.1k PCM; -6dB event attenuation
+assets/audio/sfx/voice/light_01.ogg	oga_hurt_ezduzziteh	ez_hurt_03.mp3	shortest-clip selection; trim <=1.15s; mono OGG; gain=-7dB
+assets/audio/sfx/voice/light_02.ogg	oga_hurt_ezduzziteh	ez_hurt_06.mp3	shortest-clip selection; trim <=1.15s; mono OGG; gain=-7dB
+assets/audio/sfx/voice/light_03.ogg	oga_hurt_ezduzziteh	ez_hurt_04.mp3	shortest-clip selection; trim <=1.15s; mono OGG; gain=-7dB
+assets/audio/sfx/voice/light_04.ogg	oga_hurt_ezduzziteh	ez_hurt_02.mp3	shortest-clip selection; trim <=1.15s; mono OGG; gain=-7dB
+assets/audio/sfx/voice/heavy_01.ogg	oga_hurt_ezduzziteh	ez_hurt_01.mp3	shortest-clip selection; trim <=1.15s; mono OGG; gain=-5dB
+assets/audio/sfx/voice/heavy_02.ogg	oga_hurt_ezduzziteh	ez_hurt_05.mp3	shortest-clip selection; trim <=1.15s; mono OGG; gain=-5dB
+assets/audio/sfx/voice/heavy_03.ogg	oga_pain_emopreben	Painsounds v2 - Track 1 - Arrrch.ogg	shortest-clip selection; trim <=1.15s; mono OGG; gain=-5dB
+assets/audio/sfx/voice/body_01.ogg	oga_pain_emopreben	Painsounds v2 - Track 2 - Hurgh.ogg	shortest-clip selection; trim <=1.15s; mono OGG; gain=-5dB
+assets/audio/sfx/voice/body_02.ogg	oga_pain_emopreben	Painsounds v2 - Track 5 - Urggh.ogg	shortest-clip selection; trim <=1.15s; mono OGG; gain=-5dB
+assets/audio/sfx/voice/knockdown_01.ogg	oga_pain_emopreben	Painsounds v2 - Track 4 - Arrggh .ogg	shortest-clip selection; trim <=1.15s; mono OGG; gain=-4dB
+assets/audio/sfx/voice/knockdown_02.ogg	oga_pain_emopreben	Painsounds v2 - Track 3 - Huuurh.ogg	shortest-clip selection; trim <=1.15s; mono OGG; gain=-4dB

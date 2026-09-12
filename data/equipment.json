@@ -1,0 +1,32 @@
+{
+  "personal": [
+    {"slot":"gloves","slot_name":"글러브","id":"club_gloves","name":"클럽 글러브","tier":1,"price":60000,"required_title":"","description":"기본보다 단단한 경기용 글러브입니다.","stat_bonus":{"power":1}},
+    {"slot":"gloves","slot_name":"글러브","id":"pro_gloves","name":"프로 글러브","tier":2,"price":160000,"required_title":"regional","description":"프로 무대에서 쓸 만한 균형 잡힌 글러브입니다.","stat_bonus":{"power":2}},
+    {"slot":"gloves","slot_name":"글러브","id":"elite_gloves","name":"엘리트 글러브","tier":3,"price":360000,"required_title":"continental","description":"세계권을 노리는 선수용 커스텀 글러브입니다.","stat_bonus":{"power":3}},
+
+    {"slot":"shoes","slot_name":"복싱화","id":"club_shoes","name":"클럽 복싱화","tier":1,"price":55000,"required_title":"","description":"발을 조금 더 가볍게 써 주는 기본 복싱화입니다.","stat_bonus":{"speed":1}},
+    {"slot":"shoes","slot_name":"복싱화","id":"pro_shoes","name":"프로 복싱화","tier":2,"price":150000,"required_title":"regional","description":"거리 조절에 유리한 경량 프로 복싱화입니다.","stat_bonus":{"speed":2}},
+    {"slot":"shoes","slot_name":"복싱화","id":"elite_shoes","name":"엘리트 복싱화","tier":3,"price":340000,"required_title":"continental","description":"풋워크를 끝까지 살려 주는 엘리트 장비입니다.","stat_bonus":{"speed":3}},
+
+    {"slot":"mouthguard","slot_name":"마우스피스","id":"club_mouthguard","name":"클럽 마우스피스","tier":1,"price":45000,"required_title":"","description":"큰 충격을 버티는 데 도움을 주는 기본 보호 장비입니다.","stat_bonus":{"defense":1}},
+    {"slot":"mouthguard","slot_name":"마우스피스","id":"pro_mouthguard","name":"맞춤형 마우스피스","tier":2,"price":130000,"required_title":"regional","description":"선수에게 맞춰 제작한 충격 흡수 장비입니다.","stat_bonus":{"defense":2}},
+    {"slot":"mouthguard","slot_name":"마우스피스","id":"elite_mouthguard","name":"엘리트 마우스피스","tier":3,"price":300000,"required_title":"continental","description":"상위권 경기용으로 제작된 최고급 보호 장비입니다.","stat_bonus":{"defense":3}}
+  ],
+  "gym": [
+    {"slot":"mitts","slot_name":"미트","id":"club_mitts","name":"클럽 미트","tier":1,"price":90000,"required_title":"","description":"미트 집중 훈련의 성과가 조금 좋아집니다.","training_percent":12,"action_ids":["mitts"]},
+    {"slot":"mitts","slot_name":"미트","id":"pro_mitts","name":"프로 미트","tier":2,"price":240000,"required_title":"regional","description":"미트 집중 훈련의 성과가 더 안정적으로 쌓입니다.","training_percent":22,"action_ids":["mitts"]},
+    {"slot":"mitts","slot_name":"미트","id":"elite_mitts","name":"엘리트 미트","tier":3,"price":520000,"required_title":"continental","description":"미트 집중 훈련의 성장 효율을 크게 끌어올립니다.","training_percent":35,"action_ids":["mitts"]},
+
+    {"slot":"heavy_bag","slot_name":"헤비백","id":"club_heavy_bag","name":"강화 헤비백","tier":1,"price":90000,"required_title":"","description":"헤비백 강훈련의 성장 효율을 조금 높입니다.","training_percent":12,"action_ids":["heavy_bag"]},
+    {"slot":"heavy_bag","slot_name":"헤비백","id":"pro_heavy_bag","name":"프로 헤비백","tier":2,"price":240000,"required_title":"regional","description":"파워 훈련 성과가 더 안정적으로 쌓입니다.","training_percent":22,"action_ids":["heavy_bag"]},
+    {"slot":"heavy_bag","slot_name":"헤비백","id":"elite_heavy_bag","name":"엘리트 헤비백","tier":3,"price":520000,"required_title":"continental","description":"파워 훈련의 성장 효율을 크게 끌어올립니다.","training_percent":35,"action_ids":["heavy_bag"]},
+
+    {"slot":"roadwork","slot_name":"컨디셔닝","id":"club_conditioning","name":"기본 컨디셔닝 세트","tier":1,"price":80000,"required_title":"","description":"로드워크 훈련 성과를 조금 높입니다.","training_percent":12,"action_ids":["roadwork"]},
+    {"slot":"roadwork","slot_name":"컨디셔닝","id":"pro_conditioning","name":"프로 컨디셔닝 세트","tier":2,"price":220000,"required_title":"regional","description":"로드워크 훈련 성과가 더 잘 누적됩니다.","training_percent":22,"action_ids":["roadwork"]},
+    {"slot":"roadwork","slot_name":"컨디셔닝","id":"elite_conditioning","name":"엘리트 컨디셔닝 세트","tier":3,"price":480000,"required_title":"continental","description":"로드워크 성장 효율을 크게 끌어올립니다.","training_percent":35,"action_ids":["roadwork"]},
+
+    {"slot":"defense","slot_name":"수비 장비","id":"club_defense_gear","name":"기본 수비 장비","tier":1,"price":85000,"required_title":"","description":"디펜스 드릴과 스파링의 성장 효율을 조금 높입니다.","training_percent":12,"action_ids":["defense_drill","sparring"]},
+    {"slot":"defense","slot_name":"수비 장비","id":"pro_defense_gear","name":"프로 수비 장비","tier":2,"price":230000,"required_title":"regional","description":"수비 훈련 성과가 더 안정적으로 쌓입니다.","training_percent":22,"action_ids":["defense_drill","sparring"]},
+    {"slot":"defense","slot_name":"수비 장비","id":"elite_defense_gear","name":"엘리트 수비 장비","tier":3,"price":500000,"required_title":"continental","description":"수비·스파링 성장 효율을 크게 끌어올립니다.","training_percent":35,"action_ids":["defense_drill","sparring"]}
+  ]
+}
