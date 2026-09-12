@@ -50,6 +50,8 @@ func _run() -> void:
     await process_frame
     await process_frame
 
+    _check(str(main_view.get_script().resource_path) == "res://scripts/main_v18_release.gd", "fight HUD is not using the active release shell")
+
     var scroll := _find_scroll(main_view)
     _check(is_instance_valid(scroll), "fight HUD has no ScrollContainer")
     if is_instance_valid(scroll):
@@ -60,14 +62,34 @@ func _run() -> void:
     var stage := _find_stage(main_view)
     _check(is_instance_valid(stage), "fight HUD has no visible FightStage")
     if is_instance_valid(stage):
-        _check(stage.custom_minimum_size.y >= 300.0, "fight stage is too short to remain the visual focus")
+        _check(stage.custom_minimum_size.y >= 340.0, "fight stage is too short to remain the visual focus")
 
     var text := "\n".join(_collect_text(main_view))
     _check(text.contains("ROUND 1"), "fight HUD has no round header")
-    _check(text.contains("RING"), "fight HUD has no ring label")
-    _check(text.contains("OPPONENT READ"), "fight HUD has no compact opponent read strip")
+    _check(text.contains("상대 읽기"), "fight HUD has no Korean tactical read strip")
     _check(text.contains("다음 행동"), "fight HUD has no action section")
+    _check(not text.contains("OPPONENT READ"), "legacy English opponent-read card remains on fight screen")
+    _check(not text.contains("★ PLAN"), "legacy PLAN copy remains inside action buttons")
     _check(not text.contains("상대 몸통 상태:"), "legacy long tactical copy still occupies the fight screen")
+
+    var bottom_nav := main_view.find_child("V19BottomNav", true, false) as Control
+    _check(is_instance_valid(bottom_nav), "redesigned shell has no named bottom navigation")
+    if is_instance_valid(bottom_nav):
+        _check(not bottom_nav.visible, "app bottom navigation remains visible during live combat")
+
+    for chrome_name in ["V19MenuButton", "V19MoneyBox", "V19SettingsButton"]:
+        var chrome := main_view.find_child(chrome_name, true, false) as Control
+        _check(is_instance_valid(chrome), "missing phase-aware chrome node: " + chrome_name)
+        if is_instance_valid(chrome):
+            _check(not chrome.visible, "non-combat app chrome remains visible during fight: " + chrome_name)
+
+    var actions := main_view.find_child("V19FightActions", true, false) as VBoxContainer
+    _check(is_instance_valid(actions), "fight HUD has no redesigned 2+2+1 action controls")
+    var primary := main_view.find_child("V19ActionRowPrimary", true, false) as HBoxContainer
+    var secondary := main_view.find_child("V19ActionRowSecondary", true, false) as HBoxContainer
+    _check(is_instance_valid(primary) and _direct_button_count(primary) == 2, "primary fight action row is not 2-up")
+    _check(is_instance_valid(secondary) and _direct_button_count(secondary) == 2, "secondary fight action row is not 2-up")
+    _check(is_instance_valid(main_view.find_child("V19ActionCounter", true, false)), "counter is not a full-width final action")
 
     var labels := ["잽", "강타", "바디", "가드", "카운터"]
     var buttons := _buttons_under(main_view)
@@ -99,6 +121,15 @@ func _buttons_under(root: Node) -> Array[Button]:
     for child in root.get_children():
         out.append_array(_buttons_under(child))
     return out
+
+func _direct_button_count(root: Node) -> int:
+    var count := 0
+    if not is_instance_valid(root):
+        return count
+    for child in root.get_children():
+        if child is Button:
+            count += 1
+    return count
 
 func _has_action_button(buttons: Array[Button], label_text: String) -> bool:
     for button in buttons:

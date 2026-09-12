@@ -6,7 +6,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 required = [
     "project.godot", "scenes/Main.tscn",
-    "scripts/main.gd", "scripts/main_v05.gd", "scripts/main_v06.gd", "scripts/main_v07.gd", "scripts/main_v08.gd", "scripts/main_v10.gd", "scripts/main_v12.gd", "scripts/main_v13.gd", "scripts/main_v14.gd", "scripts/main_v15.gd", "scripts/main_v16.gd", "scripts/main_v17.gd", "scripts/main_v18.gd", "scripts/main_v18_release.gd",
+    "scripts/main.gd", "scripts/main_v05.gd", "scripts/main_v06.gd", "scripts/main_v07.gd", "scripts/main_v08.gd", "scripts/main_v10.gd", "scripts/main_v12.gd", "scripts/main_v13.gd", "scripts/main_v14.gd", "scripts/main_v15.gd", "scripts/main_v16.gd", "scripts/main_v17.gd", "scripts/main_v18.gd", "scripts/main_v18_release_base.gd", "scripts/main_v18_release.gd",
     "scripts/core/game_state.gd", "scripts/core/game_state_v12.gd", "scripts/core/game_state_v14.gd", "scripts/core/game_state_v15.gd", "scripts/core/combat_engine.gd", "scripts/core/save_service.gd", "scripts/core/legacy_service.gd",
     "scripts/ui/combat_presentation.gd", "scripts/ui/fight_stage.gd", "scripts/ui/impact_feedback.gd", "scripts/ui/fight_fx_director.gd", "scripts/ui/arena_audio.gd", "scripts/ui/music_director.gd", "scripts/ui/safe_area_layout.gd", "scripts/ui/visual_asset_catalog.gd",
     "scripts/ui/v18_assets/hero_player_00.gd", "scripts/ui/v18_assets/hero_player_01.gd", "scripts/ui/v18_assets/training_atlas_00.gd", "scripts/ui/v18_assets/training_atlas_01.gd", "scripts/ui/v18_assets/opponent_atlas_00.gd", "scripts/ui/v18_assets/opponent_atlas_01.gd", "scripts/ui/v18_assets/fight_ring_scene_00.gd", "scripts/ui/v18_assets/fight_ring_scene_01.gd", "scripts/ui/v18_assets/fight_ring_scene_02.gd",
@@ -40,7 +40,8 @@ main_chain = {
     "scripts/main_v16.gd": 'extends "res://scripts/main_v15.gd"',
     "scripts/main_v17.gd": 'extends "res://scripts/main_v16.gd"',
     "scripts/main_v18.gd": 'extends "res://scripts/main_v17.gd"',
-    "scripts/main_v18_release.gd": 'extends "res://scripts/main_v18.gd"',
+    "scripts/main_v18_release_base.gd": 'extends "res://scripts/main_v18.gd"',
+    "scripts/main_v18_release.gd": 'extends "res://scripts/main_v18_release_base.gd"',
 }
 for path, marker in main_chain.items():
     assert marker in (ROOT / path).read_text(), f"main inheritance broken: {path}"
@@ -70,9 +71,15 @@ assert 'stage_photo' not in main_v18, "live combat must not use a baked fighter 
 for asset_marker in ["V18_HERO_0", "V18_TRAINING_0", "V18_OPPONENT_0", "V18_RING_0"]:
     assert asset_marker in main_v18
 
-main_v18_release = (ROOT / "scripts/main_v18_release.gd").read_text()
+main_v18_release_base = (ROOT / "scripts/main_v18_release_base.gd").read_text()
 for marker in ["func _v17_top_bar()", "func _v18_release_touch_targets(", "56.0"]:
-    assert marker in main_v18_release
+    assert marker in main_v18_release_base
+
+main_v18_release = (ROOT / "scripts/main_v18_release.gd").read_text()
+for marker in ["func _render_tactical_preparation()", "func _render_fight(", "func _v19_disable_legacy_bitmap_fx()", "func _v17_top_bar()", '"V19BottomNav"', '"V19FightActions"', '"상대 읽기"', '"코너 조언"']:
+    assert marker in main_v18_release, f"v19 redesign marker missing: {marker}"
+assert '"OPPONENT READ"' not in main_v18_release, "active fight UI regressed to the legacy English read card"
+assert '"★ PLAN"' not in main_v18_release, "active fight buttons regressed to legacy PLAN copy"
 
 visual_catalog = (ROOT / "scripts/ui/visual_asset_catalog.gd").read_text()
 for marker in ["VISUAL_PROFILE_BY_NAME", "VISUAL_STYLE_BY_PROFILE", "opponent_visual_profile_for_name", "opponent_visual_style_for_name", "opponent_portrait_texture_for_name", '"박태호": "korean"', '"에번 브룩스": "black"']:

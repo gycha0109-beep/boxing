@@ -45,7 +45,7 @@ func _run() -> void:
     await process_frame
 
     if str(main_view.get_script().resource_path) != "res://scripts/main_v18_release.gd":
-        _fail("capture is not using the active v18 release shell above the commercial photo/audio/economy/preparation/Legacy runtime")
+        _fail("capture is not using the active release shell")
         return
 
     await _capture("01_title.png")
@@ -93,6 +93,11 @@ func _run() -> void:
     var opponent: Dictionary = opponents[13]
     main_view._choose_opponent(opponent)
     await process_frame
+    var tactical_text := "\n".join(_collect_text(main_view))
+    for marker in ["전술 준비", "다음 상대", str(opponent.name), "매치업 플랜", "01", "04"]:
+        if not tactical_text.contains(marker):
+            _fail("redesigned tactical preparation missing marker: %s" % marker)
+            return
     await _capture("11_tactical_preparation.png")
     main_view._choose_tactical_preparation("distance_drill")
     await process_frame
@@ -110,10 +115,17 @@ func _run() -> void:
     await process_frame
     await process_frame
     var fight_text := "\n".join(_collect_text(main_view))
-    for marker in ["RING", str(opponent.name), "2:48", "OPPONENT READ", "다음 행동"]:
+    for marker in [str(opponent.name), "2:48", "상대 읽기", "코너 조언", "다음 행동"]:
         if not fight_text.contains(marker):
-            _fail("v18 fight opening missing marker: %s" % marker)
+            _fail("redesigned fight opening missing marker: %s" % marker)
             return
+    if fight_text.contains("OPPONENT READ") or fight_text.contains("★ PLAN"):
+        _fail("legacy fight dashboard copy survived the v19 redesign")
+        return
+    var bottom_nav := main_view.find_child("V19BottomNav", true, false) as Control
+    if not is_instance_valid(bottom_nav) or bottom_nav.visible:
+        _fail("bottom app navigation must be hidden during combat")
+        return
     await _capture("07_fight_opening.png")
 
     main_view._choose_fight_action("jab")
@@ -167,7 +179,7 @@ func _run() -> void:
     stage.animation_progress = 0.0
     await _capture("18_fight_knockdown.png")
 
-    print("visual-capture-v18-commercial: PASS")
+    print("visual-capture-v19-redesign: PASS")
     _cleanup_save_files()
     quit(0)
 
@@ -196,10 +208,9 @@ func _capture(filename: String) -> void:
             if card.get_global_rect().end.y > scroll.get_global_rect().end.y + 1:
                 _fail("opponent CTA is outside the first viewport: " + str(card.name))
                 return
-    if fight_capture:
-        if not _fixed_fight_layout_ready(scroll, content):
-            _fail("fixed fight HUD overflows in " + filename)
-            return
+    if fight_capture and not _fixed_fight_layout_ready(scroll, content):
+        _fail("fixed fight HUD overflows in " + filename)
+        return
     await process_frame
     _redraw_tree(main_view)
     await RenderingServer.frame_post_draw
@@ -237,6 +248,9 @@ func _fixed_fight_layout_ready(scroll: ScrollContainer, content: Control) -> boo
         return false
     if main_view.find_children("*", "FightStage", true, false).size() != 1:
         return false
+    var bottom_nav := main_view.find_child("V19BottomNav", true, false) as Control
+    if not is_instance_valid(bottom_nav) or bottom_nav.visible:
+        return false
     for button in main_view._buttons_under(content):
         if not scroll.get_global_rect().encloses(button.get_global_rect()):
             return false
@@ -244,7 +258,8 @@ func _fixed_fight_layout_ready(scroll: ScrollContainer, content: Control) -> boo
 
 func _redraw_tree(node: Node) -> void:
     if node is CanvasItem: node.queue_redraw()
-    for child in node.get_children(): _redraw_tree(child)
+    for child in node.get_children():
+        _redraw_tree(child)
 
 func _collect_text(root: Node) -> Array[String]:
     var values: Array[String] = []

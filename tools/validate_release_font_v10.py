@@ -16,6 +16,7 @@ AUDIO_SHELL = ROOT / "scripts/main_v15.gd"
 COMPACT_SHELL = ROOT / "scripts/main_v16.gd"
 COMMERCIAL_SHELL = ROOT / "scripts/main_v17.gd"
 PHOTO_SHELL = ROOT / "scripts/main_v18.gd"
+ACTIVE_BASE_SHELL = ROOT / "scripts/main_v18_release_base.gd"
 ACTIVE_SHELL = ROOT / "scripts/main_v18_release.gd"
 IMPORT_WORKFLOW = ROOT / ".github/workflows/import-korean-font-v10.yml"
 
@@ -36,6 +37,7 @@ def require(condition: bool, message: str) -> None:
 def main() -> None:
     require(FONT.is_file(), "bundled Noto Sans KR font is missing")
     require(LICENSE.is_file(), "Noto Sans KR OFL license is missing")
+    require(ACTIVE_BASE_SHELL.is_file(), "release base shell is missing")
     require(FONT.stat().st_size >= 1_000_000, f"font is unexpectedly small: {FONT.stat().st_size} bytes")
     require(git_blob_sha(FONT) == EXPECTED_FONT_BLOB, "font does not match pinned upstream Google Fonts blob")
     require(git_blob_sha(LICENSE) == EXPECTED_LICENSE_BLOB, "license does not match pinned upstream Google Fonts blob")
@@ -52,9 +54,11 @@ def main() -> None:
     compact_shell_text = COMPACT_SHELL.read_text(encoding="utf-8")
     commercial_shell_text = COMMERCIAL_SHELL.read_text(encoding="utf-8")
     photo_shell_text = PHOTO_SHELL.read_text(encoding="utf-8")
+    active_base_text = ACTIVE_BASE_SHELL.read_text(encoding="utf-8")
     active_shell_text = ACTIVE_SHELL.read_text(encoding="utf-8")
-    require('res://scripts/main_v18_release.gd' in scene_text, "Main scene is not routed through the active v18 release shell")
-    require('extends "res://scripts/main_v18.gd"' in active_shell_text, "active release shell no longer preserves v18 photo flow")
+    require('res://scripts/main_v18_release.gd' in scene_text, "Main scene is not routed through the active release shell")
+    require('extends "res://scripts/main_v18_release_base.gd"' in active_shell_text, "active redesign shell no longer preserves the validated release base")
+    require('extends "res://scripts/main_v18.gd"' in active_base_text, "release base no longer preserves v18 photo flow")
     require('extends "res://scripts/main_v17.gd"' in photo_shell_text, "v18 photo shell no longer preserves commercial UI flow")
     require('extends "res://scripts/main_v16.gd"' in commercial_shell_text, "commercial shell no longer preserves compact UI flow")
     require('extends "res://scripts/main_v15.gd"' in compact_shell_text, "compact shell no longer preserves audio flow")
