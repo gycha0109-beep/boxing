@@ -10,6 +10,7 @@ var v19_menu_button: Button
 var v19_money_box: Control
 var v19_settings_button: Button
 var v19_bottom_nav: Control
+var v19_previous_overlay: String = ""
 
 func _ready() -> void:
     _v19_disable_legacy_bitmap_fx()
@@ -36,7 +37,7 @@ func _v17_top_bar() -> Control:
     menu.flat = true
     menu.custom_minimum_size = Vector2(56, 56)
     menu.tooltip_text = "내 선수"
-    menu.pressed.connect(Callable(self, "_v17_open_overlay").bind("profile"))
+    menu.pressed.connect(_v19_open_menu)
     bar.add_child(menu)
     v19_menu_button = menu
 
@@ -66,7 +67,8 @@ func _v17_top_bar() -> Control:
     settings.icon = _v18_line_icon("settings")
     settings.flat = true
     settings.custom_minimum_size = Vector2(56, 56)
-    settings.disabled = true
+    settings.disabled = false
+    settings.pressed.connect(_v19_open_settings)
     settings.tooltip_text = "설정 준비 중"
     bar.add_child(settings)
     v19_settings_button = settings
@@ -80,6 +82,21 @@ func _v17_bottom_nav() -> Control:
 
 func _v17_sync_nav() -> void:
     super._v17_sync_nav()
+    var active := ""
+    if v17_overlay == "match_blocked":
+        active = "match"
+    elif v17_overlay == "training_blocked":
+        active = "training"
+    elif v17_overlay.is_empty() and str(GameState.state.get("phase", "")) == "equipment_shop":
+        active = "shop"
+    if not active.is_empty():
+        for key in v17_nav_buttons.keys():
+            var button: Button = v17_nav_buttons[key]
+            var selected := str(key) == active
+            button.add_theme_color_override("font_color", V17_GOLD if selected else V17_MUTED)
+            button.add_theme_stylebox_override("normal", _v17_nav_style(selected))
+            button.add_theme_stylebox_override("pressed", _v17_nav_style(true))
+            button.add_theme_stylebox_override("hover", _v17_nav_style(selected))
     _v19_apply_phase_chrome()
 
 func _v19_apply_phase_chrome() -> void:
@@ -436,3 +453,114 @@ func _v19_action_button(parent: Container, action_id: String, selected_plan: Dic
     button.pressed.connect(Callable(self, "_choose_fight_action").bind(action_id))
     parent.add_child(button)
     return button
+
+# Keep real career state distinct from navigation-only panels.
+func _render_phase() -> void:
+    if v17_overlay in ["match_blocked", "training_blocked"] and not launch_gate_active:
+        _clear_body()
+        _render_status()
+        _v19_render_blocked_tab(v17_overlay)
+        _configure_mobile_scroll()
+        _v17_sync_nav()
+        return
+    super._render_phase()
+
+func _v17_open_training() -> void:
+    v17_overlay = ""
+    var phase := str(GameState.state.get("phase", ""))
+    if phase == "equipment_shop":
+        _return_from_equipment_shop()
+        return
+    if phase == "camp":
+        _render_phase()
+        return
+    v17_overlay = "training_blocked"
+    _render_phase()
+
+func _v17_open_match() -> void:
+    v17_overlay = ""
+    var phase := str(GameState.state.get("phase", ""))
+    if phase in ["camp", "equipment_shop", "style_select", "talent_reveal"]:
+        v17_overlay = "match_blocked"
+    _render_phase()
+
+func _v17_open_shop() -> void:
+    v17_overlay = ""
+    var phase := str(GameState.state.get("phase", ""))
+    if phase == "camp":
+        _open_equipment_shop()
+        return
+    if phase == "equipment_shop":
+        _render_phase()
+        return
+    v17_overlay = "shop"
+    _render_phase()
+
+func _v19_return_to_phase() -> void:
+    v17_overlay = ""
+    _render_phase()
+
+func _v19_render_blocked_tab(tab_id: String) -> void:
+    var phase := str(GameState.state.get("phase", ""))
+    var panel: VBoxContainer
+    if tab_id == "match_blocked":
+        _v17_section_heading("경기", "현재 커리어의 진행 순서를 안내합니다.")
+        panel = _v17_panel(body, false)
+        if phase == "equipment_shop":
+            _v17_title(panel, "장비 투자 단계입니다", 22)
+            _v17_copy(panel, "장비 구매는 선택 사항입니다. 구매하거나 캠프로 돌아가 훈련을 진행한 다음 경기에 도전할 수 있습니다.", true)
+        elif phase == "camp":
+            _v17_title(panel, "경기 준비 중", 22)
+            _v17_copy(panel, "캠프에서 훈련 또는 회복을 선택하면 경기 계약 단계로 진행합니다.", true)
+        else:
+            _v17_title(panel, "선수 생성 진행 중", 22)
+            _v17_copy(panel, "선수의 스타일과 재능을 확정하면 경기 준비를 시작할 수 있습니다.", true)
+    else:
+        _v17_section_heading("훈련", "현재 커리어의 진행 순서를 안내합니다.")
+        panel = _v17_panel(body, false)
+        _v17_title(panel, "현재는 훈련 단계가 아닙니다", 22)
+        _v17_copy(panel, "경기 일정과 결과를 진행하면 다음 훈련 캠프가 열립니다. 현재 단계는 유지됩니다.", true)
+    if phase == "equipment_shop":
+        _v19_menu_button(panel, "훈련 캠프로 돌아가기", Callable(self, "_return_from_equipment_shop"))
+    _v19_menu_button(panel, "현재 단계로 돌아가기", Callable(self, "_v19_return_to_phase"))
+
+# Browser-preview navigation: make both header icons actionable.
+func _v19_open_menu() -> void:
+    v19_previous_overlay = v17_overlay
+    v17_overlay = ""
+    _clear_body()
+    _v17_section_heading("메뉴", "이동할 화면을 선택하세요.")
+    var panel := _v17_panel(body, false)
+    _v19_menu_button(panel, "내 선수", Callable(self, "_v17_open_overlay").bind("profile"))
+    _v19_menu_button(panel, "경기 진행", Callable(self, "_v17_open_match"))
+    _v19_menu_button(panel, "훈련", Callable(self, "_v17_open_training"))
+    _v19_menu_button(panel, "커리어", Callable(self, "_v17_open_overlay").bind("career"))
+    _v19_menu_button(panel, "상점", Callable(self, "_v17_open_shop"))
+    _v19_menu_button(panel, "닫기", Callable(self, "_v19_close_secondary"))
+    _v17_sync_nav()
+
+func _v19_open_settings() -> void:
+    v19_previous_overlay = v17_overlay
+    v17_overlay = ""
+    _clear_body()
+    _v17_section_heading("설정", "게임 실행 옵션")
+    var panel := _v17_panel(body, false)
+    var mute := CheckButton.new()
+    mute.text = "모든 게임 소리 끄기"
+    mute.button_pressed = AudioServer.is_bus_mute(0)
+    mute.toggled.connect(func(value: bool): AudioServer.set_bus_mute(0, value))
+    panel.add_child(mute)
+    _v19_menu_button(panel, "게임으로 돌아가기", Callable(self, "_v19_close_secondary"))
+    _v17_sync_nav()
+
+func _v19_menu_button(parent: Node, label_text: String, action: Callable) -> void:
+    var btn := Button.new()
+    btn.text = label_text
+    btn.custom_minimum_size = Vector2(0, 54)
+    btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    btn.pressed.connect(action)
+    parent.add_child(btn)
+
+func _v19_close_secondary() -> void:
+    v17_overlay = v19_previous_overlay
+    _render_phase()

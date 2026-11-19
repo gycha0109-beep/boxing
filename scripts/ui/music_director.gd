@@ -118,6 +118,10 @@ func _ensure_ui_audio() -> void:
     # cues; all score, fight impacts, voice, bell and crowd audio is recorded.
     ui_player = AudioStreamPlayer.new()
     ui_player.name = "UISound"
+    if OS.has_feature("web"):
+        ui_player.volume_db = UI_VOLUME_DB
+        add_child(ui_player)
+        return
     ui_generator = AudioStreamGenerator.new()
     ui_generator.mix_rate = MIX_RATE
     ui_generator.buffer_length = 0.12
@@ -128,6 +132,14 @@ func _ensure_ui_audio() -> void:
     ui_playback = ui_player.get_stream_playback() as AudioStreamGeneratorPlayback
 
 func _feed_ui_cue(cue_id: String) -> void:
+    if OS.has_feature("web"):
+        var web_cue: String = cue_id if cue_id in ["click", "confirm", "purchase", "back", "fight_select"] else "click"
+        var web_stream := load("res://assets/audio/sfx/ui/%s.wav" % web_cue) as AudioStream
+        if web_stream != null:
+            ui_player.stop()
+            ui_player.stream = web_stream
+            ui_player.play()
+        return
     if ui_playback == null or ui_generator == null:
         return
     var frequency: float = 220.0
