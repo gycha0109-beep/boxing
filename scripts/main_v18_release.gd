@@ -4,6 +4,7 @@ extends "res://scripts/main_v18_release_base.gd"
 # layout, typography, hierarchy and procedural fight feedback on top of the
 # validated v18 release/runtime stack.
 const V19_READ_LABEL := "상대 읽기"
+const REFERENCE_TRAINING := preload("res://scripts/ui/reference_training_view.gd")
 
 var v19_top_bar: HBoxContainer
 var v19_menu_button: Button
@@ -519,6 +520,9 @@ func _v19_render_blocked_tab(tab_id: String) -> void:
         panel = _v17_panel(body, false)
         _v17_title(panel, "현재는 훈련 단계가 아닙니다", 22)
         _v17_copy(panel, "경기 일정과 결과를 진행하면 다음 훈련 캠프가 열립니다. 현재 단계는 유지됩니다.", true)
+        if phase == "fight_offer":
+            _render_camp_result()
+            _reset_camp_scroll()
     if phase == "equipment_shop":
         _v19_menu_button(panel, "훈련 캠프로 돌아가기", Callable(self, "_return_from_equipment_shop"))
     _v19_menu_button(panel, "현재 단계로 돌아가기", Callable(self, "_v19_return_to_phase"))
@@ -583,3 +587,82 @@ func _v17_nav_style(selected: bool) -> StyleBoxFlat:
     style.shadow_size = 4 if selected else 1
     style.shadow_color = Color(0.77, 0.48, 0.11, 0.24) if selected else Color(0, 0, 0, 0.35)
     return style
+
+# The reference-driven camp uses the existing career actions and transition logic.
+func _render_camp() -> void:
+    var training := REFERENCE_TRAINING.new()
+    training.actions = camp_actions
+    training.bold_font = _v18_font(750)
+    var heading := _v18_font(900)
+    heading.variation_transform = Transform2D(Vector2(1, 0), Vector2(-0.15, 1), Vector2.ZERO)
+    training.heading_font = heading
+    training.action_chosen.connect(_choose_camp_action)
+    training.shop_requested.connect(_open_equipment_shop)
+    body.add_child(training)
+    _reset_camp_scroll()
+
+func _choose_camp_action(action: Dictionary) -> void:
+    var before: Dictionary = GameState.state["boxer"].duplicate(true)
+    var applied := GameState.apply_camp_action(action)
+    if not bool(applied.get("ok", false)):
+        return
+
+    # Measure the final change, including caps, traits, equipment and legacy effects.
+    var after: Dictionary = GameState.state["boxer"]
+    var changes := {}
+    for key in REFERENCE_TRAINING.STAT_LABELS:
+        if key == "injury_camps":
+            continue
+        var boxer_key: String = "weight_kg" if key == "weight" else key
+        var delta := float(after[boxer_key]) - float(before[boxer_key])
+        if not is_zero_approx(delta):
+            changes[key] = delta
+    var injury_before: Dictionary = before.get("injury", {})
+    var injury_after: Dictionary = after.get("injury", {})
+    var injury_message := ""
+    if injury_before != injury_after:
+        if injury_after.is_empty():
+            injury_message = "부상 회복"
+        else:
+            injury_message = "부상 · %s (남은 기간 %d캠프)" % [
+                str(injury_after.get("name", "")), int(injury_after.get("remaining_camps", 0)),
+            ]
+
+    GameState.state["last_camp_result"] = {
+        "action_id": str(action["id"]),
+        "changes": changes,
+        "injury": injury_message,
+    }
+    SaveService.save_game(GameState.state)
+    _render_phase()
+    _reset_camp_scroll()
+
+func _reset_camp_scroll() -> void:
+    var scroll := find_child("V17ContentScroll", true, false) as ScrollContainer
+    if scroll != null:
+        scroll.set_deferred("scroll_vertical", 0)
+
+func _render_offers() -> void:
+    _render_camp_result()
+    super._render_offers()
+
+func _render_camp_result() -> void:
+    # Older saves can have a choice without a recorded change.
+    var result: Dictionary = GameState.state.get("last_camp_result", {})
+    var action_id := str(GameState.state.get("last_camp_action", ""))
+    if result.is_empty() or str(result.get("action_id", "")) != action_id:
+        return
+    for action: Dictionary in camp_actions:
+        if str(action.get("id", "")) != action_id:
+            continue
+        var panel := _v17_panel(body, true)
+        panel.name = "TrainingResult"
+        _v17_title(panel, "훈련 결과 · " + REFERENCE_TRAINING.action_title(action), 17)
+        var parts := REFERENCE_TRAINING.effect_parts(result.get("changes", {}))
+        var injury := str(result.get("injury", ""))
+        if not injury.is_empty():
+            parts.append(injury)
+        _v17_copy(panel, "변화 없음" if parts.is_empty() else " · ".join(parts), true)
+        var boxer: Dictionary = GameState.state["boxer"]
+        _v17_copy(panel, "현재 건강 %d / 100   ·   피로 %d / 100" % [int(boxer["health"]), int(boxer["fatigue"])], true)
+        return
