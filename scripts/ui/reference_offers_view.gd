@@ -107,10 +107,10 @@ func _card(entry: Dictionary) -> void:
     _reward(rewards, "승패 포인트", "%+d / %d" % [int(opponent.get("career_points_win", 0)), -absi(int(opponent.get("career_points_loss", 0)))])
 
     var buttons := _row(info, 6)
-    var inspect := _button("분석")
+    var inspect := UI.action_button("분석", bold_font)
     inspect.name = "FightOfferAnalyze_" + id
     buttons.add_child(inspect)
-    var accept := _button("선택  ›", true)
+    var accept := UI.action_button("선택  ›", bold_font, true)
     accept.name = "FightOfferSelect_" + id
     accept.pressed.connect(func():
         if not is_queued_for_deletion():
@@ -190,18 +190,9 @@ func _label(parent: Control, text: String, points: int, color: Color, wrap: bool
 func _panel(parent: Container, background: Color, edge: Color, padding: int) -> PanelContainer:
     var panel := PanelContainer.new()
     panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    panel.add_theme_stylebox_override("panel", _frame(background, edge, padding))
+    panel.add_theme_stylebox_override("panel", UI.panel_style(background, edge, padding))
     parent.add_child(panel)
     return panel
-
-func _frame(background: Color, edge: Color, padding: int) -> StyleBoxFlat:
-    var style := StyleBoxFlat.new()
-    style.bg_color = background
-    style.border_color = edge
-    style.set_border_width_all(1)
-    style.set_corner_radius_all(5)
-    style.set_content_margin_all(padding)
-    return style
 
 func _texture(texture: Texture2D) -> TextureRect:
     var rect := TextureRect.new()
@@ -210,25 +201,3 @@ func _texture(texture: Texture2D) -> TextureRect:
     rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
     rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
     return rect
-
-func _button(text: String, primary: bool = false) -> Button:
-    var button := Button.new()
-    button.text = text
-    button.custom_minimum_size.y = 56
-    button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    button.add_theme_font_override("font", bold_font)
-    button.add_theme_font_size_override("font_size", 14)
-    var text_color := INK if primary else PAPER
-    for state in ["font_color", "font_hover_color", "font_focus_color", "font_pressed_color"]:
-        button.add_theme_color_override(state, text_color)
-    var normal: StyleBox = UI.gold_button_style() if primary else _button_frame(INK, UI.GOLD_DARK)
-    button.add_theme_stylebox_override("normal", normal)
-    button.add_theme_stylebox_override("hover", normal if primary else _button_frame(Color("#243549"), UI.GOLD))
-    button.add_theme_stylebox_override("pressed", _button_frame(UI.GOLD_DARK if primary else NAVY, UI.GOLD_BRIGHT))
-    return button
-
-func _button_frame(background: Color, edge: Color) -> StyleBoxFlat:
-    var style := _frame(background, edge, 5)
-    style.set_expand_margin(SIDE_TOP, -7)
-    style.set_expand_margin(SIDE_BOTTOM, -7)
-    return style

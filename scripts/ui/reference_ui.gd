@@ -31,3 +31,37 @@ static func gold_button_style() -> StyleBoxTexture:
 static func heading_font(font: FontVariation) -> FontVariation:
     font.variation_transform = Transform2D(Vector2(1, 0), Vector2(-0.15, 1), Vector2.ZERO)
     return font
+
+static func panel_style(background: Color, edge: Color, padding: int) -> StyleBoxFlat:
+    var style := StyleBoxFlat.new()
+    style.bg_color = background
+    style.border_color = edge
+    style.set_border_width_all(1)
+    style.set_corner_radius_all(5)
+    style.set_content_margin_all(padding)
+    return style
+
+static func action_button(text: String, font: Font, primary: bool = false) -> Button:
+    var button := Button.new()
+    button.text = text
+    button.custom_minimum_size.y = 56
+    button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    button.add_theme_font_override("font", font)
+    button.add_theme_font_size_override("font_size", 14)
+    var ink := Color("#0a1420")
+    var text_color := ink if primary else Color("#f7f4ec")
+    for state in ["font_color", "font_hover_color", "font_focus_color", "font_pressed_color"]:
+        button.add_theme_color_override(state, text_color)
+    var normal: StyleBox = gold_button_style() if primary else _button_frame(ink, GOLD_DARK)
+    button.add_theme_stylebox_override("normal", normal)
+    button.add_theme_stylebox_override("hover", normal if primary else _button_frame(Color("#243549"), GOLD))
+    button.add_theme_stylebox_override("pressed", _button_frame(GOLD_DARK if primary else Color("#101e2c"), GOLD_BRIGHT))
+    button.add_theme_stylebox_override("disabled", _button_frame(Color("#25303c"), Color("#536170")))
+    button.add_theme_color_override("font_disabled_color", Color("#9cabb8"))
+    return button
+
+static func _button_frame(background: Color, edge: Color) -> StyleBoxFlat:
+    var style := panel_style(background, edge, 5)
+    style.set_expand_margin(SIDE_TOP, -7)
+    style.set_expand_margin(SIDE_BOTTOM, -7)
+    return style

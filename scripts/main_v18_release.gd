@@ -7,6 +7,7 @@ const V19_READ_LABEL := "상대 읽기"
 const REFERENCE_TRAINING := preload("res://scripts/ui/reference_training_view.gd")
 const REFERENCE_UI := preload("res://scripts/ui/reference_ui.gd")
 const REFERENCE_OFFERS := preload("res://scripts/ui/reference_offers_view.gd")
+const REFERENCE_PREPARATION := preload("res://scripts/ui/reference_preparation_view.gd")
 
 var v19_top_bar: HBoxContainer
 var v19_menu_button: Button
@@ -117,6 +118,12 @@ func _v19_apply_phase_chrome() -> void:
         v19_settings_button.visible = not in_fight
 
 func _render_tactical_preparation() -> void:
+    _render_reference_preparation(true)
+
+func _render_condition_preparation() -> void:
+    _render_reference_preparation(false)
+
+func _render_reference_preparation(tactical: bool) -> void:
     _sync_current_opponent()
     if current_opponent.is_empty():
         GameState.state["phase"] = "fight_offer"
@@ -124,117 +131,54 @@ func _render_tactical_preparation() -> void:
         _render_phase()
         return
 
-    _v17_section_heading("전술 준비", "이번 상대에게 가져갈 한 가지 흐름을 정합니다. 영구 성장 없이 이번 경기에만 적용됩니다.")
-    _v19_tactical_matchup_hero()
+    var view_name := "ReferenceTacticalPrep" if tactical else "ReferenceConditionPrep"
+    var previous := body.get_node_or_null(view_name)
+    if previous != null and previous.is_queued_for_deletion():
+        body.remove_child(previous)
+    var view := REFERENCE_PREPARATION.new()
+    view.name = view_name
+    view.is_tactical = tactical
+    view.boxer = GameState.state["boxer"]
+    view.opponent = current_opponent
+    view.boxer_portrait = VisualAssetCatalog.identity_portrait_texture(true)
+    view.opponent_portrait = _v17_opponent_texture(current_opponent)
+    view.opponent_details = "%s · 랭킹 #%d %s" % [
+        _style_label(str(current_opponent.get("style", ""))),
+        int(current_opponent.get("rank", 0)),
+        _v17_flag(_v17_country(current_opponent)),
+    ]
+    view.heading_font = REFERENCE_UI.heading_font(_v18_font(900))
+    view.bold_font = _v18_font(750)
+    var choices: Array = GameState.tactical_preparations() if tactical else GameState.condition_preparations()
+    for preparation: Dictionary in choices:
+        view.options.append({
+            "id": preparation["id"],
+            "name": preparation["name"],
+            "description": preparation["description"],
+            "effect": _reference_tactical_effect(preparation) if tactical else _v16_condition_effect(preparation),
+        })
+    if tactical:
+        view.confirmed.connect(_choose_tactical_preparation)
+        view.back_requested.connect(_return_from_tactical_to_offers)
+    else:
+        var selected_id := str(GameState.state.get("selected_tactical_prep", ""))
+        var selected := GameState.preparation_definition("tactical", selected_id)
+        view.locked_tactic = str(selected.get("name", ""))
+        view.confirmed.connect(func(id: String):
+            _choose_condition_preparation(id)
+            _reset_reference_scroll()
+        )
+        view.back_requested.connect(_return_to_tactical_preparation)
+    body.add_child(view)
+    _reset_reference_scroll()
 
-    var tactics_heading := HBoxContainer.new()
-    tactics_heading.add_theme_constant_override("separation", 8)
-    body.add_child(tactics_heading)
-    var title := Label.new()
-    title.text = "매치업 플랜"
-    title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    title.add_theme_font_override("font", _v18_font(700))
-    title.add_theme_font_size_override("font_size", 15)
-    title.add_theme_color_override("font_color", V17_TEXT)
-    tactics_heading.add_child(title)
-    var note := Label.new()
-    note.text = "1개 선택"
-    note.add_theme_font_size_override("font_size", 11)
-    note.add_theme_color_override("font_color", V17_MUTED)
-    tactics_heading.add_child(note)
-
-    var index := 1
-    for prep_value in GameState.tactical_preparations():
-        _v19_tactical_row(index, prep_value)
-        index += 1
-
-    var back := _v17_secondary_button("← 상대 다시 선택")
-    back.pressed.connect(Callable(self, "_return_from_tactical_to_offers"))
-    body.add_child(back)
-    _configure_mobile_scroll()
-
-func _v19_tactical_matchup_hero() -> void:
-    var panel := PanelContainer.new()
-    panel.name = "V19TacticalMatchup"
-    panel.add_theme_stylebox_override("panel", _v17_box_style(Color("071019"), Color("253242"), 8, 10))
-    body.add_child(panel)
-
-    var row := HBoxContainer.new()
-    row.add_theme_constant_override("separation", 12)
-    panel.add_child(row)
-
-    var portrait := TextureRect.new()
-    portrait.texture = _v17_opponent_texture(current_opponent)
-    portrait.custom_minimum_size = Vector2(96, 128)
-    portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-    portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-    portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
-    row.add_child(portrait)
-
-    var info := VBoxContainer.new()
-    info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    info.add_theme_constant_override("separation", 3)
-    row.add_child(info)
-
-    var eyebrow := Label.new()
-    eyebrow.text = "다음 상대"
-    eyebrow.add_theme_font_size_override("font_size", 10)
-    eyebrow.add_theme_color_override("font_color", V17_GOLD)
-    info.add_child(eyebrow)
-
-    _v17_title(info, "%s %s" % [_v17_opponent_name(current_opponent), _v17_flag(_v17_country(current_opponent))], 20)
-    var opponent_meta := "%s · %s" % [_style_label(str(current_opponent.get("style", ""))), "#%d" % int(current_opponent.get("rank", 0))]
-    _v17_copy(info, opponent_meta, true)
-
-    var divider := HSeparator.new()
-    divider.add_theme_constant_override("separation", 4)
-    info.add_child(divider)
-
-    var boxer: Dictionary = GameState.state.get("boxer", {})
-    var player_name := Label.new()
-    player_name.text = "내 선수 · %s" % str(boxer.get("name", "BOXER"))
-    player_name.add_theme_font_override("font", _v18_font(650))
-    player_name.add_theme_font_size_override("font_size", 12)
-    player_name.add_theme_color_override("font_color", V17_TEXT)
-    info.add_child(player_name)
-    _v17_copy(info, "체중 %.1fkg · 피로 %d%% · 건강 %d%%" % [float(boxer.get("weight_kg", 0.0)), int(boxer.get("fatigue", 0)), int(boxer.get("health", 0))], true)
-
-func _v19_tactical_row(index: int, prep: Dictionary) -> void:
-    var panel := PanelContainer.new()
-    panel.name = "V19Tactic_%s" % str(prep.get("id", index))
-    panel.add_theme_stylebox_override("panel", _v17_box_style(Color("071019"), Color("1d2b3a"), 7, 8))
-    body.add_child(panel)
-
-    var row := HBoxContainer.new()
-    row.add_theme_constant_override("separation", 10)
-    panel.add_child(row)
-
-    var number := Label.new()
-    number.text = "%02d" % index
-    number.custom_minimum_size.x = 26
-    number.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-    number.add_theme_font_override("font", _v18_font(700))
-    number.add_theme_font_size_override("font_size", 12)
-    number.add_theme_color_override("font_color", V17_GOLD)
-    row.add_child(number)
-
-    var copy := VBoxContainer.new()
-    copy.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    copy.add_theme_constant_override("separation", 1)
-    row.add_child(copy)
-    _v17_title(copy, str(prep.get("name", "전술")), 16)
-    var description := _v17_copy(copy, _v16_one_line(str(prep.get("description", "")), 46), true)
-    description.add_theme_font_size_override("font_size", 11)
-    var effect := _v17_copy(copy, _v16_tactical_effect(prep), false)
-    effect.add_theme_font_size_override("font_size", 10)
-    effect.add_theme_color_override("font_color", V17_GOLD)
-
-    var choose := _v17_dark_button("선택")
-    choose.custom_minimum_size = Vector2(72, 56)
-    choose.add_theme_color_override("font_color", V17_GOLD)
-    choose.add_theme_stylebox_override("normal", _v17_box_style(Color("0a141f"), Color("765e34"), 7, 6))
-    choose.pressed.connect(Callable(self, "_choose_tactical_preparation").bind(str(prep.get("id", ""))))
-    row.add_child(choose)
+func _reference_tactical_effect(preparation: Dictionary) -> String:
+    var lines: Array[String] = []
+    var actions: Dictionary = preparation.get("action_modifiers", {})
+    for action: String in actions:
+        var effects := REFERENCE_TRAINING.effect_parts(actions[action])
+        lines.append("%s · %s" % [_action_label(action), " / ".join(effects)])
+    return "\n".join(lines)
 
 func _render_fight(animated_exchange: Dictionary = {}) -> void:
     fighter_profile_root = null
