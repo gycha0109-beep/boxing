@@ -15,6 +15,7 @@ const REFERENCE_TITLE := preload("res://scripts/ui/reference_title_view.gd")
 const REFERENCE_CREATION := preload("res://scripts/ui/reference_creation_view.gd")
 const REFERENCE_EVENT := preload("res://scripts/ui/reference_career_event_view.gd")
 const REFERENCE_EQUIPMENT := preload("res://scripts/ui/reference_equipment_shop.gd")
+const REFERENCE_CAREER := preload("res://scripts/ui/reference_career_record.gd")
 
 var v19_top_bar: HBoxContainer
 var v19_menu_button: Button
@@ -736,6 +737,57 @@ func _v19_menu_button(parent: Node, label_text: String, action: Callable) -> voi
 func _v19_close_secondary() -> void:
     v17_overlay = v19_previous_overlay
     _render_phase()
+
+func _v17_render_career_home() -> void:
+    var previous := body.get_node_or_null("ReferenceCareerRecord")
+    if previous != null and previous.is_queued_for_deletion():
+        body.remove_child(previous)
+    var state: Dictionary = GameState.state
+    var view := REFERENCE_CAREER.new()
+    view.name = "ReferenceCareerRecord"
+    view.boxer = state.get("boxer", {})
+    view.career = state.get("career", {})
+    view.career_state = state.get("career_state", {})
+    view.recent = state.get("last_fight_summary", {})
+    var latest := str(view.recent.get("result", state.get("last_result", "")))
+    view.recent_result = _result_label(latest) if not latest.is_empty() else ""
+    view.titles = GameState.ladder_titles()
+    view.stage_label = "세계 챔피언" if bool(view.career.get("champion", false)) else str(GameState.career_ladder_stage().get("label", ""))
+    view.next_stage = GameState.career_ladder_next_stage()
+    if view.next_stage.get("id") == "world":
+        view.required_points = GameState.WORLD_TITLE_MIN_POINTS
+        view.title_ready = GameState.world_title_ready()
+    elif not view.next_stage.is_empty():
+        view.title_ready = int(view.career.get("fights", 0)) >= int(view.next_stage["min_fights"]) \
+            and int(view.career.get("wins", 0)) >= int(view.next_stage["min_wins"])
+    var meta: Dictionary = state.get("meta_state", {})
+    view.generation = int(meta.get("generation", 1))
+    view.legacy_capacity = int(meta.get("legacy_capacity", 3))
+    var slots: Array = meta.get("legacy_slots", [])
+    view.legacy_count = slots.size()
+    for slot in slots:
+        if slot is Dictionary:
+            var label := _career_legacy_name(str(slot.get("definition_id", "")))
+            if not label.is_empty():
+                view.active_legacies.append(label)
+    var history: Array = meta.get("lineage_history", [])
+    for index in range(history.size() - 1, -1, -1):
+        if history[index] is Dictionary:
+            var record: Dictionary = history[index].duplicate()
+            record["legacy_name"] = _career_legacy_name(str(record.get("legacy_definition_id", "")))
+            if not record.has("legacy_status") and bool(record.get("legacy_active", false)):
+                record["legacy_status"] = "active"
+            view.lineage.append(record)
+    view.heading_font = REFERENCE_UI.heading_font(_v18_font(780))
+    view.bold_font = _v18_font(620)
+    view.money_text = _v17_money
+    body.add_child(view)
+    _reset_reference_scroll()
+
+func _career_legacy_name(id: String) -> String:
+    var definition: Dictionary = GameState.legacy_definition(id)
+    return str(definition.get("name", ""))
+
 
 # Reference-accurate boxer profile; other tabs keep their validated flow.
 func _v17_render_profile_home() -> void:
