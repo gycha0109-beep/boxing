@@ -108,6 +108,18 @@ func can_purchase_equipment(section: String, item_id: String) -> Dictionary:
         return {"ok": false, "reason": "money"}
     return {"ok": true}
 
+func equipment_stat_changes(previous: Dictionary, item: Dictionary) -> Dictionary:
+    var changes := {}
+    var previous_bonus: Dictionary = previous.get("stat_bonus", {})
+    var next_bonus: Dictionary = item.get("stat_bonus", {})
+    for stat in TRAINABLE_STATS:
+        var delta := int(next_bonus.get(stat, 0)) - int(previous_bonus.get(stat, 0))
+        if delta != 0:
+            var before := int(state.boxer.get(stat, STARTING_BASE_STAT))
+            changes[stat] = {"from": before, "to": clampi(before + delta, 1, 100)}
+    return changes
+
+
 func purchase_equipment(section: String, item_id: String) -> Dictionary:
     var allowed := can_purchase_equipment(section, item_id)
     if not bool(allowed.get("ok", false)):
@@ -119,13 +131,10 @@ func purchase_equipment(section: String, item_id: String) -> Dictionary:
     var price := int(item.get("price", 0))
     state.career.money = int(state.career.money) - price
 
-    if section == "personal":
-        var previous_bonus: Dictionary = previous.get("stat_bonus", {})
-        var next_bonus: Dictionary = item.get("stat_bonus", {})
-        for stat in TRAINABLE_STATS:
-            var delta := int(next_bonus.get(stat, 0)) - int(previous_bonus.get(stat, 0))
-            if delta != 0:
-                state.boxer[stat] = clamp(int(state.boxer.get(stat, STARTING_BASE_STAT)) + delta, 1, 100)
+    var stat_changes := equipment_stat_changes(previous, item) if section == "personal" else {}
+    for stat in stat_changes:
+        state.boxer[stat] = stat_changes[stat]["to"]
+
 
     var equipment_state := _equipment_state()
     var section_state: Dictionary = equipment_state.get(section, {}).duplicate(true)
@@ -134,7 +143,7 @@ func purchase_equipment(section: String, item_id: String) -> Dictionary:
     equipment_state["total_spent"] = int(equipment_state.get("total_spent", 0)) + price
     _store_equipment_state(equipment_state)
     SaveService.save_game(state)
-    return {"ok": true, "item": item.duplicate(true), "previous": previous.duplicate(true), "money": int(state.career.money)}
+    return {"ok": true, "item": item.duplicate(true), "previous": previous.duplicate(true), "money": int(state.career.money), "stat_changes": stat_changes}
 
 func apply_camp_action(action: Dictionary) -> Dictionary:
     var result: Dictionary = super.apply_camp_action(action)

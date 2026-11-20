@@ -14,6 +14,7 @@ const REFERENCE_LEGACY := preload("res://scripts/ui/reference_legacy_view.gd")
 const REFERENCE_TITLE := preload("res://scripts/ui/reference_title_view.gd")
 const REFERENCE_CREATION := preload("res://scripts/ui/reference_creation_view.gd")
 const REFERENCE_EVENT := preload("res://scripts/ui/reference_career_event_view.gd")
+const REFERENCE_EQUIPMENT := preload("res://scripts/ui/reference_equipment_shop.gd")
 
 var v19_top_bar: HBoxContainer
 var v19_menu_button: Button
@@ -21,6 +22,8 @@ var v19_money_box: Control
 var v19_settings_button: Button
 var v19_bottom_nav: Control
 var v19_previous_overlay: String = ""
+var _equipment_section := "personal"
+var _equipment_receipt: Dictionary
 
 func _ready() -> void:
     _v19_disable_legacy_bitmap_fx()
@@ -562,6 +565,92 @@ func _v17_open_match() -> void:
     if phase in ["camp", "equipment_shop", "style_select", "talent_reveal"]:
         v17_overlay = "match_blocked"
     _render_phase()
+
+func _open_equipment_shop() -> void:
+    if str(GameState.state.get("phase", "")) == "camp":
+        _equipment_section = "personal"
+        _equipment_receipt = {}
+    super._open_equipment_shop()
+    _reset_reference_scroll()
+
+func _render_equipment_shop() -> void:
+    _render_reference_shop(false)
+
+func _v17_render_shop_hint() -> void:
+    _render_reference_shop(true)
+
+func _render_reference_shop(unavailable: bool) -> void:
+    var previous := body.get_node_or_null("ReferenceEquipmentShop")
+    if previous != null and previous.is_queued_for_deletion():
+        body.remove_child(previous)
+    var view := REFERENCE_EQUIPMENT.new()
+    view.name = "ReferenceEquipmentShop"
+    view.unavailable = unavailable
+    view.money_text = _v17_money
+    view.heading_font = REFERENCE_UI.heading_font(_v18_font(780))
+    view.bold_font = _v18_font(620)
+    if unavailable:
+        view.back_requested.connect(_v19_return_to_phase, CONNECT_DEFERRED)
+    else:
+        view.section = _equipment_section
+        view.receipt = _equipment_receipt if _equipment_receipt.get("section") == _equipment_section else {}
+        view.money = int(GameState.state["career"]["money"])
+        view.spent = GameState.equipment_total_spent()
+        view.slots = _equipment_slots_for_view(_equipment_section)
+        view.section_requested.connect(_select_reference_equipment_section, CONNECT_DEFERRED)
+        view.purchase_requested.connect(_purchase_reference_equipment, CONNECT_DEFERRED)
+        view.back_requested.connect(_return_from_equipment_shop, CONNECT_DEFERRED)
+    body.add_child(view)
+
+func _equipment_slots_for_view(section: String) -> Array[Dictionary]:
+    var slots: Array[Dictionary] = []
+    for slot: String in GameState.equipment_slots(section):
+        var current: Dictionary = GameState.current_equipment(section, slot)
+        var upgrade: Dictionary = GameState.next_equipment_upgrade(section, slot)
+        var details := {
+            "slot": slot,
+            "label": _equipment_slot_name(section, slot, current, upgrade),
+            "current": current,
+            "upgrade": upgrade,
+        }
+        if not upgrade.is_empty():
+            details["eligibility"] = GameState.can_purchase_equipment(section, str(upgrade["id"]))
+            if section == "personal":
+                details["stat_changes"] = GameState.equipment_stat_changes(current, upgrade)
+            else:
+                var names: Array[String] = []
+                for action: Dictionary in camp_actions:
+                    if str(action["id"]) in upgrade.get("action_ids", []):
+                        names.append(REFERENCE_TRAINING.action_title(action))
+                details["training_names"] = " · ".join(names)
+        slots.append(details)
+    return slots
+
+func _select_reference_equipment_section(section: String) -> void:
+    if str(GameState.state.get("phase", "")) != "equipment_shop" or section == _equipment_section:
+        return
+    _equipment_section = section
+    _render_phase()
+    _reset_reference_scroll()
+
+func _purchase_reference_equipment(section: String, item_id: String) -> void:
+    if str(GameState.state.get("phase", "")) != "equipment_shop" or section != _equipment_section:
+        return
+    var before_money := int(GameState.state["career"]["money"])
+    var bought: Dictionary = GameState.purchase_equipment(section, item_id)
+    if bool(bought.get("ok", false)):
+        var item: Dictionary = bought["item"]
+        _equipment_receipt = {
+            "section": section,
+            "slot": str(item.get("slot", "")),
+            "name": str(item.get("name", "")),
+            "before_money": before_money,
+            "stat_changes": bought.get("stat_changes", {}),
+            "old_efficiency": int(bought.get("previous", {}).get("training_percent", 0)),
+            "new_efficiency": int(item.get("training_percent", 0)),
+        }
+    _render_phase()
+
 
 func _v17_open_shop() -> void:
     v17_overlay = ""
