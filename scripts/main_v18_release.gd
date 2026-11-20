@@ -8,6 +8,7 @@ const REFERENCE_TRAINING := preload("res://scripts/ui/reference_training_view.gd
 const REFERENCE_UI := preload("res://scripts/ui/reference_ui.gd")
 const REFERENCE_OFFERS := preload("res://scripts/ui/reference_offers_view.gd")
 const REFERENCE_PREPARATION := preload("res://scripts/ui/reference_preparation_view.gd")
+const REFERENCE_PREFIGHT := preload("res://scripts/ui/reference_prefight_view.gd")
 
 var v19_top_bar: HBoxContainer
 var v19_menu_button: Button
@@ -179,6 +180,110 @@ func _reference_tactical_effect(preparation: Dictionary) -> String:
         var effects := REFERENCE_TRAINING.effect_parts(actions[action])
         lines.append("%s · %s" % [_action_label(action), " / ".join(effects)])
     return "\n".join(lines)
+
+func _render_game_plan() -> void:
+    _sync_current_opponent()
+    if current_opponent.is_empty():
+        super._render_game_plan()
+        return
+
+    var view := _new_prefight_view("ReferenceScouting")
+    var scouting: Dictionary = current_opponent.get("scouting", {})
+    var difficulty := str(REFERENCE_UI.DIFFICULTY.get(current_opponent.get("difficulty", ""), "미정"))
+    view.opponent_details += "  ·  난이도 %s" % difficulty
+    view.analysis = scouting
+    view.tendency = "주요 액션 · " + _tendency_text(current_opponent.get("tendencies", {}))
+    var opponent_stats: Dictionary = current_opponent.get("stats", {})
+    var fight_boxer := GameState.get_fight_boxer()
+    for id: String in ["power", "speed", "technique", "defense", "conditioning"]:
+        view.comparison.append({
+            "name": REFERENCE_TRAINING.STAT_LABELS[id],
+            "player": int(fight_boxer.get(id, 0)),
+            "opponent": int(opponent_stats.get(id, 0)),
+        })
+    var recommended: Array = scouting.get("suggested_plans", [])
+    for plan: Dictionary in GameState.game_plans:
+        var entry := plan.duplicate()
+        entry["recommended"] = str(plan["id"]) in recommended
+        entry["effect"] = _plan_effect_text(plan)
+        view.plans.append(entry)
+    view.plan_chosen.connect(_choose_game_plan)
+    view.back_requested.connect(_return_to_condition_preparation)
+    view.opponent_back_requested.connect(_return_to_fight_offers)
+    body.add_child(view)
+    _reset_reference_scroll()
+
+func _render_weigh_in() -> void:
+    _sync_current_opponent()
+    if current_opponent.is_empty():
+        super._render_weigh_in()
+        return
+
+    _clear_body()
+    _render_status()
+    var view := _new_prefight_view("ReferenceWeighIn")
+    view.weighing = true
+    view.weight_class = GameState.career_balance["weight_class"]
+    view.weigh = _weigh_in_presentation()
+    view.confirmed_plan = GameState.get_selected_game_plan()
+    view.allow_plan_back = not GameState.state.get("pre_game_plan_snapshot", {}).is_empty()
+    view.back_requested.connect(_return_to_game_plan_selection)
+    view.fight_requested.connect(_acknowledge_weigh_in)
+    body.add_child(view)
+    _configure_mobile_scroll()
+    _reset_reference_scroll()
+
+func _new_prefight_view(view_name: String) -> VBoxContainer:
+    var previous := body.get_node_or_null(view_name)
+    if previous != null and previous.is_queued_for_deletion():
+        body.remove_child(previous)
+    var view := REFERENCE_PREFIGHT.new()
+    view.name = view_name
+    view.player = GameState.state["boxer"]
+    view.opponent = current_opponent
+    view.player_photo = VisualAssetCatalog.identity_portrait_texture(true)
+    view.opponent_photo = _v17_opponent_texture(current_opponent)
+    view.opponent_details = "%s · 랭킹 #%d %s" % [
+        _style_label(str(current_opponent.get("style", ""))),
+        int(current_opponent.get("rank", 0)),
+        _v17_flag(_v17_country(current_opponent)),
+    ]
+    view.heading_font = REFERENCE_UI.heading_font(_v18_font(900))
+    view.bold_font = _v18_font(750)
+    return view
+
+func _weigh_in_presentation() -> Dictionary:
+    var result: Dictionary = GameState.state.get("last_weigh_in", {})
+    var previous: Dictionary = GameState.state.get("pre_game_plan_snapshot", {})
+    var boxer: Dictionary = GameState.state["boxer"]
+    var over := maxf(0.0, float(result.get("over_kg", 0.0)))
+    match str(result.get("status", "")):
+        "pass":
+            return {"label": "계체 통과", "color": Color("#8ae69d"), "detail": "체중 제한을 충족했습니다. 경기에 입장할 수 있습니다."}
+        "emergency_cut":
+            var detail := "제한을 %.2f kg 초과해 긴급 감량을 적용했습니다." % over
+            if previous.has("health") and previous.has("fatigue"):
+                detail += " 건강 %+d · 피로 %+d" % [
+                    int(boxer["health"]) - int(previous["health"]),
+                    int(boxer["fatigue"]) - int(previous["fatigue"]),
+                ]
+            return {"label": "긴급 감량 통과", "color": REFERENCE_UI.GOLD, "detail": detail}
+        "miss":
+            var purse := roundi(float(result.get("purse_multiplier", 1.0)) * 100.0)
+            var detail := "제한을 %.2f kg 초과했습니다. 계약 파이트머니의 %d%%가 적용됩니다." % [over, purse]
+            if previous.has("reputation"):
+                var difference := int(GameState.state.career.reputation) - int(previous["reputation"])
+                if difference < 0:
+                    detail += " 평판 %d" % difference
+            return {"label": "계체 실패", "color": Color("#e2766d"), "detail": detail}
+    return {"label": "계체 결과 미기록", "color": V17_MUTED, "detail": "현재 경기와 확정된 게임플랜을 확인하세요."}
+
+func _configure_mobile_scroll() -> void:
+    super._configure_mobile_scroll()
+    if _needs_weigh_in_interstitial():
+        var scroll := find_child("V17ContentScroll", true, false) as ScrollContainer
+        if scroll != null:
+            scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 
 func _render_fight(animated_exchange: Dictionary = {}) -> void:
     fighter_profile_root = null

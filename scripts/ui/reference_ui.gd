@@ -1,5 +1,6 @@
 extends RefCounted
 
+const DIFFICULTY := {"safe": "낮음", "peer": "보통", "stretch": "높음"}
 const GOLD := Color("#efc46f")
 const GOLD_BRIGHT := Color("#ffe2a0")
 const GOLD_DARK := Color("#9f753c")

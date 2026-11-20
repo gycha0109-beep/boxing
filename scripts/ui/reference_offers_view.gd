@@ -8,7 +8,6 @@ const INK := Color("#0a1420")
 const NAVY := Color("#101e2c")
 const PAPER := Color("#f7f4ec")
 const MUTED := Color("#bec9d3")
-const DIFFICULTY := {"safe": "낮음", "peer": "보통", "stretch": "높음"}
 
 var offers: Array[Dictionary] = []
 var heading_font: Font
@@ -90,7 +89,7 @@ func _card(entry: Dictionary) -> void:
     var details_row := _row(info, 6)
     var identity := _label(details_row, "%s  [%s]" % [entry["style"], entry["country"]], 11, UI.GOLD_BRIGHT, true)
     identity.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    var difficulty := str(DIFFICULTY.get(opponent.get("difficulty", ""), "미정"))
+    var difficulty := str(UI.DIFFICULTY.get(opponent.get("difficulty", ""), "미정"))
     _label(details_row, "난이도 %s" % difficulty, 11, MUTED)
     if is_title:
         var match_title := _label(info, str(opponent.get("title_label", "타이틀전")), 11, UI.GOLD_BRIGHT, true)
