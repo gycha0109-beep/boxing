@@ -12,6 +12,7 @@ const REFERENCE_BATTLE := preload("res://scripts/ui/reference_battle_view.gd")
 const REFERENCE_RESULT := preload("res://scripts/ui/reference_result_view.gd")
 const REFERENCE_LEGACY := preload("res://scripts/ui/reference_legacy_view.gd")
 const REFERENCE_TITLE := preload("res://scripts/ui/reference_title_view.gd")
+const REFERENCE_CREATION := preload("res://scripts/ui/reference_creation_view.gd")
 
 var v19_top_bar: HBoxContainer
 var v19_menu_button: Button
@@ -412,6 +413,32 @@ func _render_career_summary() -> void:
     view.slot_replaced.connect(_replace_retirement_legacy)
     view.legacy_abandoned.connect(_abandon_retirement_legacy)
     view.next_requested.connect(_start_next_generation)
+    body.add_child(view)
+    _reset_reference_scroll()
+
+
+func _render_style_select() -> void:
+    _render_reference_creation(true)
+
+func _render_talent_reveal() -> void:
+    _render_reference_creation(false)
+
+func _render_reference_creation(choosing_style: bool) -> void:
+    var previous := body.get_node_or_null("ReferenceBoxerCreation")
+    if previous != null and previous.is_queued_for_deletion():
+        body.remove_child(previous)
+    var view := REFERENCE_CREATION.new()
+    view.name = "ReferenceBoxerCreation"
+    view.choosing_style = choosing_style
+    view.heading_font = REFERENCE_UI.heading_font(_v18_font(780))
+    view.bold_font = _v18_font(620)
+    if choosing_style:
+        view.styles = GameState.boxing_styles()
+    else:
+        view.boxer = GameState.state.get("boxer", {})
+        view.talent = GameState.talent_definition()
+    view.style_chosen.connect(_choose_boxing_style, CONNECT_DEFERRED)
+    view.talent_confirmed.connect(_confirm_talent, CONNECT_DEFERRED)
     body.add_child(view)
     _reset_reference_scroll()
 
