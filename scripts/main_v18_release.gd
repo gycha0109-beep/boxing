@@ -5,6 +5,8 @@ extends "res://scripts/main_v18_release_base.gd"
 # validated v18 release/runtime stack.
 const V19_READ_LABEL := "상대 읽기"
 const REFERENCE_TRAINING := preload("res://scripts/ui/reference_training_view.gd")
+const REFERENCE_UI := preload("res://scripts/ui/reference_ui.gd")
+const REFERENCE_OFFERS := preload("res://scripts/ui/reference_offers_view.gd")
 
 var v19_top_bar: HBoxContainer
 var v19_menu_button: Button
@@ -521,8 +523,8 @@ func _v19_render_blocked_tab(tab_id: String) -> void:
         _v17_title(panel, "현재는 훈련 단계가 아닙니다", 22)
         _v17_copy(panel, "경기 일정과 결과를 진행하면 다음 훈련 캠프가 열립니다. 현재 단계는 유지됩니다.", true)
         if phase == "fight_offer":
-            _render_camp_result()
-            _reset_camp_scroll()
+            _render_camp_result(body)
+            _reset_reference_scroll()
     if phase == "equipment_shop":
         _v19_menu_button(panel, "훈련 캠프로 돌아가기", Callable(self, "_return_from_equipment_shop"))
     _v19_menu_button(panel, "현재 단계로 돌아가기", Callable(self, "_v19_return_to_phase"))
@@ -593,13 +595,11 @@ func _render_camp() -> void:
     var training := REFERENCE_TRAINING.new()
     training.actions = camp_actions
     training.bold_font = _v18_font(750)
-    var heading := _v18_font(900)
-    heading.variation_transform = Transform2D(Vector2(1, 0), Vector2(-0.15, 1), Vector2.ZERO)
-    training.heading_font = heading
+    training.heading_font = REFERENCE_UI.heading_font(_v18_font(900))
     training.action_chosen.connect(_choose_camp_action)
     training.shop_requested.connect(_open_equipment_shop)
     body.add_child(training)
-    _reset_camp_scroll()
+    _reset_reference_scroll()
 
 func _choose_camp_action(action: Dictionary) -> void:
     var before: Dictionary = GameState.state["boxer"].duplicate(true)
@@ -635,28 +635,58 @@ func _choose_camp_action(action: Dictionary) -> void:
     }
     SaveService.save_game(GameState.state)
     _render_phase()
-    _reset_camp_scroll()
+    _reset_reference_scroll()
 
-func _reset_camp_scroll() -> void:
+func _reset_reference_scroll() -> void:
     var scroll := find_child("V17ContentScroll", true, false) as ScrollContainer
     if scroll != null:
         scroll.set_deferred("scroll_vertical", 0)
 
 func _render_offers() -> void:
-    _render_camp_result()
-    super._render_offers()
+    var previous := body.get_node_or_null("ReferenceFightOffers")
+    if previous != null and previous.is_queued_for_deletion():
+        body.remove_child(previous)
+    var view := REFERENCE_OFFERS.new()
+    view.heading_font = REFERENCE_UI.heading_font(_v18_font(900))
+    view.bold_font = _v18_font(750)
+    for opponent: Dictionary in GameState.get_fight_offers(opponents):
+        view.offers.append({
+            "opponent": opponent,
+            "portrait": _v17_opponent_texture(opponent),
+            "style": _style_label(str(opponent.get("style", ""))),
+            "country": _v17_country(opponent),
+            "purse": _v17_money(int(opponent.get("purse", 0))),
+        })
+    view.opponent_chosen.connect(_accept_reference_offer)
+    body.add_child(view)
+    var result := _render_camp_result(view, true)
+    if result != null:
+        view.move_child(result.get_parent(), 1)
+    _v17_career_progress_strip()
+    _reset_reference_scroll()
 
-func _render_camp_result() -> void:
+func _accept_reference_offer(opponent: Dictionary) -> void:
+    if str(GameState.state.get("phase", "")) != "fight_offer" or not v17_overlay.is_empty():
+        return
+    _choose_opponent(opponent)
+    _reset_reference_scroll()
+
+func _render_camp_result(parent: Container, compact: bool = false) -> VBoxContainer:
     # Older saves can have a choice without a recorded change.
     var result: Dictionary = GameState.state.get("last_camp_result", {})
     var action_id := str(GameState.state.get("last_camp_action", ""))
     if result.is_empty() or str(result.get("action_id", "")) != action_id:
-        return
+        return null
     for action: Dictionary in camp_actions:
         if str(action.get("id", "")) != action_id:
             continue
-        var panel := _v17_panel(body, true)
+        var panel := _v17_panel(parent, true)
         panel.name = "TrainingResult"
+        if compact:
+            (panel.get_parent() as PanelContainer).add_theme_stylebox_override(
+                "panel", _v17_box_style(V17_PANEL_2, V17_GOLD, 6, 6),
+            )
+            panel.add_theme_constant_override("separation", 2)
         _v17_title(panel, "훈련 결과 · " + REFERENCE_TRAINING.action_title(action), 17)
         var parts := REFERENCE_TRAINING.effect_parts(result.get("changes", {}))
         var injury := str(result.get("injury", ""))
@@ -665,4 +695,5 @@ func _render_camp_result() -> void:
         _v17_copy(panel, "변화 없음" if parts.is_empty() else " · ".join(parts), true)
         var boxer: Dictionary = GameState.state["boxer"]
         _v17_copy(panel, "현재 건강 %d / 100   ·   피로 %d / 100" % [int(boxer["health"]), int(boxer["fatigue"])], true)
-        return
+        return panel
+    return null

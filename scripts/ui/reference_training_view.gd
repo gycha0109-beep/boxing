@@ -3,9 +3,10 @@ extends VBoxContainer
 signal action_chosen(action: Dictionary)
 signal shop_requested()
 
-const GOLD := Color("#efc46f")
-const GOLD_BRIGHT := Color("#ffe2a0")
-const GOLD_DARK := Color("#9f753c")
+const REFERENCE_UI := preload("res://scripts/ui/reference_ui.gd")
+const GOLD := REFERENCE_UI.GOLD
+const GOLD_BRIGHT := REFERENCE_UI.GOLD_BRIGHT
+const GOLD_DARK := REFERENCE_UI.GOLD_DARK
 const WHITE := Color("#f7f4ec")
 const MUTED := Color("#c1c9d1")
 const CYAN := Color("#70c5ff")
@@ -36,7 +37,6 @@ const CARD_COPY := {
     "weight_cut": "계체를 위한\n집중 체중 관리",
 }
 
-static var _gold_style: StyleBoxTexture
 var actions: Array = []
 var heading_font: Font
 var bold_font: Font
@@ -312,10 +312,9 @@ func _button(text_value: String, primary: bool = false) -> Button:
     button.add_theme_color_override("font_pressed_color", Color("#18140c") if primary else WHITE)
     button.add_theme_color_override("font_focus_color", Color("#18140c") if primary else GOLD_BRIGHT)
     if primary:
-        if _gold_style == null:
-            _gold_style = _beveled_gold()
-        button.add_theme_stylebox_override("normal", _gold_style)
-        button.add_theme_stylebox_override("hover", _gold_style)
+        var gold_style := REFERENCE_UI.gold_button_style()
+        button.add_theme_stylebox_override("normal", gold_style)
+        button.add_theme_stylebox_override("hover", gold_style)
         button.add_theme_stylebox_override("pressed", _style(GOLD_DARK, GOLD_BRIGHT, 6))
     else:
         button.add_theme_stylebox_override("normal", _style(PANEL, GOLD_DARK, 6))
@@ -323,24 +322,6 @@ func _button(text_value: String, primary: bool = false) -> Button:
         button.add_theme_stylebox_override("pressed", _style(INK, GOLD, 6))
     button.add_theme_stylebox_override("disabled", _style(Color("#25303c"), Color("#536170"), 6))
     return button
-
-func _beveled_gold() -> StyleBoxTexture:
-    var image := Image.create_empty(64, 43, false, Image.FORMAT_RGBA8)
-    for y in range(43):
-        var cut := int(absf(y - 21.0) * 0.65)
-        for x in range(cut, 64 - cut):
-            var tone := absf(float(y - 13)) / 30.0
-            var color := Color("#ffe298").lerp(Color("#b77b32"), tone)
-            if y < 2 or y >= 41 or x - cut < 2 or 63 - cut - x < 2:
-                color = GOLD_BRIGHT if y < 22 else GOLD_DARK
-            image.set_pixel(x, y, color)
-    var style := StyleBoxTexture.new()
-    style.texture = ImageTexture.create_from_image(image)
-    style.set_texture_margin(SIDE_LEFT, 16)
-    style.set_texture_margin(SIDE_RIGHT, 16)
-    style.set_expand_margin(SIDE_TOP, -7)
-    style.set_expand_margin(SIDE_BOTTOM, -7)
-    return style
 
 func _choose(action: Dictionary, button: Button) -> void:
     if not button.disabled and button.is_visible_in_tree() and not is_queued_for_deletion():
