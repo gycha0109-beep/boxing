@@ -38,6 +38,7 @@ func _run() -> void:
     var selected: Dictionary = game_state.select_game_plan("outside_boxing")
     _check(bool(selected.get("ok", false)), "fight HUD fixture could not select plan")
 
+    game_state.state["fight_seed"] = 237
     var packed: PackedScene = load("res://scenes/Main.tscn")
     _check(is_instance_valid(packed), "Main scene could not load")
     if not is_instance_valid(packed):
@@ -67,7 +68,7 @@ func _run() -> void:
     var text := "\n".join(_collect_text(main_view))
     _check(text.contains("ROUND 1"), "fight HUD has no round header")
     _check(text.contains("상대 읽기"), "fight HUD has no Korean tactical read strip")
-    _check(text.contains("다음 행동"), "fight HUD has no action section")
+    _check(text.contains("FIGHT NIGHT"), "fight HUD shows the fight title")
     _check(not text.contains("OPPONENT READ"), "legacy English opponent-read card remains on fight screen")
     _check(not text.contains("★ PLAN"), "legacy PLAN copy remains inside action buttons")
     _check(not text.contains("상대 몸통 상태:"), "legacy long tactical copy still occupies the fight screen")
@@ -83,21 +84,74 @@ func _run() -> void:
         if is_instance_valid(chrome):
             _check(not chrome.visible, "non-combat app chrome remains visible during fight: " + chrome_name)
 
-    var actions := main_view.find_child("V19FightActions", true, false) as VBoxContainer
-    _check(is_instance_valid(actions), "fight HUD has no redesigned 2+2+1 action controls")
-    var primary := main_view.find_child("V19ActionRowPrimary", true, false) as HBoxContainer
-    var secondary := main_view.find_child("V19ActionRowSecondary", true, false) as HBoxContainer
-    _check(is_instance_valid(primary) and _direct_button_count(primary) == 2, "primary fight action row is not 2-up")
-    _check(is_instance_valid(secondary) and _direct_button_count(secondary) == 2, "secondary fight action row is not 2-up")
-    _check(is_instance_valid(main_view.find_child("V19ActionCounter", true, false)), "counter is not a full-width final action")
+    var actions := main_view.find_child("V19FightActions", true, false) as HBoxContainer
+    _check(is_instance_valid(actions), "fight HUD has a single action row")
+    _check(_direct_button_count(actions) == 5, "all actions share one row")
 
+    var ids := ["jab", "power", "body", "guard", "counter"]
     var labels := ["잽", "강타", "바디", "가드", "카운터"]
-    var buttons := _buttons_under(main_view)
-    for label_text in labels:
-        _check(_has_action_button(buttons, label_text), "fight HUD missing fixed action button: %s" % label_text)
-    _check(buttons.size() >= 5, "fight HUD does not expose all five actions at once")
-
+    for index in range(ids.size()):
+        var button := main_view.find_child("FightAction_" + ids[index], true, false) as Button
+        _check(button != null and button.text.begins_with(labels[index]) and button.icon != null, "live action card: " + ids[index])
+        if button != null and scroll != null:
+            _check(scroll.get_global_rect().encloses(button.get_global_rect()), "the action is fully inside the fixed HUD")
+    _check_hud_values()
+    await _play_bout()
     _finish()
+
+func _play_bout() -> void:
+    var sequence := ["jab", "power", "body", "guard", "counter", "jab", "guard", "counter", "power"]
+    var used: Array[String] = []
+    var ring_top := (main_view.find_child("FightRingFrame", true, false) as Control).get_global_rect().position.y
+    for id in sequence:
+        var button := main_view.find_child("FightAction_" + id, true, false) as Button
+        _check(button != null and not button.disabled, id + " is available on the live screen")
+        if button == null:
+            break
+        var previous := int(main_view.combat.snapshot()["exchange"])
+        button.pressed.emit()
+        button.pressed.emit()
+        var next: Dictionary = main_view.combat.snapshot()
+        _check(int(next["exchange"]) == previous + 1, id + " is consumed exactly once")
+        _check(str(next["last_exchange"]["player_action"]) == id, "the selected action reaches the combat engine")
+        used.append(id)
+        await create_timer(0.40).timeout
+        _check_hud_values()
+        var stage := _find_stage(main_view)
+        var ring := main_view.find_child("FightRingFrame", true, false) as Control
+        _check(stage != null and ring != null and is_equal_approx(stage.position.y, 0.0), "impact shake restores the visual surface")
+        _check(ring != null and is_equal_approx(ring.get_global_rect().position.y, ring_top), "animation keeps the fixed layout")
+        if bool(next["finished"]):
+            break
+        var saved := Save.load_game()
+        _check(int(saved["active_fight"]["exchange_no"]) == int(next["exchange"]), "the exchange is saved")
+    for id in ["jab", "power", "body", "guard", "counter"]:
+        _check(id in used, id + " participated in the bout")
+    _check(bool(main_view.combat.snapshot()["finished"]), "bout reached a result")
+    _check(int(game_state.state["career"]["fights"]) == 1, "the first bout is settled once")
+    var settle := main_view.find_child("FightSettlement", true, false) as Button
+    _check(settle != null and game_state.state["phase"] == "result", "the result can be opened")
+    if settle != null:
+        settle.pressed.emit()
+        await process_frame
+        await process_frame
+        _check(main_view.find_child("ReferenceBattle", true, false) == null, "the settlement opens the result screen")
+        _check(int(Save.load_game()["career"]["fights"]) == 1, "the result remains saved")
+
+func _check_hud_values() -> void:
+    var snapshot: Dictionary = main_view.combat.snapshot()
+    var meters := {
+        "FightPlayerHealth": "player_hp", "FightPlayerStamina": "player_stamina",
+        "FightOpponentHealth": "opponent_hp", "FightOpponentStamina": "opponent_stamina",
+    }
+    for meter_name in meters:
+        var meter := main_view.find_child(meter_name, true, false) as ProgressBar
+        var value := float(snapshot[meters[meter_name]])
+        _check(meter != null and is_equal_approx(meter.value, value), meter_name + " matches live state")
+    var round_label := main_view.find_child("FightRoundLabel", true, false) as Label
+    _check(round_label != null and round_label.text == "ROUND %d / %d" % [
+        int(snapshot["round"]), int(main_view.combat.balance.fight.rounds),
+    ], "the arena label tracks the live round")
 
 func _find_scroll(root: Node) -> ScrollContainer:
     for node in root.find_children("*", "ScrollContainer", true, false):
@@ -114,14 +168,6 @@ func _find_stage(root: Node) -> FightStage:
             return found
     return null
 
-func _buttons_under(root: Node) -> Array[Button]:
-    var out: Array[Button] = []
-    if root is Button:
-        out.append(root as Button)
-    for child in root.get_children():
-        out.append_array(_buttons_under(child))
-    return out
-
 func _direct_button_count(root: Node) -> int:
     var count := 0
     if not is_instance_valid(root):
@@ -130,12 +176,6 @@ func _direct_button_count(root: Node) -> int:
         if child is Button:
             count += 1
     return count
-
-func _has_action_button(buttons: Array[Button], label_text: String) -> bool:
-    for button in buttons:
-        if button.text.begins_with(label_text):
-            return true
-    return false
 
 func _collect_text(root: Node) -> Array[String]:
     var out: Array[String] = []

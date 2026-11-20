@@ -25,6 +25,7 @@ var player_name: String = "PLAYER"
 var opponent_name: String = "OPPONENT"
 var opponent_style: String = "swarmer"
 var title_fight: bool = false
+var close_up := false
 
 var player_pose: String = "guard"
 var opponent_pose: String = "guard"
@@ -39,7 +40,7 @@ var asset_used_rect_cache: Dictionary = {}
 func _ready() -> void:
     name = "FightStage"
     mouse_filter = Control.MOUSE_FILTER_IGNORE
-    custom_minimum_size = Vector2(0, 320)
+    custom_minimum_size.y = maxf(custom_minimum_size.y, 320.0)
     size_flags_horizontal = Control.SIZE_EXPAND_FILL
     queue_redraw()
 
@@ -107,13 +108,16 @@ func _draw() -> void:
     else: _draw_procedural_arena(w, h)
     var player_x: float = COMMERCIAL_PLAYER_X if commercial_assets_active else 0.32
     var opponent_x: float = COMMERCIAL_OPPONENT_X if commercial_assets_active else 0.68
-    var player_center := Vector2(w * player_x, h - 18.0) + _fighter_motion(true)
-    var opponent_center := Vector2(w * opponent_x, h - 18.0) + _fighter_motion(false)
+    if _uses_close_up():
+        player_x = 0.235
+        opponent_x = 0.765
+    var player_center := Vector2(w * player_x, _fighter_floor(true, "")) + _fighter_motion(true)
+    var opponent_center := Vector2(w * opponent_x, _fighter_floor(false, opponent_style)) + _fighter_motion(false)
     _draw_fighter_asset_or_fallback(player_center, 1.0, true, "", PLAYER, player_pose)
     _draw_fighter_asset_or_fallback(opponent_center, -1.0, false, opponent_style, OPPONENT, opponent_pose)
     if not telegraph_action.is_empty():
         var read_offset := _identity_height(false, opponent_style) + 12.0
-        var read_center := opponent_center + Vector2(0.0, -read_offset)
+        var read_center := Vector2(opponent_center.x, maxf(17.0, opponent_center.y - read_offset))
         var pulse: float = 1.0 + 0.12 * sin(Time.get_ticks_msec() / 140.0)
         draw_arc(read_center, 14.0 * pulse, 0.0, TAU, 28, READ, 2.0)
         draw_circle(read_center, 4.0, READ)
@@ -153,7 +157,8 @@ func _draw_fighter_asset_or_fallback(center: Vector2, facing: float, is_player: 
     var bounds := Rect2(Vector2.ZERO, Vector2.ZERO)
     for point in [destination_rect.position, Vector2(destination_rect.end.x, destination_rect.position.y), destination_rect.end, Vector2(destination_rect.position.x, destination_rect.end.y)]:
         bounds = bounds.expand((point * Vector2(facing, 1.0)).rotated(angle))
-    var origin := Vector2(clampf(center.x, 8.0 - bounds.position.x, size.x - 8.0 - bounds.end.x), size.y - 18.0 - bounds.end.y)
+    var origin_x := center.x if _uses_close_up() else clampf(center.x, 8.0 - bounds.position.x, size.x - 8.0 - bounds.end.x)
+    var origin := Vector2(origin_x, center.y - bounds.end.y)
     # Sole positions in the shared atlas; the forward boot sits slightly higher.
     for sole in [Vector2(-0.40, -0.005), Vector2(0.36, -0.025)]:
         var contact := origin + (Vector2(sole.x * target_width * facing, sole.y * target_height)).rotated(angle)
@@ -213,7 +218,19 @@ func _identity_height(is_player: bool, style_id: String) -> float:
     var texture := VisualAssetCatalog.identity_fighter_texture(true, style_id) if is_player else VisualAssetCatalog.identity_fighter_texture_for_name(opponent_name)
     if texture == null: return COMMERCIAL_STAND_HEIGHT
     var source := _texture_used_rect(texture)
-    return minf(size.y - 42.0, (size.x * 0.42 - 24.0) * float(source.size.y) / maxf(1.0, float(source.size.x)))
+    var height := minf(size.y - 42.0, (size.x * 0.42 - 24.0) * float(source.size.y) / maxf(1.0, float(source.size.x)))
+    if _uses_close_up():
+        var width_limited := size.x * 0.61 * float(source.size.y) / maxf(1.0, float(source.size.x))
+        return minf((size.y - 42.0) * 1.70, width_limited)
+    return height
+
+func _uses_close_up() -> bool:
+    return close_up and commercial_assets_active and player_pose != "down" and opponent_pose != "down"
+
+func _fighter_floor(is_player: bool, style_id: String) -> float:
+    if _uses_close_up():
+        return maxf(size.y - 18.0, _identity_height(is_player, style_id) + 25.0)
+    return size.y - 18.0
 
 func _texture_used_rect(texture: Texture2D) -> Rect2i:
     var key := texture.resource_path

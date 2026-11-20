@@ -3,12 +3,12 @@ extends "res://scripts/main_v18_release_base.gd"
 # v19 real-device UI pass. No generated image assets: this layer only changes
 # layout, typography, hierarchy and procedural fight feedback on top of the
 # validated v18 release/runtime stack.
-const V19_READ_LABEL := "상대 읽기"
 const REFERENCE_TRAINING := preload("res://scripts/ui/reference_training_view.gd")
 const REFERENCE_UI := preload("res://scripts/ui/reference_ui.gd")
 const REFERENCE_OFFERS := preload("res://scripts/ui/reference_offers_view.gd")
 const REFERENCE_PREPARATION := preload("res://scripts/ui/reference_preparation_view.gd")
 const REFERENCE_PREFIGHT := preload("res://scripts/ui/reference_prefight_view.gd")
+const REFERENCE_BATTLE := preload("res://scripts/ui/reference_battle_view.gd")
 
 var v19_top_bar: HBoxContainer
 var v19_menu_button: Button
@@ -289,9 +289,11 @@ func _configure_mobile_scroll() -> void:
 func _render_fight(animated_exchange: Dictionary = {}) -> void:
     fighter_profile_root = null
     _clear_body()
+    var previous := body.get_node_or_null("ReferenceBattle")
+    if previous != null and previous.is_queued_for_deletion():
+        body.remove_child(previous)
     _render_status()
     _v19_apply_phase_chrome()
-    body.add_theme_constant_override("separation", 5)
 
     var had_pending_action: bool = not combat.pending_opponent_action.is_empty()
     var telegraph: Dictionary = combat.prepare_exchange()
@@ -299,212 +301,48 @@ func _render_fight(animated_exchange: Dictionary = {}) -> void:
         GameState.save_active_fight(combat.export_state())
     var snap: Dictionary = combat.snapshot()
     var selected_plan: Dictionary = GameState.get_selected_game_plan()
-    var exchange_in_round: int = (int(snap.exchange) % int(combat.balance.fight.exchanges_per_round)) + 1
-
-    _v19_round_strip(int(snap.round), exchange_in_round, int(combat.balance.fight.exchanges_per_round))
+    var boxer: Dictionary = GameState.state["boxer"]
 
     var stage := FightStage.new()
-    stage.name = "FightStage"
-    stage.configure(str(GameState.state.boxer.get("name", "BOXER")), str(current_opponent.get("name", "")), snap, telegraph)
+    stage.close_up = true
+    stage.clip_contents = true
+    stage.custom_minimum_size.y = 395.0
+    stage.configure(str(boxer.get("name", "")), str(current_opponent.get("name", "")), snap, telegraph)
     stage.opponent_style = _v17_visual_style(current_opponent)
     stage.title_fight = bool(current_opponent.get("title_fight", false))
-    stage.custom_minimum_size = Vector2(0, 350)
-    body.add_child(stage)
+
+    var view := REFERENCE_BATTLE.new()
+    view.name = "ReferenceBattle"
+    view.stage = stage
+    view.snapshot = snap
+    view.telegraph = telegraph
+    view.player_name = str(boxer.get("name", "무명 복서"))
+    view.player_style = str(boxer.get("identity_name", "균형형"))
+    view.opponent_name = ("%s %s" % [_v17_opponent_name(current_opponent), _v17_flag(_v17_country(current_opponent))]).strip_edges()
+    view.opponent_style = _style_label(str(current_opponent.get("style", "")))
+    view.round_count = int(combat.balance.fight.rounds)
+    view.exchanges_per_round = int(combat.balance.fight.exchanges_per_round)
+    var exchange_index := maxi(0, int(snap["exchange"]) - (1 if bool(snap["finished"]) else 0))
+    view.exchange_in_round = exchange_index % view.exchanges_per_round + 1
+    view.weight_class = str(GameState.career_balance["weight_class"]["name"])
+    view.heading_font = REFERENCE_UI.heading_font(_v18_font(900))
+    view.bold_font = _v18_font(750)
+    view.advice = _v17_recommendation(str(telegraph.get("action_id", "")))
+    for id: String in ["jab", "power", "body", "guard", "counter"]:
+        view.actions.append({
+            "id": id,
+            "label": _action_label(id),
+            "stamina": int(combat.balance.actions[id]["stamina"]),
+            "recommended": selected_plan.get("action_modifiers", {}).has(id),
+        })
+    view.action_chosen.connect(_choose_fight_action)
+    view.settlement_requested.connect(_render_phase)
+    body.add_child(view)
     if not animated_exchange.is_empty():
         stage.play_exchange(animated_exchange)
-
-    _v19_corner_hud(snap)
-
-    var last_exchange: Dictionary = snap.get("last_exchange", {})
-    if bool(snap.finished):
-        GameState.apply_fight_result(str(snap.result), current_opponent, snap)
-        var finish := _v17_panel(body, true)
-        _v17_title(finish, CombatPresentation.exchange_headline(last_exchange) if not last_exchange.is_empty() else "경기 종료", 22)
-        var settle := _v17_gold_button("경기 정산")
-        settle.pressed.connect(func(): _render_phase())
-        body.add_child(settle)
-        _configure_mobile_scroll()
-        return
-
-    _v19_tactical_read(telegraph)
-
-    var next_heading := HBoxContainer.new()
-    next_heading.add_theme_constant_override("separation", 8)
-    body.add_child(next_heading)
-    var action_title := Label.new()
-    action_title.text = "다음 행동"
-    action_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    action_title.add_theme_font_override("font", _v18_font(700))
-    action_title.add_theme_font_size_override("font_size", 14)
-    action_title.add_theme_color_override("font_color", V17_TEXT)
-    next_heading.add_child(action_title)
-    var hint := Label.new()
-    hint.text = "금색 테두리 = 게임플랜 적합"
-    hint.add_theme_font_size_override("font_size", 9)
-    hint.add_theme_color_override("font_color", V17_MUTED)
-    next_heading.add_child(hint)
-
-    _v19_action_controls(selected_plan)
+    if bool(snap["finished"]) and str(GameState.state.get("phase", "")) == "fight":
+        GameState.apply_fight_result(str(snap["result"]), current_opponent, snap)
     _configure_mobile_scroll()
-
-func _v19_round_strip(round_number: int, exchange_number: int, exchanges_per_round: int) -> void:
-    var strip := VBoxContainer.new()
-    strip.name = "V19RoundStrip"
-    strip.add_theme_constant_override("separation", 4)
-    body.add_child(strip)
-
-    var row := HBoxContainer.new()
-    row.add_theme_constant_override("separation", 8)
-    strip.add_child(row)
-
-    var round_label := Label.new()
-    round_label.text = "ROUND %d / 3" % round_number
-    round_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    round_label.add_theme_font_override("font", _v18_font(700))
-    round_label.add_theme_font_size_override("font_size", 14)
-    round_label.add_theme_color_override("font_color", V17_GOLD)
-    row.add_child(round_label)
-
-    var exchange_label := Label.new()
-    exchange_label.text = "교환 %d / %d" % [exchange_number, exchanges_per_round]
-    exchange_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    exchange_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-    exchange_label.add_theme_font_size_override("font_size", 12)
-    exchange_label.add_theme_color_override("font_color", V17_MUTED)
-    row.add_child(exchange_label)
-
-    var seconds := maxi(0, 180 - exchange_number * 12)
-    var clock := Label.new()
-    clock.text = "%d:%02d" % [int(seconds / 60.0), seconds % 60]
-    clock.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    clock.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-    clock.add_theme_font_override("font", _v18_font(700))
-    clock.add_theme_font_size_override("font_size", 15)
-    row.add_child(clock)
-
-    var divider := HSeparator.new()
-    divider.modulate = Color(0.42, 0.34, 0.20, 0.65)
-    strip.add_child(divider)
-
-func _v19_corner_hud(snap: Dictionary) -> void:
-    var row := HBoxContainer.new()
-    row.name = "V19CornerHUD"
-    row.add_theme_constant_override("separation", 10)
-    body.add_child(row)
-
-    _v19_corner_meter(row, str(GameState.state.boxer.get("name", "BOXER")), "KR", float(snap.player_hp), float(snap.player_stamina), false)
-
-    var vs := Label.new()
-    vs.text = "VS"
-    vs.custom_minimum_size.x = 24
-    vs.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-    vs.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-    vs.add_theme_font_override("font", _v18_font(700))
-    vs.add_theme_font_size_override("font_size", 12)
-    vs.add_theme_color_override("font_color", V17_GOLD)
-    row.add_child(vs)
-
-    _v19_corner_meter(row, _v17_opponent_name(current_opponent), _v17_country(current_opponent), float(snap.opponent_hp), float(snap.opponent_stamina), true)
-
-func _v19_corner_meter(parent: HBoxContainer, name_text: String, country: String, hp: float, stamina: float, right_align: bool) -> void:
-    var box := VBoxContainer.new()
-    box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    box.add_theme_constant_override("separation", 2)
-    parent.add_child(box)
-
-    var name := Label.new()
-    name.text = "%s %s" % [name_text, _v17_flag(country)]
-    name.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT if right_align else HORIZONTAL_ALIGNMENT_LEFT
-    name.add_theme_font_override("font", _v18_font(650))
-    name.add_theme_font_size_override("font_size", 11)
-    name.add_theme_color_override("font_color", V17_TEXT)
-    box.add_child(name)
-    _v17_meter(box, "HP", hp, V17_HP)
-    _v17_meter(box, "STA", stamina, V17_BLUE)
-
-func _v19_tactical_read(telegraph: Dictionary) -> void:
-    var panel := PanelContainer.new()
-    panel.name = "V19TacticalRead"
-    var style := _v17_box_style(Color("06101a"), Color("27384a"), 5, 7)
-    style.border_width_left = 3
-    style.border_color = Color("b78a43")
-    panel.add_theme_stylebox_override("panel", style)
-    body.add_child(panel)
-
-    var row := HBoxContainer.new()
-    row.add_theme_constant_override("separation", 10)
-    panel.add_child(row)
-
-    var read := VBoxContainer.new()
-    read.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    read.add_theme_constant_override("separation", 1)
-    row.add_child(read)
-    var read_title := Label.new()
-    read_title.text = "%s  %d%%" % [V19_READ_LABEL, int(telegraph.get("confidence", 0))]
-    read_title.add_theme_font_override("font", _v18_font(700))
-    read_title.add_theme_font_size_override("font_size", 13)
-    read_title.add_theme_color_override("font_color", V17_GOLD)
-    read.add_child(read_title)
-    var clue := _v17_copy(read, CombatPresentation.telegraph_title(telegraph), false)
-    clue.add_theme_font_size_override("font_size", 11)
-
-    var advice := VBoxContainer.new()
-    advice.custom_minimum_size.x = 126
-    advice.add_theme_constant_override("separation", 1)
-    row.add_child(advice)
-    var advice_title := Label.new()
-    advice_title.text = "코너 조언"
-    advice_title.add_theme_font_size_override("font_size", 10)
-    advice_title.add_theme_color_override("font_color", V17_MUTED)
-    advice.add_child(advice_title)
-    var recommendation := _v17_copy(advice, _v17_recommendation(str(telegraph.get("action_id", ""))), false)
-    recommendation.add_theme_font_size_override("font_size", 11)
-
-func _v19_action_controls(selected_plan: Dictionary) -> void:
-    var wrap := VBoxContainer.new()
-    wrap.name = "V19FightActions"
-    wrap.add_theme_constant_override("separation", 6)
-    body.add_child(wrap)
-
-    var primary := HBoxContainer.new()
-    primary.name = "V19ActionRowPrimary"
-    primary.add_theme_constant_override("separation", 6)
-    wrap.add_child(primary)
-    _v19_action_button(primary, "jab", selected_plan)
-    _v19_action_button(primary, "power", selected_plan)
-
-    var secondary := HBoxContainer.new()
-    secondary.name = "V19ActionRowSecondary"
-    secondary.add_theme_constant_override("separation", 6)
-    wrap.add_child(secondary)
-    _v19_action_button(secondary, "body", selected_plan)
-    _v19_action_button(secondary, "guard", selected_plan)
-
-    var counter := _v19_action_button(wrap, "counter", selected_plan)
-    counter.name = "V19ActionCounter"
-
-func _v19_action_button(parent: Container, action_id: String, selected_plan: Dictionary) -> Button:
-    var action: Dictionary = combat.balance.actions[action_id]
-    var stamina := int(action.get("stamina", 0))
-    var recommended := bool(selected_plan.get("action_modifiers", {}).has(action_id))
-    var stamina_text := "회복 +%d" % abs(stamina) if stamina < 0 else "소모 %d" % stamina
-
-    var button := Button.new()
-    button.name = "FightAction_%s" % action_id
-    button.text = "%s\n%s" % [_action_label(action_id), stamina_text]
-    button.custom_minimum_size = Vector2(0, 56)
-    button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    button.mouse_filter = Control.MOUSE_FILTER_PASS
-    button.icon = null
-    button.add_theme_font_override("font", _v18_font(680))
-    button.add_theme_font_size_override("font_size", 12)
-    button.add_theme_color_override("font_color", V17_GOLD if recommended else V17_TEXT)
-    button.add_theme_stylebox_override("normal", _v17_box_style(Color("07111b"), Color("a47a38") if recommended else Color("263646"), 7, 6))
-    button.add_theme_stylebox_override("hover", _v17_box_style(Color("0b1722"), V17_GOLD if recommended else Color("40546a"), 7, 6))
-    button.add_theme_stylebox_override("pressed", _v17_box_style(Color("17140c"), V17_GOLD, 7, 6))
-    button.pressed.connect(Callable(self, "_choose_fight_action").bind(action_id))
-    parent.add_child(button)
-    return button
 
 # Keep real career state distinct from navigation-only panels.
 func _render_phase() -> void:

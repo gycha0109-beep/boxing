@@ -6,6 +6,7 @@ const GOLD_BRIGHT := Color("#ffe2a0")
 const GOLD_DARK := Color("#9f753c")
 
 static var _gold_style: StyleBoxTexture
+static var _beveled_styles: Dictionary = {}
 
 static func gold_button_style() -> StyleBoxTexture:
     if _gold_style != null:
@@ -66,3 +67,28 @@ static func _button_frame(background: Color, edge: Color) -> StyleBoxFlat:
     style.set_expand_margin(SIDE_TOP, -7)
     style.set_expand_margin(SIDE_BOTTOM, -7)
     return style
+
+static func beveled_panel_style(background: Color, edge: Color, padding: int) -> StyleBoxTexture:
+    var key := "%s:%s:%d" % [background.to_html(), edge.to_html(), padding]
+    if not _beveled_styles.has(key):
+        var size := 32
+        var image := Image.create_empty(size, size, false, Image.FORMAT_RGBA8)
+        for y in range(size):
+            for x in range(size):
+                var dx := mini(x, size - 1 - x)
+                var dy := mini(y, size - 1 - y)
+                if dx + dy < 7:
+                    continue
+                var tint := background.darkened(0.14).lerp(background.lightened(0.07), 1.0 - float(y) / (size - 1))
+                if dx == 0 or dy == 0 or dx + dy == 7:
+                    tint = edge.lerp(GOLD_BRIGHT, 0.20 if y < 8 else 0.0)
+                elif dx == 1 or dy == 1 or dx + dy == 8:
+                    tint = background.lerp(edge, 0.28)
+                image.set_pixel(x, y, tint)
+        var style := StyleBoxTexture.new()
+        style.texture = ImageTexture.create_from_image(image)
+        for side in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
+            style.set_texture_margin(side, 9)
+        style.set_content_margin_all(padding)
+        _beveled_styles[key] = style
+    return _beveled_styles[key]

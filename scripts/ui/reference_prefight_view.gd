@@ -37,7 +37,6 @@ var heading_font: Font
 var bold_font: Font
 var _report_page: VBoxContainer
 var _plan_page: VBoxContainer
-var _scout_styles: Dictionary = {}
 
 func _ready() -> void:
     size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -205,31 +204,9 @@ func _crop_photo(texture: Texture2D, minimum: Vector2) -> TextureRect:
     return portrait
 
 func _scout_panel(parent: Container, background: Color, edge: Color, padding: int) -> PanelContainer:
-    var key := "%s:%s:%d" % [background.to_html(), edge.to_html(), padding]
-    if not _scout_styles.has(key):
-        var size := 32
-        var image := Image.create_empty(size, size, false, Image.FORMAT_RGBA8)
-        for y in range(size):
-            for x in range(size):
-                var dx := mini(x, size - 1 - x)
-                var dy := mini(y, size - 1 - y)
-                if dx + dy < 7:
-                    continue
-                var tint := background.darkened(0.14).lerp(background.lightened(0.07), 1.0 - float(y) / (size - 1))
-                if dx == 0 or dy == 0 or dx + dy == 7:
-                    tint = edge.lerp(UI.GOLD_BRIGHT, 0.20 if y < 8 else 0.0)
-                elif dx == 1 or dy == 1 or dx + dy == 8:
-                    tint = background.lerp(edge, 0.28)
-                image.set_pixel(x, y, tint)
-        var style := StyleBoxTexture.new()
-        style.texture = ImageTexture.create_from_image(image)
-        for side in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
-            style.set_texture_margin(side, 9)
-        style.set_content_margin_all(padding)
-        _scout_styles[key] = style
     var panel := PanelContainer.new()
     panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    panel.add_theme_stylebox_override("panel", _scout_styles[key])
+    panel.add_theme_stylebox_override("panel", UI.beveled_panel_style(background, edge, padding))
     parent.add_child(panel)
     return panel
 
