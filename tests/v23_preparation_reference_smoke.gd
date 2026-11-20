@@ -111,6 +111,8 @@ func _check_weigh_in_and_resume() -> void:
         return
     await _settle()
     var pre_weigh: Dictionary = career.state["boxer"].duplicate(true)
+    _press("ScoutingShowPlans")
+    await _settle()
     await _press_text("이 플랜 선택")
     _require(_phase() == "fight" and not bool(career.state.get("weigh_in_acknowledged", true)), "game plan advances to official weigh-in")
     _require("공식 계체" in _labels(), "official weigh-in rendered")

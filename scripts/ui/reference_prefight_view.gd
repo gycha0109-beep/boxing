@@ -7,6 +7,8 @@ signal fight_requested()
 
 const UI := preload("res://scripts/ui/reference_ui.gd")
 const LIGHTS := preload("res://assets/visual/reference_v1/offer_lights.png")
+const SCOUTING_HAN := preload("res://assets/visual/reference_v1/scouting_han.png")
+const SCOUTING_PLAYER := preload("res://assets/visual/reference_v1/profile_boxer.png")
 const INK := Color("#0a1420")
 const NAVY := Color("#101e2c")
 const PAPER := Color("#f7f4ec")
@@ -22,7 +24,9 @@ var player_photo: Texture2D
 var opponent_photo: Texture2D
 var opponent_details: String
 var analysis: Dictionary
-var tendency: String
+var tendencies: Dictionary
+var difficulty: String
+var opponent_country: String
 var comparison: Array[Dictionary] = []
 var plans: Array[Dictionary] = []
 var weigh: Dictionary
@@ -31,6 +35,9 @@ var confirmed_plan: Dictionary
 var allow_plan_back := false
 var heading_font: Font
 var bold_font: Font
+var _report_page: VBoxContainer
+var _plan_page: VBoxContainer
+var _scout_styles: Dictionary = {}
 
 func _ready() -> void:
     size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -41,64 +48,190 @@ func _ready() -> void:
         _scouting()
 
 func _scouting() -> void:
-    var hero := _banner("OPPONENT SCOUTING", "상대 분석")
-    var row := _row(hero, 8)
-    var portrait := _photo(opponent_photo, 143)
-    portrait.custom_minimum_size.x = 136
+    _report_page = _column(self, 7)
+    _scouting_heading()
+    _opponent_card()
+    _tendency_strip()
+    _scouting_report()
+    _comparison()
+
+    var nav := _row(_report_page, 7)
+    _action(nav, "← 컨디션 다시 선택", false, func(): back_requested.emit())
+    var view_plans := _action(nav, "게임플랜 선택  ›", true, _show_plans.bind(true))
+    view_plans.name = "ScoutingShowPlans"
+    view_plans.size_flags_stretch_ratio = 1.65
+
+    _plan_page = _column(self, 7)
+    _plan_page.name = "ScoutingPlans"
+    _game_plans(_plan_page)
+    _plan_page.hide()
+
+func _scouting_heading() -> void:
+    var panel := PanelContainer.new()
+    panel.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+    _report_page.add_child(panel)
+    _add_lights(panel, 76.0)
+    var content := _column(panel, 2)
+    var title := _label(content, "OPPONENT SCOUTING", 27, PAPER, heading_font)
+    title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    var tab := _scout_panel(content, Color("#c49346"), UI.GOLD_BRIGHT, 2)
+    tab.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+    var caption := _label(tab, "상대 분석", 16, Color("#0b1119"), heading_font)
+    caption.custom_minimum_size.x = 157
+    caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+
+func _opponent_card() -> void:
+    var card := _scout_panel(_report_page, INK, UI.GOLD_BRIGHT, 7)
+    var row := _row(card, 7)
+    var portrait := _crop_photo(_scouting_opponent_photo(), Vector2(149, 163))
     row.add_child(portrait)
     var info := _column(row, 3)
     info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    info.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-    _label(info, "다음 상대", 10, UI.GOLD_BRIGHT, bold_font)
-    _label(info, str(opponent["name"]), 22, PAPER, heading_font)
-    _label(info, opponent_details, 11, MUTED)
+    var top := _row(info, 4)
+    var name_label := _label(top, "%s %s" % [str(opponent["name"]), opponent_country], 17, PAPER, heading_font)
+    name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    var tint := GREEN if difficulty == "낮음" else RED if difficulty == "높음" else UI.GOLD
+    var level := _scout_panel(top, INK.lerp(tint, 0.13), tint, 3)
+    level.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+    level.size_flags_horizontal = Control.SIZE_FILL
+    _label(level, "난이도 " + difficulty, 10, tint, bold_font).autowrap_mode = TextServer.AUTOWRAP_OFF
+    var meta := _scout_panel(info, INK, UI.GOLD_DARK, 4)
+    _label(meta, opponent_details, 10, PAPER)
     var opponent_title := str(opponent.get("title_label", ""))
     if not opponent_title.is_empty():
-        _label(info, opponent_title, 11, UI.GOLD_BRIGHT, bold_font)
-    _label(info, tendency, 11, PAPER, bold_font)
+        _label(info, opponent_title, 10, UI.GOLD_BRIGHT, bold_font)
 
-    var report := _column(_panel(self, NAVY, UI.GOLD_DARK, 7), 3)
-    for fact in [["강점", "strength", RED], ["약점", "weakness", BLUE], ["주의할 패턴", "tell", UI.GOLD]]:
-        var line := _row(report, 8)
-        var caption := _label(line, fact[0], 11, fact[2], bold_font)
-        caption.custom_minimum_size.x = 66
-        var detail := _label(line, str(analysis.get(fact[1], "정보 없음")), 11, PAPER)
-        detail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    var stats := _column(_scout_panel(info, INK, UI.GOLD_DARK, 4), 2)
+    _label(stats, "핵심 능력치", 11, UI.GOLD_BRIGHT, bold_font)
+    var grid := GridContainer.new()
+    grid.columns = 2
+    grid.add_theme_constant_override("h_separation", 5)
+    grid.add_theme_constant_override("v_separation", 1)
+    stats.add_child(grid)
+    for stat in comparison:
+        var line := _row(grid, 3)
+        line.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+        var title := _label(line, str(stat["name"]), 9, PAPER)
+        title.custom_minimum_size.x = 26
+        _meter(line, int(stat["opponent"]), RED, false)
+
+func _scouting_opponent_photo() -> Texture2D:
+    if str(opponent.get("id", "")) == "han_do-yun":
+        return SCOUTING_HAN
+    return opponent_photo
+
+func _tendency_strip() -> void:
+    if tendencies.is_empty():
+        return
+    var row := _row(_scout_panel(_report_page, NAVY, UI.GOLD_DARK, 5), 3)
+    var heading := _column(row, 0)
+    _label(heading, "주요 액션", 10, UI.GOLD_BRIGHT, bold_font).autowrap_mode = TextServer.AUTOWRAP_OFF
+    _label(heading, "기본 비중", 9, MUTED).autowrap_mode = TextServer.AUTOWRAP_OFF
+    var names := {"jab": "잽", "body": "바디", "power": "강타", "guard": "가드", "counter": "카운터"}
+    var colors := [UI.GOLD, Color("#deb3ae"), RED, BLUE, Color("#c0a4e7")]
+    var index := 0
+    for id in names:
+        var chip := _scout_panel(row, INK.lerp(colors[index], 0.08), colors[index].darkened(0.38), 3)
+        var labels := _column(chip, 0)
+        var name_label := _label(labels, names[id], 9, PAPER, bold_font)
+        name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+        var percent := _label(labels, "%d%%" % roundi(float(tendencies.get(id, 0.0)) * 100.0), 12, colors[index], heading_font)
+        percent.name = "ScoutingTendency_" + id
+        percent.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+        index += 1
+
+func _scouting_report() -> void:
+    var report := _column(_scout_panel(_report_page, INK, UI.GOLD_DARK, 5), 4)
+    _report_row(report, "강점", str(analysis.get("strength", "정보 없음")), Color("#e49370"))
+    _report_row(report, "약점", str(analysis.get("weakness", "정보 없음")), BLUE)
+    _report_row(report, "버릇", str(analysis.get("tell", "정보 없음")), Color("#c0a4e7"))
     var recommended: Array[String] = []
     for plan in plans:
         if bool(plan["recommended"]):
             recommended.append(str(plan["name"]))
     if not recommended.is_empty():
-        _label(report, "추천 게임플랜 · " + " / ".join(recommended), 11, UI.GOLD_BRIGHT, bold_font)
+        _report_row(report, "추천 대응", " / ".join(recommended), UI.GOLD_BRIGHT)
 
-    _comparison()
-    var nav := _row(self, 7)
-    _action(nav, "← 컨디션 다시 선택", false, func(): back_requested.emit())
-    var view_plans := _action(nav, "게임플랜 보기  ›", true, _jump_to_plans)
-    view_plans.name = "ScoutingShowPlans"
-    _game_plans()
+func _report_row(parent: VBoxContainer, title: String, value: String, color: Color) -> void:
+    var line := _row(_panel(parent, Color("#101b27"), Color("#26333e"), 2), 6)
+    var chip := _scout_panel(line, INK.lerp(color, 0.18), color.darkened(0.36), 4)
+    chip.custom_minimum_size = Vector2(89, 31)
+    chip.size_flags_horizontal = Control.SIZE_FILL
+    var caption := _label(chip, title, 14, color, heading_font)
+    caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+    var detail := _label(line, value, 11, PAPER)
+    detail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    detail.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 
 func _comparison() -> void:
-    var box := _column(_panel(self, INK, UI.GOLD_DARK, 7), 2)
-    var title := _label(box, "주요 능력치 비교", 14, UI.GOLD_BRIGHT, bold_font)
+    var frame := _scout_panel(_report_page, INK, UI.GOLD_DARK, 6)
+    frame.name = "ScoutingComparison"
+    var box := _column(frame, 2)
+    var title := _label(box, "주요 능력치 비교", 13, UI.GOLD_BRIGHT, bold_font)
     title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-    var names := _row(box, 6)
-    var left := _label(names, "내 선수 · " + str(player.get("name", "")), 11, RED, bold_font)
-    left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    var right := _label(names, str(opponent["name"]), 11, BLUE, bold_font)
-    right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    right.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+    var columns := _row(box, 4)
+    var player_crop := AtlasTexture.new()
+    player_crop.atlas = SCOUTING_PLAYER
+    player_crop.region = Rect2(0, 0, 361, 408)
+    _comparison_portrait(columns, player_crop, "내 선수", str(player["name"]), RED)
+    var bars := _column(columns, 1)
+    bars.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     for stat in comparison:
-        var line := _row(box, 6)
-        var label := _label(line, str(stat["name"]), 11, UI.GOLD_BRIGHT, bold_font)
-        label.custom_minimum_size.x = 54
+        var line := _row(bars, 3)
+        _meter(line, int(stat["player"]), RED, true)
+        var label := _label(line, str(stat["name"]), 9, UI.GOLD_BRIGHT, bold_font)
+        label.custom_minimum_size.x = 34
         label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-        var before := _meter(line, int(stat["player"]), RED, true)
-        line.move_child(before, 0)
         _meter(line, int(stat["opponent"]), BLUE, false)
-    _label(box, "체중 %.2fkg  ·  피로 %d%%  ·  건강 %d%%" % [
+    _comparison_portrait(columns, _scouting_opponent_photo(), "상대", str(opponent["name"]), BLUE)
+    var condition := _label(box, "체중 %.2fkg  ·  피로 %d%%  ·  건강 %d%%" % [
         float(player["weight_kg"]), int(player["fatigue"]), int(player["health"]),
-    ], 11, MUTED)
+    ], 10, MUTED)
+    condition.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+
+func _comparison_portrait(parent: HBoxContainer, texture: Texture2D, role: String, fighter_name: String, color: Color) -> void:
+    var side := _column(parent, 1)
+    side.custom_minimum_size.x = 71
+    side.add_child(_crop_photo(texture, Vector2(71, 63)))
+    var caption := _label(side, "%s · %s" % [role, fighter_name], 9, color, bold_font)
+    caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+
+func _crop_photo(texture: Texture2D, minimum: Vector2) -> TextureRect:
+    var portrait := _photo(texture, int(minimum.y))
+    portrait.custom_minimum_size.x = minimum.x
+    portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+    portrait.clip_contents = true
+    return portrait
+
+func _scout_panel(parent: Container, background: Color, edge: Color, padding: int) -> PanelContainer:
+    var key := "%s:%s:%d" % [background.to_html(), edge.to_html(), padding]
+    if not _scout_styles.has(key):
+        var size := 32
+        var image := Image.create_empty(size, size, false, Image.FORMAT_RGBA8)
+        for y in range(size):
+            for x in range(size):
+                var dx := mini(x, size - 1 - x)
+                var dy := mini(y, size - 1 - y)
+                if dx + dy < 7:
+                    continue
+                var tint := background.darkened(0.14).lerp(background.lightened(0.07), 1.0 - float(y) / (size - 1))
+                if dx == 0 or dy == 0 or dx + dy == 7:
+                    tint = edge.lerp(UI.GOLD_BRIGHT, 0.20 if y < 8 else 0.0)
+                elif dx == 1 or dy == 1 or dx + dy == 8:
+                    tint = background.lerp(edge, 0.28)
+                image.set_pixel(x, y, tint)
+        var style := StyleBoxTexture.new()
+        style.texture = ImageTexture.create_from_image(image)
+        for side in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
+            style.set_texture_margin(side, 9)
+        style.set_content_margin_all(padding)
+        _scout_styles[key] = style
+    var panel := PanelContainer.new()
+    panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    panel.add_theme_stylebox_override("panel", _scout_styles[key])
+    parent.add_child(panel)
+    return panel
 
 func _meter(parent: HBoxContainer, value: int, fill_color: Color, from_right: bool) -> HBoxContainer:
     var row := _row(parent, 4)
@@ -121,14 +254,14 @@ func _meter(parent: HBoxContainer, value: int, fill_color: Color, from_right: bo
         row.move_child(number, 1)
     return row
 
-func _game_plans() -> void:
-    var heading := _label(self, "게임플랜 선택", 23, PAPER, heading_font)
+func _game_plans(parent: VBoxContainer) -> void:
+    var heading := _label(parent, "게임플랜 선택", 23, PAPER, heading_font)
     heading.name = "GamePlanHeading"
     var grid := GridContainer.new()
     grid.columns = 2
     grid.add_theme_constant_override("h_separation", 7)
     grid.add_theme_constant_override("v_separation", 7)
-    add_child(grid)
+    parent.add_child(grid)
     for plan in plans:
         var id := str(plan["id"])
         var is_recommended := bool(plan["recommended"])
@@ -142,14 +275,17 @@ func _game_plans() -> void:
         impact.size_flags_vertical = Control.SIZE_EXPAND_FILL
         var button := _action(card, "이 플랜 선택", is_recommended, func(): plan_chosen.emit(id))
         button.name = "GamePlanSelect_" + id
-    _action(self, "← 상대 다시 선택", false, func(): opponent_back_requested.emit())
+    var nav := _row(parent, 7)
+    _action(nav, "← 상대 분석", false, _show_plans.bind(false))
+    _action(nav, "← 상대 다시 선택", false, func(): opponent_back_requested.emit())
+    _action(parent, "← 컨디션 다시 선택", false, func(): back_requested.emit())
 
-func _jump_to_plans() -> void:
+func _show_plans(show_plans: bool) -> void:
+    _report_page.visible = not show_plans
+    _plan_page.visible = show_plans
     var scroll := find_parent("V17ContentScroll") as ScrollContainer
-    var target := get_node_or_null("GamePlanHeading") as Control
-    if scroll != null and target != null:
-        scroll.scroll_vertical += roundi(target.get_global_rect().position.y - scroll.get_global_rect().position.y)
-
+    if scroll != null:
+        scroll.set_deferred("scroll_vertical", 0)
 func _weigh_in() -> void:
     var hero := _banner("공식 계체", "OFFICIAL WEIGH-IN")
     var matchup := _row(hero, 7)
@@ -197,6 +333,18 @@ func _weigh_fighter(row: HBoxContainer, portrait: Texture2D, fighter_name: Strin
 
 func _banner(title: String, subtitle: String) -> VBoxContainer:
     var panel := _panel(self, INK, UI.GOLD_DARK, 4)
+    _add_lights(panel, 106.0)
+    var body := _column(panel, 3)
+    var heading := _label(body, title, 27, PAPER, heading_font)
+    heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    var plaque := _panel(body, UI.GOLD, UI.GOLD_BRIGHT, 1)
+    plaque.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+    var caption := _label(plaque, subtitle, 14, INK, bold_font)
+    caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    caption.custom_minimum_size.x = 160
+    return body
+
+func _add_lights(panel: PanelContainer, height: float) -> void:
     var backdrop := Control.new()
     backdrop.clip_contents = true
     backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -209,16 +357,7 @@ func _banner(title: String, subtitle: String) -> VBoxContainer:
         backdrop.add_child(lamps)
         lamps.anchor_left = 0.67 if right else 0.0
         lamps.anchor_right = 1.0 if right else 0.33
-        lamps.offset_bottom = 106.0
-    var body := _column(panel, 3)
-    var heading := _label(body, title, 27, PAPER, heading_font)
-    heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-    var plaque := _panel(body, UI.GOLD, UI.GOLD_BRIGHT, 1)
-    plaque.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-    var caption := _label(plaque, subtitle, 14, INK, bold_font)
-    caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-    caption.custom_minimum_size.x = 160
-    return body
+        lamps.offset_bottom = height
 
 func _panel(parent: Container, background: Color, edge: Color, padding: int) -> PanelContainer:
     var panel := PanelContainer.new()
@@ -262,7 +401,7 @@ func _photo(texture: Texture2D, height: int) -> TextureRect:
 func _action(parent: Control, text: String, primary: bool, callback: Callable) -> Button:
     var button := UI.action_button(text, bold_font, primary)
     button.pressed.connect(func():
-        if not is_queued_for_deletion():
+        if not is_queued_for_deletion() and button.is_visible_in_tree():
             callback.call()
     )
     parent.add_child(button)

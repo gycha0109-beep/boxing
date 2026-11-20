@@ -45,11 +45,26 @@ func _check_weigh_in(weight: float, status: String, verdict: String, detail: Str
         return
     var scroll := game.find_child("V17ContentScroll", true, false) as ScrollContainer
     var before := SaveService.load_game()
+    var plans := scouting.find_child("ScoutingPlans", true, false) as Control
+    _require(plans != null and not plans.is_visible_in_tree(), "scouting initially shows the report alone")
+    var comparison := scouting.find_child("ScoutingComparison", true, false) as Control
+    _require(comparison != null, "scouting renders the side-by-side comparison")
+    var tendency := scouting.find_child("ScoutingTendency_body", true, false) as Label
+    _require(tendency != null and tendency.text == "%d%%" % roundi(float(opponents[0]["tendencies"]["body"]) * 100.0), "scouting reads the actual roster tendency")
     if _press("ScoutingShowPlans"):
         await _settle()
-        _require(scroll.scroll_vertical > 0, "plan shortcut scrolls to the choices")
+        _require(plans != null and plans.is_visible_in_tree() and comparison != null and not comparison.is_visible_in_tree(), "plan shortcut opens a separate view")
+        _require(scroll.scroll_vertical == 0, "plan view starts from the top")
+        for button in plans.find_children("*", "Button", true, false):
+            if button.text == "← 상대 분석":
+                button.pressed.emit()
+                break
+        await _settle()
+        _require(not plans.is_visible_in_tree() and comparison.is_visible_in_tree(), "back returns to scouting")
+        _press("ScoutingShowPlans")
+        await _settle()
         _require(SaveService.load_game() == before, "preview does not change the save")
-    var meters := scouting.find_children("*", "ProgressBar", true, false)
+    var meters := comparison.find_children("*", "ProgressBar", true, false) if comparison != null else []
     _require(meters.size() == 10, "scouting compares five values per player")
     if meters.size() == 10:
         var stats: Array[String] = ["power", "speed", "technique", "defense", "conditioning"]

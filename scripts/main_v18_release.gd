@@ -189,10 +189,11 @@ func _render_game_plan() -> void:
 
     var view := _new_prefight_view("ReferenceScouting")
     var scouting: Dictionary = current_opponent.get("scouting", {})
-    var difficulty := str(REFERENCE_UI.DIFFICULTY.get(current_opponent.get("difficulty", ""), "미정"))
-    view.opponent_details += "  ·  난이도 %s" % difficulty
+    view.difficulty = str(REFERENCE_UI.DIFFICULTY.get(current_opponent.get("difficulty", ""), "미정"))
+    view.opponent_country = _v17_flag(_v17_country(current_opponent))
+    view.opponent_details = "%s  ·  랭킹 #%d" % [_style_label(str(current_opponent.get("style", ""))), int(current_opponent["rank"])]
     view.analysis = scouting
-    view.tendency = "주요 액션 · " + _tendency_text(current_opponent.get("tendencies", {}))
+    view.tendencies = current_opponent.get("tendencies", {})
     var opponent_stats: Dictionary = current_opponent.get("stats", {})
     var fight_boxer := GameState.get_fight_boxer()
     for id: String in ["power", "speed", "technique", "defense", "conditioning"]:
