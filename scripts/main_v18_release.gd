@@ -11,6 +11,7 @@ const REFERENCE_PREFIGHT := preload("res://scripts/ui/reference_prefight_view.gd
 const REFERENCE_BATTLE := preload("res://scripts/ui/reference_battle_view.gd")
 const REFERENCE_RESULT := preload("res://scripts/ui/reference_result_view.gd")
 const REFERENCE_LEGACY := preload("res://scripts/ui/reference_legacy_view.gd")
+const REFERENCE_TITLE := preload("res://scripts/ui/reference_title_view.gd")
 
 var v19_top_bar: HBoxContainer
 var v19_menu_button: Button
@@ -108,13 +109,13 @@ func _v17_sync_nav() -> void:
 func _v19_apply_phase_chrome() -> void:
     if GameState.state.is_empty():
         return
-    var in_fight := str(GameState.state.get("phase", "")) == "fight" and v17_overlay.is_empty()
+    var in_fight := not launch_gate_active and str(GameState.state.get("phase", "")) == "fight" and v17_overlay.is_empty()
     if is_instance_valid(v19_bottom_nav):
-        v19_bottom_nav.visible = not in_fight
+        v19_bottom_nav.visible = not in_fight and not launch_gate_active
     if is_instance_valid(v19_top_bar):
         v19_top_bar.custom_minimum_size.y = 46 if in_fight else 62
     if is_instance_valid(v19_menu_button):
-        v19_menu_button.visible = not in_fight
+        v19_menu_button.visible = not in_fight and not launch_gate_active
     if is_instance_valid(v19_money_box):
         v19_money_box.visible = not in_fight
     if is_instance_valid(v19_settings_button):
@@ -415,9 +416,69 @@ func _render_career_summary() -> void:
     _reset_reference_scroll()
 
 
+func _render_launch_title() -> void:
+    var previous := body.get_node_or_null("ReferenceTitle")
+    _clear_body()
+    if previous != null:
+        body.remove_child(previous)
+    var view := REFERENCE_TITLE.new()
+    view.name = "ReferenceTitle"
+    view.heading_font = REFERENCE_UI.heading_font(_v18_font(900))
+    view.bold_font = _v18_font(700)
+    view.can_continue = _has_career_to_continue()
+    if view.can_continue:
+        var state: Dictionary = GameState.state
+        var career: Dictionary = state.get("career", {})
+        view.save_caption = "%s · %d세대 · %d전" % [
+            str(state.get("boxer", {}).get("name", "무명 복서")),
+            int(state.get("meta_state", {}).get("generation", 1)),
+            int(career.get("fights", 0)),
+        ]
+    view.new_career_requested.connect(_start_new_career_from_title)
+    view.continue_requested.connect(_continue_from_reference_title)
+    body.add_child(view)
+    _render_status()
+    _configure_mobile_scroll()
+    var scroll := find_child("V17ContentScroll", true, false) as ScrollContainer
+    if scroll != null:
+        scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+        scroll.scroll_deadzone = MOBILE_SCROLL_DEADZONE
+    _reset_reference_scroll()
+    _v17_sync_nav()
+    _sync_music_for_phase()
+    call_deferred("_wire_ui_sounds")
+
+func _has_career_to_continue() -> bool:
+    return not GameState.state.is_empty() and not _should_show_launch_title()
+
+func _return_to_reference_title() -> void:
+    v17_overlay = ""
+    v19_previous_overlay = ""
+    launch_gate_active = true
+    _render_phase()
+
+func _continue_from_reference_title() -> void:
+    if not launch_gate_active or not _has_career_to_continue():
+        return
+    launch_gate_active = false
+    _render_phase()
+    _reset_reference_scroll()
+
+func _start_new_career_from_title() -> void:
+    if not launch_gate_active:
+        return
+    current_opponent = {}
+    combat = null
+    super._start_new_career_from_title()
+    _reset_reference_scroll()
+
+
 # Keep real career state distinct from navigation-only panels.
 func _render_phase() -> void:
-    if v17_overlay in ["match_blocked", "training_blocked"] and not launch_gate_active:
+    if launch_gate_active:
+        _render_launch_title()
+        return
+    if v17_overlay in ["match_blocked", "training_blocked"]:
         _clear_body()
         _render_status()
         _v19_render_blocked_tab(v17_overlay)
@@ -500,6 +561,7 @@ func _v19_open_menu() -> void:
     _v19_menu_button(panel, "훈련", Callable(self, "_v17_open_training"))
     _v19_menu_button(panel, "커리어", Callable(self, "_v17_open_overlay").bind("career"))
     _v19_menu_button(panel, "상점", Callable(self, "_v17_open_shop"))
+    _v19_menu_button(panel, "타이틀 화면", Callable(self, "_return_to_reference_title"))
     _v19_menu_button(panel, "닫기", Callable(self, "_v19_close_secondary"))
     _v17_sync_nav()
 
