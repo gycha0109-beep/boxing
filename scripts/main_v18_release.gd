@@ -10,6 +10,7 @@ const REFERENCE_PREPARATION := preload("res://scripts/ui/reference_preparation_v
 const REFERENCE_PREFIGHT := preload("res://scripts/ui/reference_prefight_view.gd")
 const REFERENCE_BATTLE := preload("res://scripts/ui/reference_battle_view.gd")
 const REFERENCE_RESULT := preload("res://scripts/ui/reference_result_view.gd")
+const REFERENCE_LEGACY := preload("res://scripts/ui/reference_legacy_view.gd")
 
 var v19_top_bar: HBoxContainer
 var v19_menu_button: Button
@@ -385,6 +386,34 @@ func _continue_from_reference_result() -> void:
     current_opponent = {}
     _render_phase()
     _reset_reference_scroll()
+
+func _render_career_summary() -> void:
+    var previous := body.get_node_or_null("ReferenceLegacySelection")
+    if previous != null and previous.is_queued_for_deletion():
+        body.remove_child(previous)
+    var state: Dictionary = GameState.state
+    var view := REFERENCE_LEGACY.new()
+    view.name = "ReferenceLegacySelection"
+    view.boxer = state.get("boxer", {})
+    view.career = state.get("career", {})
+    view.meta = state.get("meta_state", {})
+    view.profile = GameState.retirement_legacy_profile()
+    view.ending = GameState.ending_text()
+    view.notice = legacy_notice
+    view.pending = GameState.pending_retirement_legacy()
+    view.selected = state.get("career_state", {}).get("retirement_legacy_selected", {})
+    if view.pending.is_empty() and view.selected.is_empty():
+        view.candidates = GameState.retirement_legacy_candidates()
+    view.definition_for = GameState.legacy_definition
+    view.heading_font = REFERENCE_UI.heading_font(_v18_font(900))
+    view.bold_font = _v18_font(750)
+    view.legacy_chosen.connect(_choose_retirement_legacy)
+    view.slot_replaced.connect(_replace_retirement_legacy)
+    view.legacy_abandoned.connect(_abandon_retirement_legacy)
+    view.next_requested.connect(_start_next_generation)
+    body.add_child(view)
+    _reset_reference_scroll()
+
 
 # Keep real career state distinct from navigation-only panels.
 func _render_phase() -> void:
