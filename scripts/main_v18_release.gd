@@ -41,15 +41,14 @@ func _v17_top_bar() -> Control:
     bar.add_child(menu)
     v19_menu_button = menu
 
-    var brand := Label.new()
-    brand.name = "V19Brand"
-    brand.text = "TWELVE COUNT"
+    var brand := TextureRect.new()
+    brand.name = "V20BrandLogo"
+    brand.texture = preload("res://assets/visual/reference_v1/brand_gold.png")
     brand.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    brand.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-    brand.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-    brand.add_theme_font_override("font", _v18_font(760))
-    brand.add_theme_font_size_override("font_size", 20)
-    brand.add_theme_color_override("font_color", V17_GOLD)
+    brand.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+    brand.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+    brand.custom_minimum_size.y = 49
+    brand.mouse_filter = Control.MOUSE_FILTER_IGNORE
     bar.add_child(brand)
 
     var account := VBoxContainer.new()
@@ -564,3 +563,23 @@ func _v19_menu_button(parent: Node, label_text: String, action: Callable) -> voi
 func _v19_close_secondary() -> void:
     v17_overlay = v19_previous_overlay
     _render_phase()
+
+# Reference-accurate boxer profile; other tabs keep their validated flow.
+func _v17_render_profile_home() -> void:
+    var profile_view := preload("res://scripts/ui/reference_profile_view.gd").new()
+    body.add_child(profile_view)
+
+# Shared embossed gold navigation treatment from the user reference.
+func _v17_nav_style(selected: bool) -> StyleBoxFlat:
+    var style := StyleBoxFlat.new()
+    style.bg_color = Color("#241b12") if selected else Color("#0b1827")
+    style.border_color = Color("#e8bb70") if selected else Color("#516070")
+    style.set_border_width_all(2 if selected else 1)
+    style.set_corner_radius_all(7)
+    style.content_margin_top = 5
+    style.content_margin_bottom = 5
+    style.content_margin_left = 1
+    style.content_margin_right = 1
+    style.shadow_size = 4 if selected else 1
+    style.shadow_color = Color(0.77, 0.48, 0.11, 0.24) if selected else Color(0, 0, 0, 0.35)
+    return style
