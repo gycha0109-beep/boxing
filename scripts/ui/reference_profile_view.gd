@@ -10,6 +10,10 @@ const BLUE := Color("#5ba8f7")
 const PANEL := Color("#0a1724")
 const PANEL_ALT := Color("#111f2d")
 const HERO_ASSET := preload("res://assets/visual/reference_v1/profile_boxer.png")
+const Art := preload("res://scripts/ui/reference_result_art.gd")
+
+var heading_font: Font
+var bold_font: Font
 
 func _ready() -> void:
     name = "ReferenceProfile"
@@ -64,6 +68,7 @@ func _label(parent: Container, content: String, points: int = 14, tint: Color = 
     l.add_theme_color_override("font_color", tint)
     l.add_theme_font_size_override("font_size", points)
     if bold:
+        l.add_theme_font_override("font", bold_font)
         l.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.9))
         l.add_theme_constant_override("shadow_offset_x", 1)
         l.add_theme_constant_override("shadow_offset_y", 2)
@@ -72,6 +77,7 @@ func _label(parent: Container, content: String, points: int = 14, tint: Color = 
 
 func _header() -> void:
     var title := _label(self, "내 선수", 31, WHITE, HORIZONTAL_ALIGNMENT_CENTER, true)
+    title.add_theme_font_override("font", heading_font)
     title.custom_minimum_size.y = 40
     var eyebrow := _label(self, "━━  B O X E R   P R O F I L E  ━━", 11, GOLD, HORIZONTAL_ALIGNMENT_CENTER)
     eyebrow.custom_minimum_size.y = 22
@@ -133,7 +139,11 @@ func _condition(boxer: Dictionary) -> void:
     _label(health, "♥  건강", 11, MUTED)
     _label(health, "%d / 100" % int(boxer.get("health", 100)), 16, RED, HORIZONTAL_ALIGNMENT_CENTER, true)
     var fatigue := _panel(row, Color("#141c26"), GOLD_DARK, 6)
-    _label(fatigue, "⚡  피로", 11, MUTED)
+    var fatigue_label := HBoxContainer.new()
+    fatigue_label.add_theme_constant_override("separation", 3)
+    fatigue.add_child(fatigue_label)
+    Art.result_icon(fatigue_label, &"speed")
+    _label(fatigue_label, "피로", 11, MUTED).autowrap_mode = TextServer.AUTOWRAP_OFF
     _label(fatigue, "%d%%" % int(boxer.get("fatigue", 0)), 16, BLUE, HORIZONTAL_ALIGNMENT_CENTER, true)
     var weight := _panel(row, Color("#141c26"), GOLD_DARK, 6)
     _label(weight, "◆  체중", 11, MUTED)
@@ -143,7 +153,7 @@ func _stats(boxer: Dictionary) -> void:
     var main := _panel(self, PANEL_ALT, GOLD, 9)
     for k in [
         ["power", "파워", "◆"],
-        ["speed", "스피드", "➤"],
+        ["speed", "스피드", ""],
         ["technique", "테크닉", "◎"],
         ["defense", "수비", "◇"],
         ["conditioning", "체력", "♥"]
@@ -154,8 +164,11 @@ func _stats(boxer: Dictionary) -> void:
         line.custom_minimum_size.y = 24
         line.add_theme_constant_override("separation", 5)
         main.add_child(line)
-        var symbol := _label(line, str(k[2]), 15, GOLD)
-        symbol.custom_minimum_size.x = 17
+        if id == "speed":
+            Art.result_icon(line, &"speed")
+        else:
+            var symbol := _label(line, str(k[2]), 15, GOLD)
+            symbol.custom_minimum_size.x = 16
         var key := _label(line, str(k[1]), 14, WHITE, HORIZONTAL_ALIGNMENT_LEFT, true)
         key.custom_minimum_size.x = 65
         var meter := ProgressBar.new()
@@ -181,8 +194,7 @@ func _goal(career: Dictionary) -> void:
     var row := HBoxContainer.new()
     row.add_theme_constant_override("separation", 10)
     box.add_child(row)
-    var badge := _label(row, "◈", 27, GOLD)
-    badge.custom_minimum_size.x = 34
+    Art.result_icon(row, &"goal")
     var col := VBoxContainer.new()
     col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     row.add_child(col)
@@ -196,8 +208,7 @@ func _legacy() -> void:
     var box := _panel(self, PANEL, GOLD_DARK, 9)
     var row := HBoxContainer.new()
     box.add_child(row)
-    var icon_label := _label(row, "♛", 24, GOLD)
-    icon_label.custom_minimum_size.x = 38
+    Art.result_icon(row, &"career")
     var col := VBoxContainer.new()
     col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     row.add_child(col)

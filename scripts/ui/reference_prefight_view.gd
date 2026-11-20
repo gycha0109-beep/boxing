@@ -71,7 +71,7 @@ func _scouting_heading() -> void:
     _report_page.add_child(panel)
     _add_lights(panel, 76.0)
     var content := _column(panel, 2)
-    var title := _label(content, "OPPONENT SCOUTING", 27, PAPER, heading_font)
+    var title := _label(content, "OPPONENT SCOUTING", 34, PAPER, UI.DISPLAY_FONT)
     title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
     var tab := _scout_panel(content, Color("#c49346"), UI.GOLD_BRIGHT, 2)
     tab.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -316,7 +316,7 @@ func _banner(title: String, subtitle: String) -> VBoxContainer:
     heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
     var plaque := _panel(body, UI.GOLD, UI.GOLD_BRIGHT, 1)
     plaque.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-    var caption := _label(plaque, subtitle, 14, INK, bold_font)
+    var caption := _label(plaque, subtitle, 17, INK, UI.DISPLAY_FONT)
     caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
     caption.custom_minimum_size.x = 160
     return body

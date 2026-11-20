@@ -84,11 +84,11 @@ func _heading() -> void:
         lights.anchor_right = 1.0 if right else 0.32
         lights.anchor_bottom = 1.0
     var stack := _column(panel, 1)
-    var title := _label(stack, "FIGHT NIGHT", 30, PAPER, heading_font)
+    var title := _label(stack, "FIGHT NIGHT", 37, PAPER, UI.DISPLAY_FONT)
     title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
     var plaque := _panel(stack, Color("#d6a554"), UI.GOLD_BRIGHT, 1)
     plaque.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-    var round_label := _label(plaque, "ROUND %d / %d" % [int(snapshot["round"]), round_count], 17, INK, heading_font)
+    var round_label := _label(plaque, "ROUND %d / %d" % [int(snapshot["round"]), round_count], 20, INK, UI.DISPLAY_FONT)
     round_label.name = "FightRoundLabel"
     round_label.custom_minimum_size.x = 153
     round_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -108,7 +108,7 @@ func _corner_hud() -> void:
     var row := _row(self, 5)
     row.name = "V19CornerHUD"
     _corner(row, player_name, player_style, player_trait, "내 선수", player_rank, "Player", RED)
-    var versus := _label(row, "VS", 18, UI.GOLD_BRIGHT, heading_font)
+    var versus := _label(row, "VS", 21, UI.GOLD_BRIGHT, UI.DISPLAY_FONT)
     versus.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
     _corner(row, opponent_name, opponent_style, "", "상대", opponent_rank, "Opponent", BLUE)
 

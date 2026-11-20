@@ -62,7 +62,7 @@ func _matchup() -> void:
 
     var badge := _panel(content, UI.GOLD, UI.GOLD_BRIGHT, 1)
     badge.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-    var subtitle := _label(badge, "FIGHT PLAN SELECTION" if is_tactical else "FIGHT WEEK", 12, INK, bold_font)
+    var subtitle := _label(badge, "FIGHT PLAN SELECTION" if is_tactical else "FIGHT WEEK", 15, INK, UI.DISPLAY_FONT)
     subtitle.custom_minimum_size.x = 162
     subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
@@ -72,7 +72,7 @@ func _matchup() -> void:
         int(boxer.get("health", 100)), int(boxer.get("fatigue", 0)), float(boxer.get("weight_kg", 0.0)),
     ]
     _label(player, condition, 11, MUTED)
-    var versus := _label(matchup, "VS", 23, UI.GOLD_BRIGHT, heading_font)
+    var versus := _label(matchup, "VS", 25, UI.GOLD_BRIGHT, UI.DISPLAY_FONT)
     versus.autowrap_mode = TextServer.AUTOWRAP_OFF
     versus.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
     versus.vertical_alignment = VERTICAL_ALIGNMENT_CENTER

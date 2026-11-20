@@ -87,13 +87,14 @@ func _hero() -> void:
     var masthead := _row(content, 4)
     masthead.alignment = BoxContainer.ALIGNMENT_CENTER
     Art.laurel(masthead, 28, UI.GOLD, false)
-    _title(masthead, "LEGACY SELECTION", 29, PAPER, true)
+    _title(masthead, "LEGACY SELECTION", 36, PAPER, true).add_theme_font_override("font", UI.DISPLAY_FONT)
     Art.laurel(masthead, 28, UI.GOLD, true)
     var plaque := PanelContainer.new()
     plaque.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
     plaque.add_theme_stylebox_override("panel", Art.gold_plate(184, 23, Color("#b97731"), 2))
     content.add_child(plaque)
-    var ribbon := _title(plaque, "NEXT GENERATION", 14, INK)
+    var ribbon := _title(plaque, "NEXT GENERATION", 17, INK)
+    ribbon.add_theme_font_override("font", UI.DISPLAY_FONT)
     ribbon.custom_minimum_size.x = 180
     var generation := int(meta.get("generation", 1))
     _copy(content, "%d세대  →  %d세대" % [generation, generation + 1], 12, UI.GOLD_BRIGHT, true)

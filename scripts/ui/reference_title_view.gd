@@ -48,7 +48,7 @@ func _hero() -> void:
     heading.add_theme_constant_override("separation", 5)
     masthead.add_child(heading)
     Art.laurel(heading, 39, UI.GOLD, false)
-    var title := _label(heading, "TWELVE COUNT", 42, PAPER, heading_font)
+    var title := _label(heading, "TWELVE COUNT", 53, PAPER, UI.DISPLAY_FONT)
     _outline(title, 5)
     var title_material := ShaderMaterial.new()
     title_material.shader = TITLE_METAL
@@ -75,7 +75,12 @@ func _hero() -> void:
     tagline.add_theme_constant_override("separation", 0)
     content.add_child(tagline)
     _label(tagline, "단 한 명의 복서, 단 한 번의 커리어.", 17, PAPER, heading_font)
-    _label(tagline, "그리고 이어지는 유산과 새로운 시작.", 18, UI.GOLD_BRIGHT, heading_font)
+    var highlighted := HBoxContainer.new()
+    highlighted.alignment = BoxContainer.ALIGNMENT_CENTER
+    highlighted.add_theme_constant_override("separation", 3)
+    tagline.add_child(highlighted)
+    _label(highlighted, "그리고 이어지는", 18, PAPER, heading_font)
+    _label(highlighted, "유산과 새로운 시작.", 18, UI.GOLD_BRIGHT, heading_font)
     var padding := Control.new()
     padding.custom_minimum_size.y = 6
     padding.mouse_filter = Control.MOUSE_FILTER_IGNORE

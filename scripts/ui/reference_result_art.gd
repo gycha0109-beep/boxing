@@ -132,6 +132,13 @@ static func _draw_icon(icon: Control, kind: StringName) -> void:
         &"condition", &"injury":
             icon.draw_line(Vector2(4, 8), Vector2(12, 8), gold, 3, true)
             icon.draw_line(Vector2(8, 4), Vector2(8, 12), bright, 3, true)
+        &"speed":
+            var bolt := PackedVector2Array([Vector2(9, 1), Vector2(3, 9), Vector2(7, 9), Vector2(6, 15), Vector2(13, 6), Vector2(9, 6)])
+            icon.draw_colored_polygon(bolt, gold)
+        &"goal":
+            icon.draw_circle(Vector2(8, 8), 6.3, dark, false, 1.2, true)
+            icon.draw_circle(Vector2(8, 8), 3.5, gold, false, 1.2, true)
+            icon.draw_circle(Vector2(8, 8), 1.4, bright, true, -1, true)
         &"commentary":
             icon.draw_circle(Vector2(10, 5), 3.2, bright, true, -1, true)
             icon.draw_line(Vector2(8, 7), Vector2(3, 13), gold, 2.1, true)

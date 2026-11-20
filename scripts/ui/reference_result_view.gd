@@ -83,7 +83,7 @@ func _hero() -> void:
     var masthead := _row(content, 7)
     masthead.alignment = BoxContainer.ALIGNMENT_CENTER
     Art.laurel(masthead, 30, UI.GOLD, false)
-    var title := _label(masthead, "RESULT", 39, PAPER, heading_font)
+    var title := _label(masthead, "RESULT", 46, PAPER, UI.DISPLAY_FONT)
     _outline(title, 6)
     Art.laurel(masthead, 30, UI.GOLD, true)
 
@@ -91,7 +91,7 @@ func _hero() -> void:
     plaque.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
     plaque.add_theme_stylebox_override("panel", Art.gold_plate(148, 23, Color("#c48735"), 2))
     content.add_child(plaque)
-    var sub := _label(plaque, "FIGHT NIGHT", 14, INK, heading_font)
+    var sub := _label(plaque, "FIGHT NIGHT", 17, INK, UI.DISPLAY_FONT)
     sub.custom_minimum_size.x = 145
     sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
     var division := _label(content, weight_class + "  ·  경기 결과", 10, PAPER, bold_font)
@@ -120,7 +120,7 @@ func _hero() -> void:
 
     var match_row := _row(content, 7)
     _nameplate(match_row, str(boxer.get("name", "무명 복서")), player_status, RED, false)
-    var vs := _label(match_row, "VS", 22, UI.GOLD_BRIGHT, heading_font)
+    var vs := _label(match_row, "VS", 24, UI.GOLD_BRIGHT, UI.DISPLAY_FONT)
     vs.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
     vs.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
     _outline(vs, 6)

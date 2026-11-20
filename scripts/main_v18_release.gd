@@ -151,8 +151,8 @@ func _render_reference_preparation(tactical: bool) -> void:
         int(current_opponent.get("rank", 0)),
         _v17_flag(_v17_country(current_opponent)),
     ]
-    view.heading_font = REFERENCE_UI.heading_font(_v18_font(900))
-    view.bold_font = _v18_font(750)
+    view.heading_font = REFERENCE_UI.heading_font(_v18_font(780))
+    view.bold_font = _v18_font(620)
     var choices: Array = GameState.tactical_preparations() if tactical else GameState.condition_preparations()
     for preparation: Dictionary in choices:
         view.options.append({
@@ -252,8 +252,8 @@ func _new_prefight_view(view_name: String) -> VBoxContainer:
         int(current_opponent.get("rank", 0)),
         _v17_flag(_v17_country(current_opponent)),
     ]
-    view.heading_font = REFERENCE_UI.heading_font(_v18_font(900))
-    view.bold_font = _v18_font(750)
+    view.heading_font = REFERENCE_UI.heading_font(_v18_font(780))
+    view.bold_font = _v18_font(620)
     return view
 
 func _weigh_in_presentation() -> Dictionary:
@@ -331,8 +331,8 @@ func _render_fight(animated_exchange: Dictionary = {}) -> void:
     var exchange_index := maxi(0, int(snap["exchange"]) - (1 if bool(snap["finished"]) else 0))
     view.exchange_in_round = exchange_index % view.exchanges_per_round + 1
     view.weight_class = str(GameState.career_balance["weight_class"]["name"])
-    view.heading_font = REFERENCE_UI.heading_font(_v18_font(900))
-    view.bold_font = _v18_font(750)
+    view.heading_font = REFERENCE_UI.heading_font(_v18_font(780))
+    view.bold_font = _v18_font(620)
     view.advice = _v17_recommendation(str(telegraph.get("action_id", "")))
     for id: String in ["jab", "power", "body", "guard", "counter"]:
         view.actions.append({
@@ -374,8 +374,8 @@ func _render_result() -> void:
     view.plan_name = str(plan.get("name", "균형 운영"))
     view.injury_text = str(injury.get("name", ""))
     view.money_text = _v17_money
-    view.heading_font = REFERENCE_UI.heading_font(_v18_font(900))
-    view.bold_font = _v18_font(750)
+    view.heading_font = REFERENCE_UI.heading_font(_v18_font(780))
+    view.bold_font = _v18_font(620)
     view.continue_requested.connect(_continue_from_reference_result)
     body.add_child(view)
     _reset_reference_scroll()
@@ -406,8 +406,8 @@ func _render_career_summary() -> void:
     if view.pending.is_empty() and view.selected.is_empty():
         view.candidates = GameState.retirement_legacy_candidates()
     view.definition_for = GameState.legacy_definition
-    view.heading_font = REFERENCE_UI.heading_font(_v18_font(900))
-    view.bold_font = _v18_font(750)
+    view.heading_font = REFERENCE_UI.heading_font(_v18_font(780))
+    view.bold_font = _v18_font(620)
     view.legacy_chosen.connect(_choose_retirement_legacy)
     view.slot_replaced.connect(_replace_retirement_legacy)
     view.legacy_abandoned.connect(_abandon_retirement_legacy)
@@ -423,8 +423,8 @@ func _render_launch_title() -> void:
         body.remove_child(previous)
     var view := REFERENCE_TITLE.new()
     view.name = "ReferenceTitle"
-    view.heading_font = REFERENCE_UI.heading_font(_v18_font(900))
-    view.bold_font = _v18_font(700)
+    view.heading_font = REFERENCE_UI.heading_font(_v18_font(780))
+    view.bold_font = _v18_font(580)
     view.can_continue = _has_career_to_continue()
     if view.can_continue:
         var state: Dictionary = GameState.state
@@ -594,6 +594,8 @@ func _v19_close_secondary() -> void:
 # Reference-accurate boxer profile; other tabs keep their validated flow.
 func _v17_render_profile_home() -> void:
     var profile_view := preload("res://scripts/ui/reference_profile_view.gd").new()
+    profile_view.heading_font = REFERENCE_UI.heading_font(_v18_font(780))
+    profile_view.bold_font = _v18_font(650)
     body.add_child(profile_view)
 
 # Shared embossed gold navigation treatment from the user reference.
@@ -615,8 +617,8 @@ func _v17_nav_style(selected: bool) -> StyleBoxFlat:
 func _render_camp() -> void:
     var training := REFERENCE_TRAINING.new()
     training.actions = camp_actions
-    training.bold_font = _v18_font(750)
-    training.heading_font = REFERENCE_UI.heading_font(_v18_font(900))
+    training.bold_font = _v18_font(620)
+    training.heading_font = REFERENCE_UI.heading_font(_v18_font(780))
     training.action_chosen.connect(_choose_camp_action)
     training.shop_requested.connect(_open_equipment_shop)
     body.add_child(training)
@@ -668,8 +670,8 @@ func _render_offers() -> void:
     if previous != null and previous.is_queued_for_deletion():
         body.remove_child(previous)
     var view := REFERENCE_OFFERS.new()
-    view.heading_font = REFERENCE_UI.heading_font(_v18_font(900))
-    view.bold_font = _v18_font(750)
+    view.heading_font = REFERENCE_UI.heading_font(_v18_font(780))
+    view.bold_font = _v18_font(620)
     for opponent: Dictionary in GameState.get_fight_offers(opponents):
         view.offers.append({
             "opponent": opponent,

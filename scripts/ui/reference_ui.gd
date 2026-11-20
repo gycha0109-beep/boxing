@@ -4,6 +4,7 @@ const DIFFICULTY := {"safe": "낮음", "peer": "보통", "stretch": "높음"}
 const GOLD := Color("#efc46f")
 const GOLD_BRIGHT := Color("#ffe2a0")
 const GOLD_DARK := Color("#9f753c")
+const DISPLAY_FONT := preload("res://assets/fonts/BarlowCondensed-BlackItalic.ttf")
 
 static var _gold_style: StyleBoxTexture
 static var _beveled_styles: Dictionary = {}
@@ -31,7 +32,7 @@ static func gold_button_style() -> StyleBoxTexture:
     return _gold_style
 
 static func heading_font(font: FontVariation) -> FontVariation:
-    font.variation_transform = Transform2D(Vector2(1, 0), Vector2(-0.15, 1), Vector2.ZERO)
+    font.variation_transform = Transform2D(Vector2(1.0, 0.23), Vector2.DOWN, Vector2.ZERO)
     return font
 
 static func panel_style(background: Color, edge: Color, padding: int) -> StyleBoxFlat:

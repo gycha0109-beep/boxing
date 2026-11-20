@@ -41,9 +41,9 @@ func _hero() -> void:
         backdrop.add_child(light)
 
     var content := _column(banner, 3)
-    var heading := _label(content, "FIGHT OFFERS", 32, PAPER)
+    var heading := _label(content, "FIGHT OFFERS", 38, PAPER)
     heading.name = "FightOffersTitle"
-    heading.add_theme_font_override("font", heading_font)
+    heading.add_theme_font_override("font", UI.DISPLAY_FONT)
     heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
     var plaque := _panel(content, UI.GOLD, UI.GOLD_BRIGHT, 2)
