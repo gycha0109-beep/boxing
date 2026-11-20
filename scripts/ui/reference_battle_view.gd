@@ -10,7 +10,14 @@ const INK := Color("#09131e")
 const PAPER := Color("#f7f4ec")
 const MUTED := Color("#c1cbd4")
 const RED := Color("#e54e47")
-const BLUE := Color("#53aefa")
+const BLUE := Color("#49a8ec")
+const PREDICTIONS := {
+    "lead_hand": "잽 또는 거리 재기 가능성",
+    "committed_attack": "큰 공격 가능성",
+    "level_change": "바디 공격 가능성",
+    "defensive_shell": "가드 유지 가능성",
+    "counter_wait": "반격 대기 가능성",
+}
 
 var stage: FightStage
 var snapshot: Dictionary
@@ -19,6 +26,9 @@ var player_name: String
 var opponent_name: String
 var player_style: String
 var opponent_style: String
+var player_trait: String
+var player_rank: int
+var opponent_rank: int
 var round_count: int
 var exchange_in_round: int
 var exchanges_per_round: int
@@ -41,7 +51,7 @@ func _ready() -> void:
     stage.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
     _corner_hud()
     if bool(snapshot["finished"]):
-        _feedback()
+        _finish_feedback()
         var settle := UI.action_button("경기 정산", bold_font, true)
         settle.name = "FightSettlement"
         settle.pressed.connect(func():
@@ -51,7 +61,7 @@ func _ready() -> void:
         add_child(settle)
     else:
         _tactical_read()
-        _feedback()
+        _prediction()
         _action_row()
 
 func _heading() -> void:
@@ -82,71 +92,123 @@ func _heading() -> void:
     round_label.name = "FightRoundLabel"
     round_label.custom_minimum_size.x = 153
     round_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-    var meta := _label(stack, "%s  ·  교환 %d / %d" % [weight_class, exchange_in_round, exchanges_per_round], 10, PAPER, bold_font)
+    var track := _row(stack, 5)
+    track.alignment = BoxContainer.ALIGNMENT_CENTER
+    var meta := _label(track, "%s  ·  교환 %d / %d" % [weight_class, exchange_in_round, exchanges_per_round], 10, PAPER, bold_font)
     meta.name = "FightExchangeLabel"
-    meta.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    for exchange in range(1, exchanges_per_round + 1):
+        var step := ColorRect.new()
+        step.name = "FightExchangeStep%d" % exchange
+        step.custom_minimum_size = Vector2(13, 4)
+        step.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+        step.color = UI.GOLD_BRIGHT if exchange == exchange_in_round else UI.GOLD_DARK if exchange < exchange_in_round else Color("#394552")
+        track.add_child(step)
 
 func _corner_hud() -> void:
     var row := _row(self, 5)
     row.name = "V19CornerHUD"
-    _corner(row, player_name, player_style, "Player", float(snapshot["player_hp"]), float(snapshot["player_stamina"]), RED)
+    _corner(row, player_name, player_style, player_trait, "내 선수", player_rank, "Player", RED)
     var versus := _label(row, "VS", 18, UI.GOLD_BRIGHT, heading_font)
     versus.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-    _corner(row, opponent_name, opponent_style, "Opponent", float(snapshot["opponent_hp"]), float(snapshot["opponent_stamina"]), BLUE)
+    _corner(row, opponent_name, opponent_style, "", "상대", opponent_rank, "Opponent", BLUE)
 
-func _corner(parent: HBoxContainer, fighter_name: String, style: String, side: String, hp: float, stamina: float, color: Color) -> void:
+func _corner(parent: HBoxContainer, fighter_name: String, style: String, trait_text: String, role: String, rank: int, side: String, color: Color) -> void:
     var panel := _panel(parent, INK.lerp(color, 0.06), color.lightened(0.16), 6)
     var box := _column(panel, 2)
+    var badges := _row(box, 4)
+    var side_label := _label(badges, role, 9, color.lightened(0.34), bold_font)
+    side_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    if rank > 0:
+        _label(badges, "#%d" % rank, 9, MUTED, bold_font)
     var title := _label(box, fighter_name, 16, PAPER, heading_font)
     title.clip_text = true
     title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-    _meter(box, "HP", hp, RED, "Fight" + side + "Health")
-    _meter(box, "STA", stamina, BLUE, "Fight" + side + "Stamina")
-    _label(box, style, 10, MUTED, bold_font)
+    var key := "player" if side == "Player" else "opponent"
+    _meter(box, "HP", float(snapshot[key + "_hp"]), RED, "Fight" + side + "Health")
+    _meter(box, "STA", float(snapshot[key + "_stamina"]), BLUE, "Fight" + side + "Stamina")
+    var info := "스타일 " + style
+    if not trait_text.is_empty():
+        info += "  ·  " + trait_text
+    var style_label := _label(box, info, 9, MUTED, bold_font)
+    style_label.clip_text = true
+    style_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 
 func _meter(parent: VBoxContainer, caption: String, value: float, tint: Color, node_name: String) -> void:
     var row := _row(parent, 4)
     var name_label := _label(row, caption, 10, PAPER, bold_font)
-    name_label.custom_minimum_size.x = 22
-    var meter := ProgressBar.new()
+    name_label.custom_minimum_size.x = 23
+    var meter := _bar(row, value, tint, 13)
     meter.name = node_name
+    var amount := _label(meter, "%d / 100" % roundi(value), 9, PAPER, bold_font)
+    amount.name = node_name + "Value"
+    amount.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    amount.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+    amount.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+    amount.add_theme_color_override("font_outline_color", INK)
+    amount.add_theme_constant_override("outline_size", 4)
+    amount.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+    amount.offset_right = -4
+
+func _bar(parent: HBoxContainer, value: float, tint: Color, height: float) -> ProgressBar:
+    var meter := ProgressBar.new()
     meter.step = 0.0
     meter.value = value
     meter.show_percentage = false
-    meter.custom_minimum_size.y = 7
+    meter.custom_minimum_size.y = height
     meter.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     meter.size_flags_vertical = Control.SIZE_SHRINK_CENTER
     meter.add_theme_stylebox_override("background", UI.panel_style(Color("#26323e"), Color("#26323e"), 0))
     meter.add_theme_stylebox_override("fill", UI.panel_style(tint, tint, 0))
-    row.add_child(meter)
-    var amount := _label(row, "%d / 100" % roundi(value), 10, PAPER, bold_font)
-    amount.name = node_name + "Value"
-    amount.custom_minimum_size.x = 43
-    amount.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+    parent.add_child(meter)
+    return meter
 
 func _tactical_read() -> void:
     var panel := _panel(self, INK, UI.GOLD_DARK, 5)
     panel.name = "V19TacticalRead"
     var row := _row(panel, 8)
-    var lead := _label(row, "상대 읽기\n%d%%" % int(telegraph.get("confidence", 0)), 13, UI.GOLD_BRIGHT, bold_font)
-    lead.custom_minimum_size.x = 72
-    lead.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+    var read := _column(row, 2)
+    read.custom_minimum_size.x = 83
+    _label(read, "상대 읽기", 13, UI.GOLD_BRIGHT, bold_font)
+    var confidence := _row(read, 3)
+    var amount := clampi(int(telegraph.get("confidence", 0)), 0, 100)
+    var trust := _label(confidence, "%d%%" % amount, 10, UI.GOLD_BRIGHT, bold_font)
+    trust.name = "FightReadConfidence"
+    _bar(confidence, amount, UI.GOLD, 4)
     var detail := _column(row, 1)
     detail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     _label(detail, str(telegraph.get("copy", CombatPresentation.telegraph_title(telegraph))), 10, PAPER, null, true)
     _label(detail, "코너 조언 · " + advice, 10, MUTED, null, true)
 
-func _feedback() -> void:
-    var box := _panel(self, Color("#220f13"), Color("#cc6452"), 5)
+func _prediction() -> void:
+    var panel := _panel(self, Color("#220f13"), Color("#cc6452"), 5)
+    var content := _column(panel, 1)
+    var row := _row(content, 8)
+    var caption := _label(row, "상대 행동 예측", 10, Color("#f0b4a4"), bold_font)
+    caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+    var signal_id := str(telegraph.get("signal_id", ""))
+    var guess := str(PREDICTIONS.get(signal_id, "움직임을 관찰 중"))
+    var forecast := _label(row, guess, 14, UI.GOLD_BRIGHT, heading_font, true)
+    forecast.name = "FightPrediction"
+    forecast.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    var result := _last_exchange_text()
+    if not result.is_empty():
+        var update := _label(content, result, 10, MUTED)
+        update.name = "FightEventLabel"
+
+func _last_exchange_text() -> String:
     var previous: Dictionary = snapshot.get("last_exchange", {})
-    var text := CombatPresentation.telegraph_title(telegraph)
-    if not previous.is_empty():
-        text = CombatPresentation.exchange_headline(previous)
-        if bool(previous.get("round_ended", false)):
-            var card: Array = previous.get("round_card", [])
-            if card.size() >= 2:
-                text = "ROUND %d 종료  ·  %d : %d" % [int(previous["completed_round"]), int(card[0]), int(card[1])]
-    var caption := _label(box, text, 14, UI.GOLD_BRIGHT, heading_font, true)
+    if previous.is_empty():
+        return ""
+    if bool(previous.get("round_ended", false)):
+        var card: Array = previous.get("round_card", [])
+        if card.size() >= 2:
+            return "ROUND %d 종료  ·  %d : %d" % [int(previous["completed_round"]), int(card[0]), int(card[1])]
+    return "직전 교환 · " + CombatPresentation.exchange_headline(previous)
+
+func _finish_feedback() -> void:
+    var box := _panel(self, Color("#220f13"), Color("#cc6452"), 5)
+    var outcome := _last_exchange_text()
+    var caption := _label(box, outcome if not outcome.is_empty() else "경기 종료", 14, UI.GOLD_BRIGHT, heading_font, true)
     caption.name = "FightEventLabel"
     caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 

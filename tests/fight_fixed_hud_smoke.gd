@@ -152,6 +152,28 @@ func _check_hud_values() -> void:
     _check(round_label != null and round_label.text == "ROUND %d / %d" % [
         int(snapshot["round"]), int(main_view.combat.balance.fight.rounds),
     ], "the arena label tracks the live round")
+    var finished := bool(snapshot["finished"])
+    var limit := int(main_view.combat.balance.fight.exchanges_per_round)
+    var active_step := maxi(0, int(snapshot["exchange"]) - (1 if finished else 0)) % limit + 1
+    for index in range(1, limit + 1):
+        var marker := main_view.find_child("FightExchangeStep%d" % index, true, false) as ColorRect
+        _check(marker != null, "exchange track contains step %d" % index)
+        if marker != null:
+            _check((marker.color == Color("#ffe2a0")) == (index == active_step), "exchange track highlights the current step")
+    var forecast := main_view.find_child("FightPrediction", true, false) as Label
+    if finished:
+        _check(forecast == null, "the final exchange shows the result only")
+        return
+    var trust := main_view.find_child("FightReadConfidence", true, false) as Label
+    _check(trust != null and trust.text == "%d%%" % int(snapshot["pending_telegraph"].get("confidence", 0)), "read confidence matches the engine")
+    _check(forecast != null and forecast.text.contains("가능성"), "the next opponent action is shown as a prediction")
+    if int(snapshot["exchange"]) > 0:
+        var feedback := main_view.find_child("FightEventLabel", true, false) as Label
+        _check(feedback != null and not feedback.text.is_empty(), "the last exchange and next prediction coexist")
+    var scroll := _find_scroll(main_view)
+    if scroll != null:
+        for button in main_view.find_children("FightAction_*", "Button", true, false):
+            _check(scroll.get_global_rect().encloses(button.get_global_rect()), "action stays reachable after the exchange")
 
 func _find_scroll(root: Node) -> ScrollContainer:
     for node in root.find_children("*", "ScrollContainer", true, false):
