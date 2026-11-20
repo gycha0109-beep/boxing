@@ -13,6 +13,7 @@ const REFERENCE_RESULT := preload("res://scripts/ui/reference_result_view.gd")
 const REFERENCE_LEGACY := preload("res://scripts/ui/reference_legacy_view.gd")
 const REFERENCE_TITLE := preload("res://scripts/ui/reference_title_view.gd")
 const REFERENCE_CREATION := preload("res://scripts/ui/reference_creation_view.gd")
+const REFERENCE_EVENT := preload("res://scripts/ui/reference_career_event_view.gd")
 
 var v19_top_bar: HBoxContainer
 var v19_menu_button: Button
@@ -388,6 +389,35 @@ func _continue_from_reference_result() -> void:
     current_opponent = {}
     _render_phase()
     _reset_reference_scroll()
+
+func _render_event() -> void:
+    var previous := body.get_node_or_null("ReferenceCareerEvent")
+    if previous != null and previous.is_queued_for_deletion():
+        body.remove_child(previous)
+    var state: Dictionary = GameState.state
+    var event: Dictionary = state.get("pending_event", {})
+    if event.is_empty():
+        _continue_from_reference_event()
+        return
+    var view := REFERENCE_EVENT.new()
+    view.name = "ReferenceCareerEvent"
+    view.event = event
+    view.before = {"boxer": state["boxer"], "career": state["career"]}
+    view.projected = GameState.project_pending_event()
+    view.heading_font = REFERENCE_UI.heading_font(_v18_font(780))
+    view.bold_font = _v18_font(620)
+    view.money_text = _v17_money
+    view.continue_requested.connect(_continue_from_reference_event, CONNECT_DEFERRED)
+    body.add_child(view)
+    _reset_reference_scroll()
+
+func _continue_from_reference_event() -> void:
+    if str(GameState.state.get("phase", "")) != "event":
+        return
+    GameState.resolve_pending_event()
+    _render_phase()
+    _reset_reference_scroll()
+
 
 func _render_career_summary() -> void:
     var previous := body.get_node_or_null("ReferenceLegacySelection")

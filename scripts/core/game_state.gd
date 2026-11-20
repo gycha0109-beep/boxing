@@ -329,12 +329,21 @@ func advance_after_result() -> void:
             return
     _begin_next_cycle()
 
+func project_pending_event() -> Dictionary:
+    var event: Dictionary = state.get("pending_event", {})
+    if event.is_empty():
+        return {}
+    var boxer: Dictionary = state.boxer.duplicate(true)
+    var career: Dictionary = state.career.duplicate(true)
+    _apply_effects(event.get("effects", {}), boxer, career)
+    return {"boxer": boxer, "career": career}
+
 func resolve_pending_event() -> void:
     var event: Dictionary = state.get("pending_event", {})
     if event.is_empty():
         _begin_next_cycle()
         return
-    _apply_effects(event.get("effects", {}))
+    _apply_effects(event.get("effects", {}), state.boxer, state.career)
     state.pending_event = {}
     _check_retirement()
     if bool(state.career.finished):
@@ -400,10 +409,10 @@ func _assign_random_injury() -> void:
     if current.is_empty() or int(injury.remaining_camps) >= int(current.get("remaining_camps", 0)):
         state.boxer.injury = injury
 
-func _assign_injury_by_id(injury_id: String) -> void:
+func _assign_injury_by_id(boxer: Dictionary, injury_id: String) -> void:
     for injury in injuries:
         if str(injury.id) == injury_id:
-            state.boxer.injury = injury.duplicate(true)
+            boxer.injury = injury.duplicate(true)
             return
 
 func _pick_event() -> Dictionary:
@@ -426,15 +435,13 @@ func _pick_event() -> Dictionary:
             return event
     return candidates[-1]
 
-func _apply_effects(effects: Dictionary) -> void:
-    var boxer: Dictionary = state.boxer
-    var career: Dictionary = state.career
+func _apply_effects(effects: Dictionary, boxer: Dictionary, career: Dictionary) -> void:
     career.money += int(effects.get("money", 0))
     career.reputation = max(0, int(career.reputation) + int(effects.get("reputation", 0)))
     boxer.fatigue = clamp(int(boxer.fatigue) + int(effects.get("fatigue", 0)), 0, 100)
     boxer.health = clamp(int(boxer.health) + int(effects.get("health", 0)), 0, 100)
     if effects.has("injury"):
-        _assign_injury_by_id(str(effects.injury))
+        _assign_injury_by_id(boxer, str(effects.injury))
 
 func _begin_next_cycle() -> void:
     var boxer: Dictionary = state.boxer
