@@ -9,6 +9,7 @@ const REFERENCE_OFFERS := preload("res://scripts/ui/reference_offers_view.gd")
 const REFERENCE_PREPARATION := preload("res://scripts/ui/reference_preparation_view.gd")
 const REFERENCE_PREFIGHT := preload("res://scripts/ui/reference_prefight_view.gd")
 const REFERENCE_BATTLE := preload("res://scripts/ui/reference_battle_view.gd")
+const REFERENCE_RESULT := preload("res://scripts/ui/reference_result_view.gd")
 
 var v19_top_bar: HBoxContainer
 var v19_menu_button: Button
@@ -346,6 +347,44 @@ func _render_fight(animated_exchange: Dictionary = {}) -> void:
     if bool(snap["finished"]) and str(GameState.state.get("phase", "")) == "fight":
         GameState.apply_fight_result(str(snap["result"]), current_opponent, snap)
     _configure_mobile_scroll()
+
+func _render_result() -> void:
+    var previous := body.get_node_or_null("ReferenceFightResult")
+    if previous != null and previous.is_queued_for_deletion():
+        body.remove_child(previous)
+    var summary: Dictionary = GameState.state.get("last_fight_summary", {})
+    var boxer: Dictionary = GameState.state["boxer"]
+    var injury: Dictionary = boxer.get("injury", {})
+    var opponent: Dictionary = _find_opponent(str(summary.get("opponent_id", "")))
+    var view := REFERENCE_RESULT.new()
+    view.name = "ReferenceFightResult"
+    view.summary = summary
+    view.boxer = boxer
+    view.career = GameState.state["career"]
+    view.result_id = str(summary.get("result", GameState.state.get("last_result", "")))
+    view.result_text = _result_label(view.result_id) if not view.result_id.is_empty() else "경기 종료"
+    view.opponent_name = str(summary.get("opponent_name", "상대 선수"))
+    if not opponent.is_empty():
+        view.opponent_name += " " + _v17_flag(_v17_country(opponent))
+        view.opponent_portrait = _v17_opponent_texture(opponent)
+    view.weight_class = str(GameState.career_balance["weight_class"]["name"])
+    var plan := GameState.get_game_plan(str(summary.get("game_plan", "balanced")))
+    view.plan_name = str(plan.get("name", "균형 운영"))
+    view.injury_text = str(injury.get("name", ""))
+    view.money_text = _v17_money
+    view.heading_font = REFERENCE_UI.heading_font(_v18_font(900))
+    view.bold_font = _v18_font(750)
+    view.continue_requested.connect(_continue_from_reference_result)
+    body.add_child(view)
+    _reset_reference_scroll()
+
+func _continue_from_reference_result() -> void:
+    if str(GameState.state.get("phase", "")) != "result":
+        return
+    GameState.advance_after_result()
+    current_opponent = {}
+    _render_phase()
+    _reset_reference_scroll()
 
 # Keep real career state distinct from navigation-only panels.
 func _render_phase() -> void:

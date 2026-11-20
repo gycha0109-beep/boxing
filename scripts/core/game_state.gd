@@ -237,6 +237,12 @@ func apply_fight_result(result: String, opponent: Dictionary, snapshot: Dictiona
         return
     var career: Dictionary = state.career
     var boxer: Dictionary = state.boxer
+    var previous := {
+        "rank": int(career["rank"]),
+        "career_points": int(career["career_points"]),
+        "health": int(boxer["health"]),
+        "fatigue": int(boxer["fatigue"]),
+    }
     var purse_multiplier: float = float(state.last_weigh_in.get("purse_multiplier", 1.0))
     purse_multiplier *= float(boxer.modifiers.get("purse_multiplier", 1.0))
     var gross_purse: int = int(round(float(opponent.purse) * purse_multiplier))
@@ -296,7 +302,10 @@ func apply_fight_result(result: String, opponent: Dictionary, snapshot: Dictiona
         "player_hp": float(snapshot.get("player_hp", 0.0)),
         "opponent_hp": float(snapshot.get("opponent_hp", 0.0)),
         "weigh_in": state.last_weigh_in.duplicate(true),
-        "game_plan": str(state.get("selected_game_plan", "balanced"))
+        "game_plan": str(state.get("selected_game_plan", "balanced")),
+        "previous": previous,
+        "round_cards": snapshot.get("cards", []).duplicate(true),
+        "ending_round": int(snapshot.get("round", 0)),
     }
 
     _roll_fight_injury(result)
