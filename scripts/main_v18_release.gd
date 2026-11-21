@@ -19,6 +19,7 @@ const REFERENCE_CAREER := preload("res://scripts/ui/reference_career_record.gd")
 const FIRST_BOUT_GUIDE_SETTINGS := "user://first_bout_guide.cfg"
 const FIRST_CYCLE_STORY := preload("res://scripts/ui/first_cycle_story_view.gd")
 const FIRST_CYCLE_SPOTLIGHT := preload("res://scripts/ui/first_cycle_spotlight.gd")
+const FIRST_CYCLE_TALENT_ROLL := preload("res://scripts/ui/first_cycle_talent_roll.gd")
 
 var v19_top_bar: HBoxContainer
 var v19_menu_button: Button
@@ -489,10 +490,31 @@ func _render_style_select() -> void:
     _render_reference_creation(true)
 
 func _render_talent_reveal() -> void:
-    if _tutorial_active() and not bool(GameState.state.get("first_cycle_tutorial", {}).get("talent_selected", false)):
-        _render_reference_creation(false, true)
+    if _tutorial_active() and not bool(GameState.state.get("first_cycle_tutorial", {}).get("talent_roll_seen", false)):
+        _render_random_talent_roll()
     else:
         _render_reference_creation(false)
+
+
+func _render_random_talent_roll() -> void:
+    var view := FIRST_CYCLE_TALENT_ROLL.new()
+    view.talents = GameState.talent_options()
+    view.chosen_id = str(GameState.state.get("boxer", {}).get("trait_id", ""))
+    view.bold_font = _v18_font(620)
+    view.heading_font = REFERENCE_UI.heading_font(_v18_font(780))
+    view.reveal_requested.connect(_complete_random_talent_roll)
+    body.add_child(view)
+    _reset_reference_scroll()
+
+
+func _complete_random_talent_roll() -> void:
+    if str(GameState.state.get("phase", "")) != "talent_reveal":
+        return
+    var tutorial: Dictionary = GameState.state.get("first_cycle_tutorial", {}).duplicate(true)
+    tutorial["talent_roll_seen"] = true
+    GameState.state["first_cycle_tutorial"] = tutorial
+    SaveService.save_game(GameState.state)
+    _render_phase()
 
 func _render_reference_creation(choosing_style: bool, choosing_talent: bool = false) -> void:
     var previous := body.get_node_or_null("ReferenceBoxerCreation")
@@ -504,7 +526,8 @@ func _render_reference_creation(choosing_style: bool, choosing_talent: bool = fa
     view.name = "ReferenceBoxerCreation"
     view.choosing_style = choosing_style
     view.choosing_talent = choosing_talent
-    view.talent_requires_choice = _tutorial_active() and choosing_talent
+    view.talent_requires_choice = false
+    view.random_talent_mode = true
     view.heading_font = REFERENCE_UI.heading_font(_v18_font(780))
     view.bold_font = _v18_font(620)
     for stat: String in REFERENCE_CREATION.STATS:
@@ -532,33 +555,24 @@ func _return_to_style_selection() -> void:
     GameState.begin_boxer_creation()
     if _tutorial_active():
         var tutorial: Dictionary = GameState.state.get("first_cycle_tutorial", {}).duplicate(true)
-        tutorial["talent_selected"] = false
+        tutorial["talent_roll_seen"] = false
         GameState.state["first_cycle_tutorial"] = tutorial
         SaveService.save_game(GameState.state)
     _render_phase()
 
 func _open_talent_picker() -> void:
-    if str(GameState.state.get("phase", "")) != "talent_reveal":
-        return
-    _render_reference_creation(false, true)
+    # Natural talent is random, not a player choice.
+    return
 
-func _select_talent(talent_id: String) -> void:
-    var result: Dictionary = GameState.select_talent(talent_id)
-    if bool(result.get("ok", false)):
-        if _tutorial_active():
-            var tutorial: Dictionary = GameState.state.get("first_cycle_tutorial", {}).duplicate(true)
-            tutorial["talent_selected"] = true
-            GameState.state["first_cycle_tutorial"] = tutorial
-            SaveService.save_game(GameState.state)
-        _render_phase()
+func _select_talent(_talent_id: String) -> void:
+    return
 
 func _close_talent_picker() -> void:
-    if str(GameState.state.get("phase", "")) == "talent_reveal":
-        _render_phase()
+    return
 
 func _confirm_talent() -> void:
-    if _tutorial_active() and not bool(GameState.state.get("first_cycle_tutorial", {}).get("talent_selected", false)):
-        _render_reference_creation(false, true)
+    if _tutorial_active() and not bool(GameState.state.get("first_cycle_tutorial", {}).get("talent_roll_seen", false)):
+        _render_random_talent_roll()
         return
     super._confirm_talent()
 
@@ -618,7 +632,7 @@ func _start_new_career_from_title() -> void:
     combat = null
     super._start_new_career_from_title()
     var guided := _first_bout_guide_enabled()
-    GameState.state["first_cycle_tutorial"] = {"active": guided, "complete": false, "talent_selected": false, "actions_seen": []}
+    GameState.state["first_cycle_tutorial"] = {"active": guided, "complete": false, "talent_roll_seen": false, "actions_seen": []}
     if guided:
         GameState.state["phase"] = "tutorial_welcome"
     SaveService.save_game(GameState.state)
@@ -1193,7 +1207,7 @@ func _tutorial_attach() -> void:
     var phase := str(GameState.state.get("phase", ""))
     var info: Dictionary = {
         "style_select": ["1/10 · 선수 스타일", "복싱 스타일을 비교한 뒤 원하는 카드를 선택하세요.", "BoxerStyle_balanced"],
-        "talent_reveal": ["2/10 · 재능 직접 선택", "원하는 재능을 골라 보세요. 선택 후 효과를 확인할 수 있습니다.", "TalentSelect_*"],
+        "talent_reveal": ["2/10 · 타고난 재능", "재능은 무작위로 정해집니다. 추첨 연출을 보고 결과를 확인하세요.", "RandomTalentContinue"],
         "camp": ["3/10 · 첫 훈련", "실제 훈련을 골라 능력치 변화를 확인하세요.", "TrainingSelect_sparring"],
         "fight_offer": ["5/10 · 첫 상대", "상대의 난이도와 보상을 비교하고 계약하세요.", "FightOfferSelect_*"],
         "tactical_prep": ["6/10 · 전술 준비", "상대의 습관에 맞춰 전술을 선택하세요.", "PreparationSelect_*"],
@@ -1211,7 +1225,7 @@ func _tutorial_attach() -> void:
     if not info.has(phase):
         return
     var entry: Array = info[phase]
-    if phase == "talent_reveal" and bool(GameState.state.get("first_cycle_tutorial", {}).get("talent_selected", false)):
+    if phase == "talent_reveal" and bool(GameState.state.get("first_cycle_tutorial", {}).get("talent_roll_seen", false)):
         entry = ["2/10 · 재능 확정", "선택한 재능과 능력치 보정을 확인하고 커리어를 시작하세요.", "BoxerBeginCareer"]
     if phase == "fight" and _needs_weigh_in_interstitial():
         entry = ["7/10 · 공식 계체", "체중 판정을 확인하고 실제 경기에 입장하세요.", "WeighInEnterFight"]

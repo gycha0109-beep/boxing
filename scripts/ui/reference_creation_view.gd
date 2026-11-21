@@ -32,6 +32,7 @@ const RED := Color("#f2a091")
 var choosing_style := true
 var choosing_talent := false
 var talent_requires_choice := false
+var random_talent_mode := false
 var styles: Array
 var talents: Array
 var boxer: Dictionary
@@ -272,17 +273,6 @@ func _talent_reveal() -> void:
     _label(details, str(talent.get("description", "이 선수만의 타고난 장단점입니다.")), 13, PAPER, null, true)
     _stat_changes(details, talent.get("stat_bonus", {}))
     _label(details, "이 선수의 재능은 커리어 동안 유지됩니다.", 11, MUTED)
-
-    var change_talent := _secondary_action("재능 다시 선택", 14, 48)
-    change_talent.name = "BoxerReselectTalent"
-    change_talent.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    change_talent.tooltip_text = "커리어를 시작하기 전에 타고난 재능을 바꿉니다."
-    change_talent.pressed.connect(func():
-        if not _submitted and not is_queued_for_deletion():
-            _submitted = true
-            talent_picker_requested.emit()
-    )
-    add_child(change_talent)
 
     var reselect := _secondary_action("복싱 스타일 다시 선택", 14, 48)
     reselect.name = "BoxerReselectStyle"
