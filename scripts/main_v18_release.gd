@@ -157,10 +157,24 @@ func _render_reference_preparation(tactical: bool) -> void:
     var view := REFERENCE_PREPARATION.new()
     view.name = view_name
     view.is_tactical = tactical
+    view.tutorial_mode = _tutorial_active()
+    if tactical and view.tutorial_mode:
+        var suggested: Array = current_opponent.get("scouting", {}).get("suggested_plans", [])
+        for plan_id in ["counter_trap", "outside_boxing", "body_breakdown", "pressure"]:
+            if suggested.has(plan_id):
+                view.recommended_tactic_id = str({
+                    "counter_trap": "counter_timing",
+                    "outside_boxing": "distance_drill",
+                    "body_breakdown": "body_pattern",
+                    "pressure": "pressure_entry",
+                }[plan_id])
+                break
     view.boxer = GameState.state["boxer"]
-    if _show_first_bout_guide():
+    if _tutorial_active():
         if tactical:
-            view.guide_tip = str(current_opponent.get("scouting", {}).get("tell", ""))
+            var scouting: Dictionary = current_opponent.get("scouting", {})
+            view.guide_tip = "강점: %s\n약점: %s\n주의할 버릇: %s\n상대가 강한 행동을 피하고 약점을 겨냥하는 전술을 고르세요." % [
+                str(scouting.get("strength", "확인 중")), str(scouting.get("weakness", "확인 중")), str(scouting.get("tell", "확인 중"))]
         else:
             var limit := float(GameState.career_balance["weight_class"]["limit_kg"])
             if float(view.boxer.get("weight_kg", 0.0)) > limit:
@@ -220,6 +234,7 @@ func _render_game_plan() -> void:
     view.opponent_country = _v17_flag(_v17_country(current_opponent))
     view.opponent_details = "%s  ·  랭킹 #%d" % [_style_label(str(current_opponent.get("style", ""))), int(current_opponent["rank"])]
     view.analysis = scouting
+    view.tutorial_mode = _tutorial_active()
     view.tendencies = current_opponent.get("tendencies", {})
     var opponent_stats: Dictionary = current_opponent.get("stats", {})
     var fight_boxer := GameState.get_fight_boxer()
@@ -250,6 +265,7 @@ func _render_weigh_in() -> void:
     _clear_body()
     _render_status()
     var view := _new_prefight_view("ReferenceWeighIn")
+    view.tutorial_mode = _tutorial_active()
     view.weighing = true
     view.weight_class = GameState.career_balance["weight_class"]
     view.weigh = _weigh_in_presentation()
@@ -314,6 +330,12 @@ func _configure_mobile_scroll() -> void:
             scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 
 func _render_fight(animated_exchange: Dictionary = {}) -> void:
+    # Fight HUD manages its own guide. A spotlight from preparation must
+    # never linger over the fight buttons or the end-of-round UI.
+    var old_spotlight := get_node_or_null("FirstCycleSpotlight")
+    if old_spotlight != null:
+        remove_child(old_spotlight)
+        old_spotlight.queue_free()
     fighter_profile_root = null
     _clear_body()
     var previous := body.get_node_or_null("ReferenceBattle")
@@ -322,6 +344,8 @@ func _render_fight(animated_exchange: Dictionary = {}) -> void:
     _render_status()
     _v19_apply_phase_chrome()
 
+    if _tutorial_active() and int(GameState.state.get("career", {}).get("fights", 0)) == 0:
+        combat.tutorial_first_bout = true
     var had_pending_action: bool = not combat.pending_opponent_action.is_empty()
     var telegraph: Dictionary = combat.prepare_exchange()
     if not had_pending_action and not telegraph.is_empty():
@@ -348,9 +372,9 @@ func _render_fight(animated_exchange: Dictionary = {}) -> void:
         view.tutorial_target_action = _tutorial_next_action()
         if not view.tutorial_target_action.is_empty():
             var action_labels := {"jab": "잽", "guard": "가드", "body": "바디", "power": "파워", "counter": "카운터"}
-            view.tutorial_hint = "첫 경기 8/9 · %s 버튼을 눌러 직접 효과를 확인하세요." % str(action_labels.get(view.tutorial_target_action, ""))
+            view.tutorial_hint = "첫 경기 11/12 · %s 버튼을 시도하고, 상대의 반응과 체력을 확인하세요." % str(action_labels.get(view.tutorial_target_action, ""))
         else:
-            view.tutorial_hint = "첫 경기 8/9 · 기본 조작을 익혔습니다. 자유롭게 경기를 끝내세요."
+            view.tutorial_hint = "첫 경기 11/12 · 주요 기술을 확인했습니다. 이제 자유롭게 경기를 마치세요."
     view.player_name = str(boxer.get("name", "무명 복서"))
     view.player_style = str(boxer.get("identity_name", "균형형"))
     view.player_trait = str(boxer.get("trait_name", ""))
@@ -1055,10 +1079,16 @@ func _render_offers() -> void:
     var view := REFERENCE_OFFERS.new()
     view.heading_font = REFERENCE_UI.heading_font(_v18_font(780))
     view.bold_font = _v18_font(620)
-    view.show_first_bout_guide = false
-    for opponent: Dictionary in GameState.get_fight_offers(opponents):
-        if view.show_first_bout_guide and view.recommended_opponent_id.is_empty() and opponent.get("difficulty") == "safe":
-            view.recommended_opponent_id = str(opponent["id"])
+    view.show_first_bout_guide = _tutorial_active()
+    var available_offers: Array = GameState.get_fight_offers(opponents)
+    if _tutorial_active() and not available_offers.is_empty():
+        var recommend: Dictionary = available_offers[0]
+        for candidate: Dictionary in available_offers:
+            if str(candidate.get("difficulty", "")) == "safe":
+                recommend = candidate
+                break
+        view.recommended_opponent_id = str(recommend.get("id", ""))
+    for opponent: Dictionary in available_offers:
         view.offers.append({
             "opponent": opponent,
             "portrait": _v17_opponent_texture(opponent),
@@ -1120,11 +1150,9 @@ func _tutorial_active() -> bool:
 
 func _tutorial_next_action() -> String:
     var tutorial: Dictionary = GameState.state.get("first_cycle_tutorial", {})
-    var seen: Array = tutorial.get("actions_seen", [])
-    for action_id in ["jab", "guard", "body", "power", "counter"]:
-        if not seen.has(action_id):
-            return action_id
-    return ""
+    var sequence := ["jab", "guard", "body", "power", "counter"]
+    var step := int(tutorial.get("action_step", 0))
+    return str(sequence[step]) if step >= 0 and step < sequence.size() else ""
 
 
 func _choose_fight_action(action: String) -> void:
@@ -1133,12 +1161,17 @@ func _choose_fight_action(action: String) -> void:
     if _tutorial_active() and str(GameState.state.get("phase", "")) == "fight":
         var tutorial: Dictionary = GameState.state.get("first_cycle_tutorial", {}).duplicate(true)
         var seen: Array = tutorial.get("actions_seen", []).duplicate()
-        if action in ["jab", "guard", "body", "power", "counter"] and not seen.has(action):
-            seen.append(action)
+        if action in ["jab", "guard", "body", "power", "counter"]:
+            if not seen.has(action):
+                seen.append(action)
             tutorial["actions_seen"] = seen
+            # A different valid button also completes this interaction step.
+            # Never leave an obsolete jab highlight over a new battle state.
+            tutorial["action_step"] = mini(5, int(tutorial.get("action_step", 0)) + 1)
             GameState.state["first_cycle_tutorial"] = tutorial
             SaveService.save_game(GameState.state)
     super._choose_fight_action(action)
+    call_deferred("_tutorial_attach")
 
 
 func _tutorial_special_screen() -> bool:
@@ -1209,30 +1242,34 @@ func _tutorial_attach() -> void:
     # the reel with the generic spotlight coach panel.
     if phase == "talent_reveal" and not bool(GameState.state.get("first_cycle_tutorial", {}).get("talent_roll_seen", false)):
         return
+    # Dedicated preparation, offer, scouting and fight widgets handle their
+    # own coaching without a floating panel covering actionable controls.
+    if phase in ["fight_offer", "tactical_prep", "condition_prep", "game_plan", "fight"]:
+        return
     var info: Dictionary = {
-        "style_select": ["1/10 · 선수 스타일", "복싱 스타일을 비교한 뒤 원하는 카드를 선택하세요.", "BoxerStyle_balanced"],
-        "talent_reveal": ["2/10 · 타고난 재능", "재능은 무작위로 정해집니다. 추첨 연출을 보고 결과를 확인하세요.", "RandomTalentContinue"],
-        "camp": ["3/10 · 첫 훈련", "실제 훈련을 골라 능력치 변화를 확인하세요.", "TrainingSelect_sparring"],
-        "fight_offer": ["5/10 · 첫 상대", "상대의 난이도와 보상을 비교하고 계약하세요.", "FightOfferSelect_*"],
-        "tactical_prep": ["6/10 · 전술 준비", "상대의 습관에 맞춰 전술을 선택하세요.", "PreparationSelect_*"],
-        "condition_prep": ["6/10 · 몸 상태", "피로와 체중을 확인하고 컨디션을 결정하세요.", "PreparationSelect_*"],
-        "game_plan": ["7/10 · 경기 분석", "상대의 강점과 약점을 읽고 게임플랜으로 넘어가세요.", "ScoutingShowPlans"],
-        "result": ["9/10 · 경기 정산", "전적, 파이트머니, 건강과 피로 변화를 확인하세요.", "FightResultContinue"],
+        "style_select": ["1/12 · 선수 스타일", "복싱 스타일을 비교한 뒤 원하는 카드를 선택하세요.", "BoxerStyle_balanced"],
+        "talent_reveal": ["2/12 · 타고난 재능", "재능은 무작위로 정해집니다. 추첨 연출을 보고 결과를 확인하세요.", "RandomTalentContinue"],
+        "camp": ["3/12 · 첫 훈련", "실제 훈련을 골라 능력치 변화를 확인하세요.", "TrainingSelect_sparring"],
+        "fight_offer": ["5/12 · 첫 상대", "상대의 난이도와 보상을 비교하고 계약하세요.", "FightOfferSelect_*"],
+        "tactical_prep": ["6/12 · 전술 준비", "상대의 습관에 맞춰 전술을 선택하세요.", "PreparationSelect_*"],
+        "condition_prep": ["7/12 · 몸 상태", "피로와 체중을 확인하고 컨디션을 결정하세요.", "PreparationSelect_*"],
+        "game_plan": ["8/12 · 경기 분석", "상대의 강점과 약점을 읽고 게임플랜으로 넘어가세요.", "ScoutingShowPlans"],
+        "result": ["12/12 · 경기 정산", "전적, 파이트머니, 건강과 피로 변화를 확인하세요.", "FightResultContinue"],
     }
     if phase == "fight" and _needs_weigh_in_interstitial():
-        info["fight"] = ["7/10 · 공식 계체", "체중 판정을 확인하고 실제 경기에 입장하세요.", "WeighInEnterFight"]
+        info["fight"] = ["10/12 · 공식 계체", "체중 판정을 확인하고 실제 경기에 입장하세요.", "WeighInEnterFight"]
     elif phase == "fight":
         var action := _tutorial_next_action()
         if action.is_empty():
             return
-        info["fight"] = ["8/10 · 경기 실전", "%s 공격을 직접 시도해보세요. 결과는 실제 전투로 계산됩니다." % {"jab":"잽", "guard":"가드", "body":"바디", "power":"파워", "counter":"카운터"}.get(action, action), "FightAction_" + action]
+        info["fight"] = ["11/12 · 경기 실전", "%s 공격을 직접 시도해보세요. 결과는 실제 전투로 계산됩니다." % {"jab":"잽", "guard":"가드", "body":"바디", "power":"파워", "counter":"카운터"}.get(action, action), "FightAction_" + action]
     if not info.has(phase):
         return
     var entry: Array = info[phase]
     if phase == "talent_reveal" and bool(GameState.state.get("first_cycle_tutorial", {}).get("talent_roll_seen", false)):
-        entry = ["2/10 · 재능 확정", "선택한 재능과 능력치 보정을 확인하고 커리어를 시작하세요.", "BoxerBeginCareer"]
+        entry = ["2/12 · 재능 확정", "선택한 재능과 능력치 보정을 확인하고 커리어를 시작하세요.", "BoxerBeginCareer"]
     if phase == "fight" and _needs_weigh_in_interstitial():
-        entry = ["7/10 · 공식 계체", "체중 판정을 확인하고 실제 경기에 입장하세요.", "WeighInEnterFight"]
+        entry = ["10/12 · 공식 계체", "체중 판정을 확인하고 실제 경기에 입장하세요.", "WeighInEnterFight"]
     var target := body.find_child(str(entry[2]), true, false) as Control
     if target == null:
         return

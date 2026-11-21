@@ -11,6 +11,7 @@ const MUTED := Color("#bec9d3")
 
 var offers: Array[Dictionary] = []
 var show_first_bout_guide := false
+var _analyzed: Dictionary = {}
 var recommended_opponent_id := ""
 var heading_font: Font
 var bold_font: Font
@@ -55,7 +56,7 @@ func _hero() -> void:
     title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
     title.add_theme_font_override("font", heading_font)
 
-    var intro_text := "첫 경기 2/4 · 난이도와 보상을 비교해 상대를 고르세요." if show_first_bout_guide else "상대의 스타일·난이도·보상을 비교하세요."
+    var intro_text := "5/12 · 먼저 각 상대의 분석을 열고 강점·약점·버릇을 확인한 다음 계약하세요. 첫 경기는 승리 연습전입니다." if show_first_bout_guide else "상대의 스타일·난이도·보상을 비교하세요."
     var intro := _label(content, intro_text, 12, PAPER, true)
     intro.name = "FightOffersIntro"
     intro.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -121,21 +122,32 @@ func _card(entry: Dictionary) -> void:
     buttons.add_child(inspect)
     var accept := UI.action_button("선택  ›", bold_font, true)
     accept.name = "FightOfferSelect_" + id
+    if show_first_bout_guide:
+        accept.disabled = true
+        accept.text = "분석 후 선택"
     accept.pressed.connect(func():
-        if not is_queued_for_deletion():
+        if not is_queued_for_deletion() and (not show_first_bout_guide or bool(_analyzed.get(id, false))):
             opponent_chosen.emit(opponent)
     )
     buttons.add_child(accept)
 
     var details := _analysis(content, opponent, scouting)
     details.hide()
-    inspect.pressed.connect(_toggle_analysis.bind(details, inspect))
+    inspect.pressed.connect(func():
+        _toggle_analysis(details, inspect)
+        if show_first_bout_guide:
+            _analyzed[id] = true
+            accept.disabled = false
+            accept.text = "이 상대 선택  ›"
+    )
 
 func _analysis(parent: VBoxContainer, opponent: Dictionary, scouting: Dictionary) -> PanelContainer:
     var panel := _panel(parent, INK, UI.GOLD_DARK, 7)
     panel.name = "FightOfferAnalysis_" + str(opponent["id"])
     var body := _column(panel, 4)
     _label(body, "상대 분석 · %s" % str(opponent["name"]), 14, UI.GOLD_BRIGHT).add_theme_font_override("font", bold_font)
+    if show_first_bout_guide:
+        _label(body, "강점은 상대의 위험한 부분, 약점은 공략할 틈, 버릇은 공격을 예측할 단서입니다. 이 세 가지를 보고 전술을 결정하세요.", 12, UI.GOLD_BRIGHT, true)
     for item in [["strength", "강점"], ["weakness", "약점"], ["tell", "주의할 패턴"]]:
         var text := str(scouting.get(item[0], ""))
         if not text.is_empty():

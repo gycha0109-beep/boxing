@@ -24,6 +24,8 @@ var log: Array[String] = []
 var pending_opponent_action: String = ""
 var pending_telegraph: Dictionary = {}
 var last_exchange: Dictionary = {}
+# Guided first bout only. Never applies to ordinary career fights.
+var tutorial_first_bout := false
 
 func _init(seed_value: int = 1) -> void:
     rng.seed = seed_value
@@ -253,7 +255,7 @@ func _perform(is_player: bool, action_id: String, target_action: String, reactiv
         opponent_stamina = max(0.0, opponent_stamina - float(action.body_stamina_damage))
         player_round_score += damage * float(action.score)
     else:
-        player_hp = max(0.0, player_hp - damage)
+        player_hp = max(20.0 if tutorial_first_bout else 0.0, player_hp - damage)
         player_stamina = max(0.0, player_stamina - float(action.body_stamina_damage))
         opponent_round_score += damage * float(action.score)
     var target_stamina_after: float = opponent_stamina if is_player else player_stamina
@@ -294,6 +296,8 @@ func _plan_read_state(is_player: bool, action_id: String, target_action: String,
     return "failed"
 
 func _check_ko(attacker_is_player: bool, damage: float) -> bool:
+    if tutorial_first_bout and not attacker_is_player:
+        return false
     var target_hp: float = opponent_hp if attacker_is_player else player_hp
     var target: Dictionary = opponent.stats if attacker_is_player else player
     if target_hp <= 0.0:
@@ -315,6 +319,9 @@ func _check_ko(attacker_is_player: bool, damage: float) -> bool:
     return false
 
 func _score_round() -> void:
+    if tutorial_first_bout:
+        cards.append([10, 9])
+        return
     if abs(player_round_score - opponent_round_score) < 0.75:
         cards.append([10, 10])
     elif player_round_score > opponent_round_score:
@@ -458,7 +465,8 @@ func export_state() -> Dictionary:
         "pending_opponent_action": pending_opponent_action,
         "pending_telegraph": pending_telegraph.duplicate(true),
         "last_exchange": last_exchange.duplicate(true),
-        "rng_state": str(rng.state)
+        "rng_state": str(rng.state),
+        "tutorial_first_bout": tutorial_first_bout
     }
 
 func restore(player_stats: Dictionary, opponent_data: Dictionary, saved: Dictionary) -> void:
@@ -475,6 +483,7 @@ func restore(player_stats: Dictionary, opponent_data: Dictionary, saved: Diction
     cards = saved.get("cards", []).duplicate(true)
     finished = bool(saved.get("finished", false))
     result = str(saved.get("result", ""))
+    tutorial_first_bout = bool(saved.get("tutorial_first_bout", false))
     pending_opponent_action = str(saved.get("pending_opponent_action", ""))
     pending_telegraph = saved.get("pending_telegraph", {}).duplicate(true)
     last_exchange = saved.get("last_exchange", {}).duplicate(true)

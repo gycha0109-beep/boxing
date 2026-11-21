@@ -44,6 +44,7 @@ func _ready() -> void:
             _button("내 복서 만들기", func(): next_requested.emit())
             _skip_button()
         "training_result":
+            _label(self, "4/12 · 첫 훈련 결과", 16, GOLD)
             _hero(TRAINING, "훈련 완료", "선수의 능력치가 실제로 변했습니다.", 180)
             var changes: Dictionary = training_result.get("changes", {})
             var names := {"power":"파워", "speed":"스피드", "technique":"테크닉", "defense":"수비", "conditioning":"지구력", "fatigue":"피로", "health":"건강", "weight":"체중"}

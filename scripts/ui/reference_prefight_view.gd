@@ -18,6 +18,7 @@ const BLUE := Color("#69bdf6")
 const GREEN := Color("#8ae69d")
 
 var weighing := false
+var tutorial_mode := false
 var player: Dictionary
 var opponent: Dictionary
 var player_photo: Texture2D
@@ -52,6 +53,9 @@ func _scouting() -> void:
     _opponent_card()
     _tendency_strip()
     _scouting_report()
+    if tutorial_mode:
+        var tip := _label(_report_page, "8/12 · 강점은 경계할 공격, 약점은 노릴 틈, 버릇은 대응할 행동입니다. 정보를 확인한 뒤 게임플랜을 선택하세요.", 12, UI.GOLD_BRIGHT, bold_font)
+        tip.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
     _comparison()
 
     var nav := _row(_report_page, 7)
@@ -234,8 +238,11 @@ func _meter(parent: HBoxContainer, value: int, fill_color: Color, from_right: bo
 func _game_plans(parent: VBoxContainer) -> void:
     var heading := _label(parent, "게임플랜 선택", 23, PAPER, heading_font)
     heading.name = "GamePlanHeading"
+    if tutorial_mode:
+        var lesson := _label(parent, "9/12 · 상대의 약점과 버릇에 맞는 플랜을 고르세요. 추천 표시는 참고이며 원하는 전술을 선택할 수 있습니다.", 12, UI.GOLD_BRIGHT, bold_font)
+        lesson.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
     var grid := GridContainer.new()
-    grid.columns = 2
+    grid.columns = 1 if tutorial_mode else 2
     grid.add_theme_constant_override("h_separation", 7)
     grid.add_theme_constant_override("v_separation", 7)
     parent.add_child(grid)
@@ -248,14 +255,20 @@ func _game_plans(parent: VBoxContainer) -> void:
         if is_recommended:
             tags = "추천  ·  " + tags
         _label(card, tags, 11, UI.GOLD_BRIGHT if is_recommended else MUTED, bold_font)
-        var impact := _label(card, str(plan["effect"]), 11, MUTED)
+        var description := _label(card, str(plan.get("description", "")), 12, PAPER)
+        description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+        var impact := _label(card, "주요 효과 · " + str(plan["effect"]), 11, MUTED)
+        impact.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
         impact.size_flags_vertical = Control.SIZE_EXPAND_FILL
         var button := _action(card, "이 플랜 선택", is_recommended, func(): plan_chosen.emit(id))
         button.name = "GamePlanSelect_" + id
-    var nav := _row(parent, 7)
-    _action(nav, "← 상대 분석", false, _show_plans.bind(false))
-    _action(nav, "← 상대 다시 선택", false, func(): opponent_back_requested.emit())
-    _action(parent, "← 컨디션 다시 선택", false, func(): back_requested.emit())
+    if tutorial_mode:
+        _action(parent, "← 상대 분석으로 돌아가기", false, _show_plans.bind(false))
+    else:
+        var nav := _row(parent, 7)
+        _action(nav, "← 상대 분석", false, _show_plans.bind(false))
+        _action(nav, "← 상대 다시 선택", false, func(): opponent_back_requested.emit())
+        _action(parent, "← 컨디션 다시 선택", false, func(): back_requested.emit())
 
 func _show_plans(show_plans: bool) -> void:
     _report_page.visible = not show_plans
@@ -265,6 +278,9 @@ func _show_plans(show_plans: bool) -> void:
         scroll.set_deferred("scroll_vertical", 0)
 func _weigh_in() -> void:
     var hero := _banner("공식 계체", "OFFICIAL WEIGH-IN")
+    if tutorial_mode:
+        var instruction := _label(self, "10/12 · 공식 계체는 체중 제한을 확인하는 절차입니다. 통과 여부와 보상 변화를 보고 경기에 입장하세요.", 12, UI.GOLD_BRIGHT, bold_font)
+        instruction.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
     var matchup := _row(hero, 7)
     _weigh_fighter(matchup, player_photo, str(player["name"]), "내 선수", RED)
     _weigh_fighter(matchup, opponent_photo, str(opponent["name"]), "다음 상대", BLUE)

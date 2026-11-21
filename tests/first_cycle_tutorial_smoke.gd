@@ -94,7 +94,15 @@ func _run() -> void:
     if offers.is_empty():
         _finish()
         return
-    main_view._accept_reference_offer(offers[0])
+    var offer_view: Node = main_view.body.get_node_or_null("ReferenceFightOffers")
+    var offer_id := str(offers[0].get("id", ""))
+    var offer_accept: Button = offer_view.find_child("FightOfferSelect_" + offer_id, true, false) as Button
+    var offer_analyze: Button = offer_view.find_child("FightOfferAnalyze_" + offer_id, true, false) as Button
+    _check(offer_accept != null and offer_accept.disabled, "guided contract must require opponent analysis")
+    _check(offer_analyze != null, "opponent analysis button missing")
+    offer_analyze.pressed.emit()
+    _check(not offer_accept.disabled, "opponent selection did not unlock after analysis")
+    offer_accept.pressed.emit()
     await process_frame
     _coach("tactical_prep")
     _check(bool(game_state.select_tactical_preparation(str(game_state.tactical_preparations()[0]["id"])).get("ok", false)), "tactical preparation failed")
@@ -116,10 +124,16 @@ func _run() -> void:
     if main_view.combat == null:
         _finish()
         return
-    main_view._choose_fight_action("jab")
+    _check(main_view.combat.tutorial_first_bout, "first bout victory protection was not enabled")
+    _check(main_view._tutorial_next_action() == "jab", "first fight guide should begin with jab")
+    main_view._choose_fight_action("guard")
     await process_frame
     var seen: Array = game_state.state.get("first_cycle_tutorial", {}).get("actions_seen", [])
-    _check(seen.has("jab"), "real combat action was not recorded")
+    _check(seen.has("guard"), "real combat action was not recorded")
+    _check(main_view._tutorial_next_action() == "guard", "highlight did not advance after an alternative input")
+    var fight_view: Node = main_view.body.get_node_or_null("ReferenceBattle")
+    if fight_view != null:
+        _check(str(fight_view.get("tutorial_target_action")) == "guard", "obsolete jab highlight remained on battle UI")
     for i in range(50):
         if bool(main_view.combat.snapshot().get("finished", false)):
             break
@@ -127,6 +141,7 @@ func _run() -> void:
     main_view._render_fight()
     await process_frame
     _check(str(game_state.state.get("phase", "")) == "result", "fight did not reach result")
+    _check(str(game_state.state.get("last_result", "")).begins_with("WIN"), "guided first bout must end in victory")
     if str(game_state.state.get("phase", "")) == "result":
         main_view._render_phase()
         await process_frame
@@ -147,7 +162,7 @@ func _coach(expected_phase: String) -> void:
     if expected_phase == "talent_reveal":
         _check(main_view.body.get_node_or_null("FirstCycleTalentRoll") != null, "missing dedicated talent roulette")
         return
-    _check(main_view.get_node_or_null("FirstCycleSpotlight") != null or expected_phase == "game_plan", "missing tutorial spotlight in " + expected_phase)
+    _check(main_view.get_node_or_null("FirstCycleSpotlight") != null or expected_phase in ["fight_offer", "tactical_prep", "condition_prep", "game_plan"], "missing phase-specific coaching in " + expected_phase)
 
 
 func _check(condition: bool, message: String) -> void:

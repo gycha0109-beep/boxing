@@ -18,6 +18,8 @@ const PAPER := Color("#f7f4ec")
 const MUTED := Color("#c1cbd4")
 
 var is_tactical := true
+var tutorial_mode := false
+var recommended_tactic_id := ""
 var boxer: Dictionary = {}
 var opponent: Dictionary = {}
 var boxer_portrait: Texture2D
@@ -104,15 +106,22 @@ func _instruction() -> void:
     _label(info, title, 13, UI.GOLD_BRIGHT, bold_font)
     var caption := "영구 성장 없이 이번 경기에서 활용할 행동을 준비합니다." if is_tactical else "추가 영구 성장 없이 경기 당일 컨디션을 조정합니다."
     _label(info, caption, 11, PAPER)
+    if tutorial_mode:
+        var lesson := "6/12 · 전술은 경기 중 공격·가드의 유불리를 바꿉니다. 네 가지 전술을 비교해 보세요." if is_tactical else "7/12 · 컨디션은 피로·건강·체중에 영향을 줍니다. 적절한 준비를 골라 보세요."
+        _label(info, lesson, 12, UI.GOLD_BRIGHT, bold_font)
     if not guide_tip.is_empty():
         var tip := _label(info, guide_tip, 12, UI.GOLD_BRIGHT, bold_font)
         tip.name = "FirstBoutPreparationGuide"
 
 func _option_card(option: Dictionary) -> void:
     var id := str(option["id"])
-    var frame := _panel(self, NAVY, UI.GOLD_DARK, 5)
+    var is_coach_recommendation := tutorial_mode and is_tactical and id == recommended_tactic_id
+    var frame := _panel(self, NAVY, UI.GOLD_BRIGHT if is_coach_recommendation else UI.GOLD_DARK, 5)
     frame.name = "PreparationCard_" + id
-    var row := _row(frame, 7)
+    var layout: Control = _column(frame, 5) if tutorial_mode else frame
+    if is_coach_recommendation:
+        _label(layout, "관장 추천 · 상대의 행동 패턴에 대응하기 좋은 전술", 11, UI.GOLD_BRIGHT, bold_font)
+    var row := _row(layout, 7)
     var art := _picture(_art_for(id))
     art.custom_minimum_size = Vector2(85, 63)
     art.clip_contents = true
@@ -122,7 +131,7 @@ func _option_card(option: Dictionary) -> void:
     _label(content, str(option["name"]), 16, PAPER, heading_font)
     _label(content, str(option["description"]), 11, PAPER)
 
-    var effects_frame := _panel(row, INK, Color("#5c4b35"), 4)
+    var effects_frame := _panel(layout if tutorial_mode else row, INK, Color("#5c4b35"), 4)
     effects_frame.custom_minimum_size.x = 127
     effects_frame.size_flags_horizontal = Control.SIZE_FILL
     var effects := _column(effects_frame, 1)
@@ -168,6 +177,8 @@ func _select(id: String) -> void:
         caption.text = "선택됨 · 효과" if selected else "주요 효과"
         button.set_pressed_no_signal(selected)
     _continue_button.disabled = false
+    if tutorial_mode:
+        _continue_button.text = "선택 확인 · 다음 단계  ›"
 
 func _choice_style(selected: bool) -> StyleBoxFlat:
     if not selected:

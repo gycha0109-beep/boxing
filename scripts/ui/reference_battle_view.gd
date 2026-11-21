@@ -246,7 +246,7 @@ func _action_row() -> void:
         button.add_theme_font_override("font", bold_font)
         button.add_theme_font_size_override("font_size", 13)
         var highlighted := id == tutorial_target_action
-        var tint := UI.GOLD_BRIGHT if highlighted or bool(action["recommended"]) else Color("#aa895b")
+        var tint := UI.GOLD_BRIGHT if highlighted else Color("#aa895b")
         for state in ["font_color", "font_pressed_color", "font_hover_color", "font_focus_color"]:
             button.add_theme_color_override(state, PAPER)
         button.add_theme_stylebox_override("normal", UI.beveled_panel_style(Color("#3b2b12") if highlighted else INK, tint, 4))
