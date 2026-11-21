@@ -59,26 +59,19 @@ func _run() -> void:
     await _capture("02_camp.png")
     main_view._v17_open_overlay("profile")
     await _capture("10_profile.png")
-    for stat_id in ["power", "speed", "technique", "defense", "conditioning"]:
-        var help := main_view.find_child("StatHelp_" + stat_id, true, false) as Button
-        if help == null:
-            _fail("stat help button missing: " + stat_id)
-            return
-        help.pressed.emit()
-        await process_frame
-        if not main_view.stat_help_dialog.visible:
-            _fail("stat help popup did not open: " + stat_id)
-            return
-        if stat_id == "speed":
-            await _capture("16_stat_help.png")
-        main_view.stat_help_dialog.hide()
-    main_view._v17_open_match()
+    var profile := main_view.find_child("ReferenceProfile", true, false)
+    if profile == null or profile.find_children("*", "ProgressBar", true, false).size() != 5:
+        _fail("reference profile is missing its five stat meters")
+        return
+    main_view._v17_open_overlay("career")
+    await _capture("16_career_record.png")
+    main_view._v17_open_training()
     await process_frame
 
     main_view._open_equipment_shop()
     await process_frame
     var equipment_text := "\n".join(_collect_text(main_view))
-    if not equipment_text.contains("번 돈을 복서에게 다시 투자") or not equipment_text.contains("개인 장비") or not equipment_text.contains("체육관 장비"):
+    if main_view.find_child("EquipmentWallet", true, false) == null or not equipment_text.contains("개인 장비") or not equipment_text.contains("체육관 장비"):
         _fail("equipment investment screen did not render its required player-facing sections")
         return
     await _capture("03_equipment_shop.png")
@@ -94,10 +87,13 @@ func _run() -> void:
     main_view._choose_opponent(opponent)
     await process_frame
     var tactical_text := "\n".join(_collect_text(main_view))
-    for marker in ["전술 준비", "다음 상대", str(opponent.name), "매치업 플랜", "01", "04"]:
+    for marker in ["전술 준비", "다음 상대", str(opponent.name)]:
         if not tactical_text.contains(marker):
             _fail("redesigned tactical preparation missing marker: %s" % marker)
             return
+    if main_view.find_children("PreparationSelect_*", "Button", true, false).size() != game_state.tactical_preparations().size():
+        _fail("tactical preparation is missing a defined choice")
+        return
     await _capture("11_tactical_preparation.png")
     main_view._choose_tactical_preparation("distance_drill")
     await process_frame
@@ -115,10 +111,13 @@ func _run() -> void:
     await process_frame
     await process_frame
     var fight_text := "\n".join(_collect_text(main_view))
-    for marker in [str(opponent.name), "2:48", "상대 읽기", "코너 조언", "다음 행동"]:
+    for marker in [str(opponent.name), "ROUND 1", "상대 읽기", "코너 조언"]:
         if not fight_text.contains(marker):
             _fail("redesigned fight opening missing marker: %s" % marker)
             return
+    if main_view.find_children("FightAction_*", "Button", true, false).size() != 5:
+        _fail("fixed fight HUD must expose five actions")
+        return
     if fight_text.contains("OPPONENT READ") or fight_text.contains("★ PLAN"):
         _fail("legacy fight dashboard copy survived the v19 redesign")
         return
@@ -199,12 +198,16 @@ func _capture(filename: String) -> void:
         _fail("horizontal content overflow in " + filename)
         return
     if filename == "02_camp.png":
-        for card in main_view.find_children("CampCard_*", "VBoxContainer", true, false):
-            if card.get_global_rect().end.y > scroll.get_global_rect().end.y + 1:
-                _fail("four primary camp CTAs do not fit the first screen: " + str(card.name))
+        var training := main_view.find_child("TrainingPrimaryGrid", true, false)
+        if training == null or training.find_children("TrainingSelect_*", "Button", true, false).size() < 4:
+            _fail("camp is missing its primary training choices")
+            return
+        for button in training.find_children("TrainingSelect_*", "Button", true, false):
+            if button.get_global_rect().end.y > scroll.get_global_rect().end.y + 1:
+                _fail("primary camp CTA is outside the first viewport: " + str(button.name))
                 return
     if filename == "04_fight_offer.png":
-        for card in main_view.find_children("OpponentCard_*", "VBoxContainer", true, false):
+        for card in main_view.find_children("FightOfferSelect_*", "Button", true, false):
             if card.get_global_rect().end.y > scroll.get_global_rect().end.y + 1:
                 _fail("opponent CTA is outside the first viewport: " + str(card.name))
                 return

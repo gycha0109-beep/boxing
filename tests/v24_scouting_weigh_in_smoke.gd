@@ -3,6 +3,7 @@ extends SceneTree
 var failures: Array[String] = []
 var career: Node
 var game: Control
+var main_scene: PackedScene
 
 func _init() -> void:
     call_deferred("_run")
@@ -13,6 +14,8 @@ func _run() -> void:
         quit(2)
         return
     career = root.get_node("GameState")
+    # Hold the packed resources while recreating the view for each restore.
+    main_scene = load("res://scenes/Main.tscn") as PackedScene
     await _check_weigh_in(60.9, "pass", "계체 통과", "")
     await _check_weigh_in(61.7, "emergency_cut", "긴급 감량 통과", "건강 -3 · 피로 +5")
     await _check_weigh_in(62.4, "miss", "계체 실패", "68%")
@@ -129,8 +132,7 @@ func _check_legacy_resume_and_entry() -> void:
     await _close_game()
 
 func _open_game() -> void:
-    var scene := load("res://scenes/Main.tscn") as PackedScene
-    game = scene.instantiate()
+    game = main_scene.instantiate()
     root.add_child(game)
     await _settle()
 

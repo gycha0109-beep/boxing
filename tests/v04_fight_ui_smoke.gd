@@ -99,7 +99,9 @@ func _run() -> void:
     var after_text: String = "\n".join(_collect_text(main_view))
     _check(after_text.contains("상대 읽기"), "fight UI did not render next tactical read after exchange")
     _check(after_text.contains("코너 조언"), "fight UI lost corner advice after exchange")
-    _check(after_text.contains("다음 행동"), "fight UI lost action decision section after exchange")
+    var next_actions := main_view.find_child("V19FightActions", true, false) as HBoxContainer
+    _check(next_actions != null and next_actions.find_children("FightAction_*", "Button", false, false).size() == 5,
+        "fight UI retains all five action controls after exchange")
     _check(not after_text.contains("OPPONENT READ"), "legacy opponent-read copy returned after exchange")
     _finish()
 
