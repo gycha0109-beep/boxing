@@ -28,6 +28,20 @@ func _run() -> void:
     _saved_phase("style_select")
     _check(bool(Save.load_game().get("first_launch_acknowledged", false)), "title acknowledgement persists")
     _check(main_view.find_children("BoxerStyle_*", "Button", true, false).size() == game_state.boxing_styles().size(), "all defined styles are selectable")
+    _check(main_view.find_child("BoxerStyleIntro", true, false) != null, "style selection explains what the player is choosing")
+    var style_instructions := main_view.find_child("BoxerStyleInstructions", true, false) as Label
+    _check(style_instructions != null and style_instructions.text.contains("2/2단계") and style_instructions.text.contains("스크롤"), "style selection explains the next step and scrolling")
+    _check(main_view.find_child("BoxerStatGuide", true, false) != null, "style selection explains the stat guide")
+    for style: Dictionary in game_state.boxing_styles():
+        var style_id := str(style.get("id", ""))
+        var description := main_view.find_child("BoxerStyleDescription_" + style_id, true, false) as Label
+        _check(description != null and description.text == str(style.get("description", "")), "style card explains " + style_id)
+    for stat: String in Creation.STATS:
+        var help := main_view.find_child("BoxerStatHelp_" + stat, true, false) as Label
+        _check(help != null and help.text == game_state.stat_help(stat), "style selection explains " + stat)
+    var conditioning_help := main_view.find_child("BoxerStatHelp_conditioning", true, false) as Label
+    var conditioning_label := conditioning_help.get_parent().get_child(0) as Label if conditioning_help != null else null
+    _check(conditioning_label != null and conditioning_label.text == "체력(지구력)", "stat guide distinguishes stamina from health")
 
     var trait_id := str(game_state.state.boxer.trait_id)
     var talent: Dictionary = game_state.talent_definition()

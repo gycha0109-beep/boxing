@@ -480,6 +480,8 @@ func _render_reference_creation(choosing_style: bool) -> void:
     view.choosing_style = choosing_style
     view.heading_font = REFERENCE_UI.heading_font(_v18_font(780))
     view.bold_font = _v18_font(620)
+    for stat: String in REFERENCE_CREATION.STATS:
+        view.stat_help[stat] = GameState.stat_help(stat)
     if choosing_style:
         view.styles = GameState.boxing_styles()
     else:

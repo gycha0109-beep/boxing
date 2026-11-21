@@ -29,6 +29,7 @@ var choosing_style := true
 var styles: Array
 var boxer: Dictionary
 var talent: Dictionary
+var stat_help: Dictionary
 var heading_font: Font
 var bold_font: Font
 
@@ -74,8 +75,11 @@ func _masthead() -> void:
 
 func _style_picker() -> void:
     var guidance := _column(_panel(self), 0)
-    _label(guidance, "스타일에 따라 시작 능력치가 달라집니다.", 13, UI.GOLD_BRIGHT, bold_font)
-    _label(guidance, "이후 훈련을 통해 원하는 방향으로 키울 수 있습니다.", 11, MUTED)
+    var title := _label(guidance, "무엇을 고르는 단계인가요?", 13, UI.GOLD_BRIGHT, bold_font)
+    title.name = "BoxerStyleIntro"
+    var instruction := _label(guidance, "1/2단계: 경기 성향과 시작 능력치 보정을 고릅니다. 카드의 [선택]을 누르면 2/2단계에서 타고난 재능을 확인합니다. 아래로 스크롤해 모든 스타일을 비교하세요. 이후 훈련으로 성장시킬 수 있습니다.", 12, MUTED, null, true)
+    instruction.name = "BoxerStyleInstructions"
+    _stat_guide()
     for style: Dictionary in styles:
         _style_card(style)
 
@@ -90,7 +94,13 @@ func _style_card(style: Dictionary) -> void:
     info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     _label(info, str(style.get("name", "")), 19, PAPER, heading_font)
     _label(info, str(style.get("signature", "")), 11, MUTED, null, true)
+    var description := _label(info, str(style.get("description", "")), 11, PAPER, null, true)
+    description.name = "BoxerStyleDescription_" + id
+    description.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    var effect_title := _label(info, "시작 능력치 보정", 10, UI.GOLD_BRIGHT, bold_font)
+    effect_title.name = "BoxerStyleEffectTitle_" + id
     var changes := _stat_changes(info, style.get("stat_bonus", {}))
+    changes.name = "BoxerStyleBonuses_" + id
     if changes.get_child_count() == 0:
         _label(changes, "시작 능력치 보정 없음", 10, MUTED, bold_font)
 
@@ -107,6 +117,19 @@ func _style_card(style: Dictionary) -> void:
             style_chosen.emit(id)
     )
     row.add_child(choose)
+
+func _stat_guide() -> void:
+    var guide := _column(_panel(self), 2)
+    var heading := _label(guide, "능력치 뜻 · 기본 50에서 보정 (1~100)", 12, UI.GOLD_BRIGHT, bold_font)
+    heading.name = "BoxerStatGuide"
+    for stat: String in STATS:
+        var row := _row(guide, 6)
+        var label: String = "체력(지구력)" if stat == "conditioning" else STATS[stat]
+        var stat_name := _label(row, label, 11, PAPER, bold_font)
+        stat_name.custom_minimum_size.x = 72 if stat == "conditioning" else 58
+        var meaning := _label(row, str(stat_help.get(stat, "")), 11, MUTED, null, true)
+        meaning.name = "BoxerStatHelp_" + stat
+        meaning.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
 func _talent_reveal() -> void:
     var frame := _panel(self, UI.GOLD, 2)
