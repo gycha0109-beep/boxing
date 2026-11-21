@@ -30,12 +30,20 @@ func _run() -> void:
     _check(main_view.find_children("BoxerStyle_*", "Button", true, false).size() == game_state.boxing_styles().size(), "all defined styles are selectable")
     _check(main_view.find_child("BoxerStyleIntro", true, false) != null, "style selection explains what the player is choosing")
     var style_instructions := main_view.find_child("BoxerStyleInstructions", true, false) as Label
-    _check(style_instructions != null and style_instructions.text.contains("2/2단계") and style_instructions.text.contains("스크롤"), "style selection explains the next step and scrolling")
+    _check(style_instructions != null and style_instructions.text.contains("2/2단계") and style_instructions.text.contains("다음 카드"), "style selection explains selection and the next card")
     _check(main_view.find_child("BoxerStatGuide", true, false) != null, "style selection explains the stat guide")
     for style: Dictionary in game_state.boxing_styles():
         var style_id := str(style.get("id", ""))
         var description := main_view.find_child("BoxerStyleDescription_" + style_id, true, false) as Label
         _check(description != null and description.text == str(style.get("description", "")), "style card explains " + style_id)
+    var balanced_guide := main_view.find_child("BoxerStyleWalkthrough_balanced", true, false) as HBoxContainer
+    _check(balanced_guide != null and balanced_guide.visible, "style walkthrough starts by highlighting balanced")
+    await _press("BoxerStyleNext_balanced")
+    var pressure_guide := main_view.find_child("BoxerStyleWalkthrough_pressure_fighter", true, false) as HBoxContainer
+    _check(pressure_guide != null and pressure_guide.visible, "style walkthrough advances to pressure fighter")
+    await _press("BoxerStyleNext_pressure_fighter")
+    var outside_guide := main_view.find_child("BoxerStyleWalkthrough_out_boxer", true, false) as HBoxContainer
+    _check(outside_guide != null and outside_guide.visible, "style walkthrough advances to out boxer")
     for stat: String in Creation.STATS:
         var help := main_view.find_child("BoxerStatHelp_" + stat, true, false) as Label
         _check(help != null and help.text == game_state.stat_help(stat), "style selection explains " + stat)

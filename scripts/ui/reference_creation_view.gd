@@ -34,6 +34,15 @@ var heading_font: Font
 var bold_font: Font
 
 var _submitted := false
+var _style_order: Array[String] = []
+var _style_cards: Dictionary = {}
+var _style_walkthrough_rows: Dictionary = {}
+var _style_walkthrough_labels: Dictionary = {}
+var _style_walkthrough_buttons: Dictionary = {}
+var _style_walkthrough_index := 0
+var _style_guide_title: Label
+var _style_guide_body: Label
+var _style_guide_replay: Button
 
 func _ready() -> void:
     size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -74,19 +83,29 @@ func _masthead() -> void:
     step.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 
 func _style_picker() -> void:
-    var guidance := _column(_panel(self), 0)
-    var title := _label(guidance, "무엇을 고르는 단계인가요?", 13, UI.GOLD_BRIGHT, bold_font)
-    title.name = "BoxerStyleIntro"
-    var instruction := _label(guidance, "1/2단계: 경기 성향과 시작 능력치 보정을 고릅니다. 카드의 [선택]을 누르면 2/2단계에서 타고난 재능을 확인합니다. 아래로 스크롤해 모든 스타일을 비교하세요. 이후 훈련으로 성장시킬 수 있습니다.", 12, MUTED, null, true)
-    instruction.name = "BoxerStyleInstructions"
+    var guidance := _column(_panel(self), 2)
+    _style_guide_title = _label(guidance, "1/2단계 · 복싱 스타일을 고릅니다", 13, UI.GOLD_BRIGHT, bold_font)
+    _style_guide_title.name = "BoxerStyleIntro"
+    _style_guide_body = _label(guidance, "복싱 스타일 선택 1/2단계입니다. 금색 테두리 카드의 설명을 읽어 보세요. [다음 스타일]은 다음 카드를 보여주고, 오른쪽 [선택]은 이 스타일을 정합니다. 선택하면 2/2단계에서 타고난 재능을 확인합니다.", 12, MUTED, null, true)
+    _style_guide_body.name = "BoxerStyleInstructions"
+    _style_guide_replay = _secondary_action("스타일 설명 다시 보기", 11, 34)
+    _style_guide_replay.name = "BoxerStyleGuideReplay"
+    _style_guide_replay.visible = false
+    _style_guide_replay.pressed.connect(_replay_style_walkthrough)
+    guidance.add_child(_style_guide_replay)
     _stat_guide()
     for style: Dictionary in styles:
+        _style_order.append(str(style.get("id", "")))
         _style_card(style)
+    _update_style_walkthrough()
 
 func _style_card(style: Dictionary) -> void:
     var id := str(style.get("id", ""))
     var card := _panel(self)
-    var row := _row(card, 7)
+    card.name = "BoxerStyleCard_" + id
+    _style_cards[id] = card
+    var content := _column(card, 4)
+    var row := _row(content, 7)
     var thumbnail := _picture(row, _style_art(id))
     thumbnail.custom_minimum_size = Vector2(76, 74)
 
@@ -104,6 +123,25 @@ func _style_card(style: Dictionary) -> void:
     if changes.get_child_count() == 0:
         _label(changes, "시작 능력치 보정 없음", 10, MUTED, bold_font)
 
+    var guide_row := _row(content, 4)
+    guide_row.name = "BoxerStyleWalkthrough_" + id
+    guide_row.visible = false
+    _style_walkthrough_rows[id] = guide_row
+    var guide_label := _label(guide_row, "설명", 10, UI.GOLD_BRIGHT, bold_font)
+    guide_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    _style_walkthrough_labels[id] = guide_label
+    var next_style := _action("다음 스타일 ›", 11, 36)
+    next_style.name = "BoxerStyleNext_" + id
+    next_style.custom_minimum_size.x = 116
+    next_style.pressed.connect(_advance_style_walkthrough.bind(id))
+    guide_row.add_child(next_style)
+    _style_walkthrough_buttons[id] = next_style
+    var end_guide := _secondary_action("안내 건너뛰기", 10, 36)
+    end_guide.name = "BoxerStyleGuideSkip_" + id
+    end_guide.custom_minimum_size.x = 96
+    end_guide.pressed.connect(_skip_style_walkthrough)
+    guide_row.add_child(end_guide)
+
     var choose := _action("선택", 14, 48)
     choose.name = "BoxerStyle_" + id
     choose.custom_minimum_size.x = 73
@@ -117,6 +155,77 @@ func _style_card(style: Dictionary) -> void:
             style_chosen.emit(id)
     )
     row.add_child(choose)
+
+func _advance_style_walkthrough(style_id: String) -> void:
+    if _style_walkthrough_index < 0 or _style_walkthrough_index >= _style_order.size():
+        return
+    if style_id != _style_order[_style_walkthrough_index]:
+        return
+    if _style_walkthrough_index >= _style_order.size() - 1:
+        _style_walkthrough_index = -1
+        _update_style_walkthrough()
+        call_deferred("_scroll_style_picker_to_top")
+        return
+    _style_walkthrough_index += 1
+    _update_style_walkthrough()
+    call_deferred("_ensure_active_style_visible")
+
+func _skip_style_walkthrough() -> void:
+    _style_walkthrough_index = -1
+    _update_style_walkthrough()
+    call_deferred("_scroll_style_picker_to_top")
+
+func _replay_style_walkthrough() -> void:
+    if _style_order.is_empty():
+        return
+    _style_walkthrough_index = 0
+    _update_style_walkthrough()
+    call_deferred("_ensure_active_style_visible")
+
+func _update_style_walkthrough() -> void:
+    var walkthrough_active := _style_walkthrough_index >= 0 and _style_walkthrough_index < _style_order.size()
+    if walkthrough_active:
+        var style_id := _style_order[_style_walkthrough_index]
+        var style_name := ""
+        for style: Dictionary in styles:
+            if str(style.get("id", "")) == style_id:
+                style_name = str(style.get("name", ""))
+                break
+        _style_guide_title.text = "스타일 설명 %d / %d · %s" % [_style_walkthrough_index + 1, _style_order.size(), style_name]
+        _style_guide_body.text = "금색 테두리 카드가 지금 설명하는 스타일입니다. 오른쪽 [선택]으로 고르면 2/2단계에서 타고난 재능을 확인합니다. [다음 스타일]은 다음 카드를 보여줍니다."
+    else:
+        _style_guide_title.text = "원하는 복싱 스타일을 선택하세요"
+        _style_guide_body.text = "이 단계는 선수의 경기 성향과 시작 능력치 보정을 정합니다. 마음에 드는 카드의 [선택]을 누르면 2/2단계에서 타고난 재능을 확인합니다."
+    _style_guide_replay.visible = not walkthrough_active
+
+    for style_id: String in _style_order:
+        var card: PanelContainer = _style_cards[style_id]
+        var active := walkthrough_active and style_id == _style_order[_style_walkthrough_index]
+        card.add_theme_stylebox_override("panel", UI.beveled_panel_style(PANEL, UI.GOLD_BRIGHT if active else UI.GOLD_DARK, 6))
+        var guide_row: HBoxContainer = _style_walkthrough_rows[style_id]
+        guide_row.visible = active
+        if active:
+            var guide_label: Label = _style_walkthrough_labels[style_id]
+            guide_label.text = "현재 안내 중 · %d/%d" % [_style_walkthrough_index + 1, _style_order.size()]
+            var next_style: Button = _style_walkthrough_buttons[style_id]
+            next_style.text = "안내 끝내기" if _style_walkthrough_index == _style_order.size() - 1 else "다음 스타일 ›"
+
+func _ensure_active_style_visible() -> void:
+    if _style_walkthrough_index < 0 or _style_walkthrough_index >= _style_order.size():
+        return
+    var card: Control = _style_cards[_style_order[_style_walkthrough_index]]
+    var ancestor := get_parent()
+    while ancestor != null and not ancestor is ScrollContainer:
+        ancestor = ancestor.get_parent()
+    if ancestor is ScrollContainer:
+        ancestor.ensure_control_visible(card)
+
+func _scroll_style_picker_to_top() -> void:
+    var ancestor := get_parent()
+    while ancestor != null and not ancestor is ScrollContainer:
+        ancestor = ancestor.get_parent()
+    if ancestor is ScrollContainer:
+        ancestor.scroll_vertical = 0
 
 func _stat_guide() -> void:
     var guide := _column(_panel(self), 2)
@@ -244,6 +353,20 @@ func _action(text: String, size: int, height: int) -> Button:
         elif state == "pressed":
             tone = Color("#9e652c")
         button.add_theme_stylebox_override(state, Art.gold_plate(146, height, tone, 3))
+    return button
+
+func _secondary_action(text: String, size: int, height: int) -> Button:
+    var button := UI.action_button(text, heading_font)
+    button.custom_minimum_size.y = height
+    button.add_theme_font_size_override("font_size", size)
+    for state in ["normal", "hover", "pressed"]:
+        var background := Color("#151d27")
+        var edge := Color("#665336")
+        if state == "hover":
+            edge = UI.GOLD
+        elif state == "pressed":
+            background = Color("#10161c")
+        button.add_theme_stylebox_override(state, UI.beveled_panel_style(background, edge, 5))
     return button
 
 func _panel(parent: Container, edge: Color = UI.GOLD_DARK, padding: int = 6) -> PanelContainer:
