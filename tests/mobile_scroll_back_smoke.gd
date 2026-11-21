@@ -62,10 +62,8 @@ func _run() -> void:
         for button in buttons:
             _check(button.mouse_filter == Control.MOUSE_FILTER_PASS, "button blocks parent touch drag: %s" % button.text)
 
-    var tactical_text := "\n".join(_collect_text(main_view))
-    _check(tactical_text.contains("전술 준비"), "opponent selection did not render tactical preparation")
-    _check(tactical_text.contains("영구 성장 없이"), "tactical preparation hides the one-growth rule")
-    _check_matchup_context("tactical-prep")
+    _check(main_view.find_child("ReferenceScouting", true, false) != null, "opponent opens scouting")
+    _check_matchup_context("scouting")
 
     for plan_value in game_state.game_plans:
         var plan: Dictionary = plan_value
@@ -77,7 +75,7 @@ func _run() -> void:
 
     var opponent_back := _button_with_text(main_view, "← 상대 다시 선택")
     _check(is_instance_valid(opponent_back), "tactical preparation has no opponent back button")
-    main_view._return_from_tactical_to_offers()
+    opponent_back.pressed.emit()
     await process_frame
     _check(str(game_state.state.get("phase", "")) == "fight_offer", "opponent back navigation did not return to fight offers")
     _check(str(game_state.state.get("selected_opponent", "")).is_empty(), "opponent back navigation did not clear selected opponent")
@@ -108,18 +106,6 @@ func _run() -> void:
     main_view.current_opponent = opponents[0]
     main_view._render_phase()
     await process_frame
-    main_view._choose_tactical_preparation("distance_drill")
-    await process_frame
-    _check(str(game_state.state.get("phase", "")) == "condition_prep", "tactical choice did not advance to condition preparation")
-    _check(is_instance_valid(_button_with_text(main_view, "← 전술 준비 다시 선택")), "condition screen has no tactical back button")
-    var condition_text := "\n".join(_collect_text(main_view))
-    _check(condition_text.contains("추가 영구 성장 없이"), "condition preparation hides the no-growth rule")
-    _check_matchup_context("condition-prep")
-
-    main_view._choose_condition_preparation("sharpness")
-    await process_frame
-    _check(str(game_state.state.get("phase", "")) == "game_plan", "condition choice did not advance to game plan")
-    _check(is_instance_valid(_button_with_text(main_view, "← 컨디션 다시 선택")), "game-plan screen has no condition back button")
     _check(is_instance_valid(_button_with_text(main_view, "← 상대 다시 선택")), "game-plan screen has no opponent back button")
     _check_matchup_context("game-plan")
 
@@ -136,8 +122,8 @@ func _run() -> void:
     await process_frame
     _check(str(game_state.state.get("phase", "")) == "game_plan", "game-plan back navigation did not return to scouting")
     _check(str(game_state.state.get("selected_game_plan", "")).is_empty(), "game-plan back navigation did not clear selected plan")
-    _check(str(game_state.state.get("selected_tactical_prep", "")) == "distance_drill", "game-plan back lost tactical preparation")
-    _check(str(game_state.state.get("selected_condition_prep", "")) == "sharpness", "game-plan back lost condition preparation")
+    _check(str(game_state.state.get("selected_tactical_prep", "")) == "", "plan back grants no additional tactic")
+    _check(str(game_state.state.get("selected_condition_prep", "")) == "", "plan back grants no condition activity")
     _check(game_state.state.get("last_weigh_in", {}).is_empty(), "game-plan back navigation did not clear resolved weigh-in")
     _check(game_state.state.get("pre_game_plan_snapshot", {}).is_empty(), "game-plan rollback snapshot was not consumed")
     _check(abs(float(game_state.state.boxer.weight_kg) - before_weight) < 0.001, "game-plan back did not restore pre-weigh-in weight")
@@ -145,11 +131,9 @@ func _run() -> void:
     _check(int(game_state.state.boxer.health) == before_health, "game-plan back did not restore pre-weigh-in health")
     _check(int(game_state.state.career.reputation) == before_reputation, "game-plan back did not restore pre-weigh-in reputation")
 
-    main_view._return_to_condition_preparation()
+    main_view._return_to_fight_offers()
     await process_frame
-    _check(str(game_state.state.get("phase", "")) == "condition_prep", "condition back did not return from game plan")
-    _check(str(game_state.state.get("selected_condition_prep", "")).is_empty(), "condition back did not clear condition choice")
-    _check(str(game_state.state.get("selected_tactical_prep", "")) == "distance_drill", "condition back unexpectedly cleared tactical choice")
+    _check(game_state.state.phase == "fight_offer", "return from scouting to offers")
 
     _finish()
 

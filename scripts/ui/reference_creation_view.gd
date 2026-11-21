@@ -41,6 +41,9 @@ var stat_help: Dictionary
 var heading_font: Font
 var bold_font: Font
 
+var career: Node
+var _background: OptionButton
+var _boxer_name: LineEdit
 var _submitted := false
 var _style_order: Array[String] = []
 var _style_cards: Dictionary = {}
@@ -93,6 +96,33 @@ func _masthead() -> void:
     step.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 
 func _style_picker() -> void:
+    _label(self, "링네임", 14, UI.GOLD_BRIGHT, heading_font)
+    _boxer_name = LineEdit.new()
+    _boxer_name.name = "CareerName"
+    _boxer_name.max_length = 16
+    _boxer_name.text = str(career.state.boxer.name)
+    add_child(_boxer_name)
+    _label(self, "데뷔 배경", 14, UI.GOLD_BRIGHT, heading_font)
+    _background = OptionButton.new()
+    _background.name = "CareerBackground"
+    add_child(_background)
+    for id: String in career.League.BACKGROUNDS:
+        var index := _background.item_count
+        _background.add_item(career.League.BACKGROUNDS[id].name)
+        _background.set_item_metadata(index, id)
+        if id == career.state.career_state.background:
+            _background.select(index)
+    var detail := _label(self, "", 13, MUTED)
+    detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+    var describe := func(index: int):
+        var id: String = _background.get_item_metadata(index)
+        detail.text = {"rookie":"기본 기량 · 12만원 · 지역 신인전",
+            "amateur":"기술 +5 · 속도 +3 · 인기 4 · 15.5만원 · 지역 유망주전",
+            "gym":"수비 +3 · 지구력 +2 · 인기 9 · 18.5만원 · 훈련 성장 +20% · 상위 지역전"}[id]
+        if not career.state.meta_state.legacy_slots.is_empty():
+            detail.text += " · 선대 유산으로 데뷔 대진 우대"
+    _background.item_selected.connect(describe)
+    describe.call(_background.selected)
     var caption := _label(self, "나만의 복서 스타일을 고르세요", 15, UI.GOLD_BRIGHT, heading_font)
     caption.name = "BoxerStyleIntro"
     caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -152,6 +182,7 @@ func _style_card(style: Dictionary) -> void:
     choose.pressed.connect(func():
         if not _submitted and not is_queued_for_deletion():
             _submitted = true
+            career.select_background(str(_background.get_item_metadata(_background.selected)), _boxer_name.text)
             style_chosen.emit(id)
     )
     row.add_child(choose)

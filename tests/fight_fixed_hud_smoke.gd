@@ -26,6 +26,7 @@ func _run() -> void:
         _finish()
         return
 
+    game_state.rng.seed = 237
     game_state.new_career("HUD Boxer", "technician")
     game_state.state.boxer.weight_kg = 61.0
     game_state.state["first_launch_acknowledged"] = true
@@ -33,8 +34,6 @@ func _run() -> void:
     game_state.state.phase = "fight_offer"
     var opponent: Dictionary = opponents[0]
     game_state.select_opponent(opponent)
-    _check(bool(game_state.select_tactical_preparation("distance_drill").get("ok", false)), "fight HUD fixture could not select tactical preparation")
-    _check(bool(game_state.select_condition_preparation("sharpness").get("ok", false)), "fight HUD fixture could not select condition preparation")
     var selected: Dictionary = game_state.select_game_plan("outside_boxing")
     _check(bool(selected.get("ok", false)), "fight HUD fixture could not select plan")
 
@@ -82,7 +81,7 @@ func _run() -> void:
         var chrome := main_view.find_child(chrome_name, true, false) as Control
         _check(is_instance_valid(chrome), "missing phase-aware chrome node: " + chrome_name)
         if is_instance_valid(chrome):
-            _check(not chrome.visible, "non-combat app chrome remains visible during fight: " + chrome_name)
+            _check(chrome.visible == (chrome_name == "V19SettingsButton" and main_view._dev_reset_enabled()), "non-combat app chrome remains visible during fight: " + chrome_name)
 
     var actions := main_view.find_child("V19FightActions", true, false) as HBoxContainer
     _check(is_instance_valid(actions), "fight HUD has a single action row")
@@ -100,7 +99,7 @@ func _run() -> void:
     _finish()
 
 func _play_bout() -> void:
-    var sequence := ["jab", "power", "body", "guard", "counter", "jab", "guard", "counter", "power"]
+    var sequence := ["guard", "jab", "counter", "body", "power", "jab", "guard", "counter", "power"]
     var used: Array[String] = []
     var ring_top := (main_view.find_child("FightRingFrame", true, false) as Control).get_global_rect().position.y
     for id in sequence:

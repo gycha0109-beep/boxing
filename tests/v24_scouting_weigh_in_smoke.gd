@@ -21,6 +21,10 @@ func _run() -> void:
     await _check_weigh_in(62.4, "miss", "계체 실패", "68%")
     await _check_weigh_in(62.9, "miss", "계체 실패", "51%")
     await _check_legacy_resume_and_entry()
+    await _dispose_game()
+    main_scene = null
+    career = null
+    await create_timer(0.5).timeout
     if failures.is_empty():
         print("PASS: scouting, plan navigation, all weigh-in verdicts, rollback, legacy restore and fight entry")
         quit(0)
@@ -36,9 +40,8 @@ func _check_weigh_in(weight: float, status: String, verdict: String, detail: Str
     career.state["boxer"]["fatigue"] = 95
     career.state["career"]["reputation"] = 2
     var opponents: Array = JSON.parse_string(FileAccess.get_file_as_string("res://data/opponents.json"))
+    career.state.phase = "fight_offer"
     career.select_opponent(opponents[0])
-    career.select_tactical_preparation("distance_drill")
-    career.select_condition_preparation("sharpness")
     await _open_game()
 
     var scouting := game.find_child("ReferenceScouting", true, false)
@@ -106,7 +109,7 @@ func _check_weigh_in(weight: float, status: String, verdict: String, detail: Str
     for field in ["weight_kg", "fatigue", "health"]:
         _require(is_equal_approx(float(career.state["boxer"][field]), float(before["boxer"][field])), "undo the weigh-in effect on " + field)
     _require(int(career.state["career"]["reputation"]) == int(before["career"]["reputation"]), "undo the reputation penalty")
-    _require(career.state["selected_condition_prep"] == "sharpness", "keep the earlier preparation")
+    _require(career.state["selected_condition_prep"] == "", "no extra condition activity")
     await _close_game()
 
 func _check_legacy_resume_and_entry() -> void:
@@ -132,13 +135,25 @@ func _check_legacy_resume_and_entry() -> void:
     await _close_game()
 
 func _open_game() -> void:
-    game = main_scene.instantiate()
-    root.add_child(game)
+    if not is_instance_valid(game):
+        game = main_scene.instantiate()
+        root.add_child(game)
+    else:
+        game.set("current_opponent", {})
+        game.set("combat", null)
+        game.set("v17_overlay", "")
+        game.call("_render_phase")
     await _settle()
 
 func _close_game() -> void:
-    game.queue_free()
-    await process_frame
+    await _settle()
+
+func _dispose_game() -> void:
+    if is_instance_valid(game):
+        game.queue_free()
+        await process_frame
+        game = null
+    await create_timer(0.25).timeout
 
 func _settle() -> void:
     await process_frame

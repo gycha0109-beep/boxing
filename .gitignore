@@ -5,3 +5,8 @@
 __pycache__/
 build/
 exports/
+
+# Godot-generated editor metadata and isolated test data
+*.import
+*.uid
+tests/_sandbox_user_data/

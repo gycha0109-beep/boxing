@@ -49,4 +49,4 @@
 
 개발 엔진: Godot 4.7.2 안정판 유지 (2026-08-18 공개), 4.8 beta로 변경하지 않음.
 작업 사본: D:\cha\boxing-web-preview
-시작: PLAY_WEB.cmd → http://127.0.0.1:8765/index.html
+시작: PLAY_WEB.cmd → http://127.0.0.1:8766/my-league/index.html

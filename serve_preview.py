@@ -12,6 +12,6 @@ class PreviewHandler(SimpleHTTPRequestHandler):
         super().end_headers()
 
 if __name__ == "__main__":
-    server = ThreadingHTTPServer(("127.0.0.1", 8765), partial(PreviewHandler, directory=str(ROOT)))
-    print("Twelve Count local web preview: http://127.0.0.1:8765/index.html", flush=True)
+    server = ThreadingHTTPServer(("127.0.0.1", 8766), partial(PreviewHandler, directory=str(ROOT)))
+    print("Twelve Count local web preview: http://127.0.0.1:8766/index.html", flush=True)
     server.serve_forever()

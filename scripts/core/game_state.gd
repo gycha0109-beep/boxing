@@ -366,6 +366,8 @@ func tier_label() -> String:
 func ending_text() -> String:
     match str(state.career.ending):
         "world_champion": return "세계 타이틀을 차지하고 커리어의 정점에 올랐습니다."
+        "decline_retirement": return "여섯 경기 이상 이어진 연패와 누적 손상으로 은퇴했습니다."
+        "title_lost": return "세계 타이틀 방어전을 마치고 글러브를 내려놓았습니다."
         "health_retirement": return "누적된 손상으로 더는 링에 오를 수 없어 은퇴했습니다."
         "loss_retirement": return "연패와 패배가 쌓여 프로 커리어를 끝냈습니다."
         "bankrupt": return "커리어 자금이 바닥나 훈련을 지속하지 못했습니다."

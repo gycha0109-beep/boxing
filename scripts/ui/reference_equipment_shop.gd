@@ -151,7 +151,7 @@ func _item(data: Dictionary) -> void:
             reason = "부족한 금액  " + _money(int(upgrade["price"]) - money)
             buy.text = "자금 부족"
         "":
-            reason = "구매 후 보유금  " + _money(money - int(upgrade["price"]))
+            reason = "관리 기회 사용 · 구매 후  " + _money(money - int(upgrade["price"]))
         _:
             reason = "구매 조건을 충족하지 못했습니다."
             buy.text = "구매 불가"

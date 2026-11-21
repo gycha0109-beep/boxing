@@ -147,6 +147,8 @@ func _title_progress() -> void:
     _progress(box, "경기 수", int(career.get("fights", 0)), int(next_stage.get("min_fights", 0)))
     _progress(box, "승리", int(career.get("wins", 0)), int(next_stage.get("min_wins", 0)))
     _progress(box, "커리어 포인트", int(career.get("career_points", 0)), required_points)
+    if next_stage.get("id") == "world":
+        _progress(box, "평균 기량", floori(preload("res://scripts/core/league_career.gd").skill(boxer)), 46)
 
 func _progress(parent: VBoxContainer, caption: String, current: int, required: int) -> void:
     if required <= 0:

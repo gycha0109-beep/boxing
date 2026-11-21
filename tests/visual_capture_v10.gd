@@ -14,7 +14,7 @@ func _init() -> void:
 func _run() -> void:
     DisplayServer.window_set_size(Vector2i(430, 932))
     get_root().gui_embed_subwindows = true
-    DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(CAPTURE_DIR))
+    DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(_capture_dir()))
     _cleanup_save_files()
     await process_frame
 
@@ -52,6 +52,10 @@ func _run() -> void:
 
     main_view._start_new_career_from_title()
     await process_frame
+    if game_state.state.phase == "tutorial_welcome":
+        main_view._skip_first_bout_guide()
+        await process_frame
+    await _capture("11_boxer_background.png")
     main_view._choose_boxing_style("out_boxer")
     await process_frame
     main_view._confirm_talent()
@@ -86,20 +90,9 @@ func _run() -> void:
     var opponent: Dictionary = opponents[13]
     main_view._choose_opponent(opponent)
     await process_frame
-    var tactical_text := "\n".join(_collect_text(main_view))
-    for marker in ["전술 준비", "다음 상대", str(opponent.name)]:
-        if not tactical_text.contains(marker):
-            _fail("redesigned tactical preparation missing marker: %s" % marker)
-            return
-    if main_view.find_children("PreparationSelect_*", "Button", true, false).size() != game_state.tactical_preparations().size():
-        _fail("tactical preparation is missing a defined choice")
+    if game_state.state.phase != "game_plan" or main_view.find_child("ReferenceScouting", true, false) == null:
+        _fail("chosen opponent did not open scouting")
         return
-    await _capture("11_tactical_preparation.png")
-    main_view._choose_tactical_preparation("distance_drill")
-    await process_frame
-    await _capture("12_condition_preparation.png")
-    main_view._choose_condition_preparation("sharpness")
-    await process_frame
     await _capture("05_scouting_game_plan.png")
 
     main_view._choose_game_plan("balanced")
@@ -137,6 +130,26 @@ func _run() -> void:
     await process_frame
     await _capture("09_result.png")
 
+    while int(game_state.state.career.fights) < 4:
+        game_state.advance_after_result()
+        if game_state.state.phase == "event":
+            game_state.resolve_pending_event()
+        if not game_state.management_visit():
+            _fail("could not start the next season fixture bout")
+            return
+        var offer: Dictionary = game_state.get_fight_offers(opponents)[0]
+        game_state.select_opponent(offer)
+        game_state.select_game_plan("balanced")
+        game_state.apply_fight_result("WIN_DEC", offer, {"player_hp":85.0})
+    game_state.advance_after_result()
+    if game_state.state.phase == "event":
+        game_state.resolve_pending_event()
+    if game_state.state.phase != "season_review":
+        _fail("four bouts did not open season review")
+        return
+    main_view._render_phase()
+    await _capture("12_season_contract.png")
+
     for fixture in [
         {"index": 0, "file": "13_fight_korean.png"},
         {"index": 12, "file": "14_fight_latino.png"},
@@ -155,8 +168,6 @@ func _run() -> void:
         game_state.state.phase = "fight_offer"
         var rival: Dictionary = opponents[fixture.index]
         game_state.select_opponent(rival)
-        game_state.select_tactical_preparation("distance_drill")
-        game_state.select_condition_preparation("sharpness")
         game_state.select_game_plan("balanced")
         main_view.current_opponent = rival
         main_view.combat = null
@@ -181,6 +192,10 @@ func _run() -> void:
     print("visual-capture-v19-redesign: PASS")
     _cleanup_save_files()
     quit(0)
+
+func _capture_dir() -> String:
+    var path := OS.get_environment("TC_CAPTURE_DIR")
+    return CAPTURE_DIR if path.is_empty() else path
 
 func _capture(filename: String) -> void:
     await process_frame
@@ -221,7 +236,7 @@ func _capture(filename: String) -> void:
     if image.get_width() != 430 or image.get_height() != 932:
         _fail("unexpected viewport size %dx%d" % [image.get_width(), image.get_height()])
         return
-    var path := "%s/%s" % [CAPTURE_DIR, filename]
+    var path := "%s/%s" % [_capture_dir(), filename]
     var err := image.save_png(ProjectSettings.globalize_path(path))
     if err != OK:
         _fail("failed to save %s" % path)

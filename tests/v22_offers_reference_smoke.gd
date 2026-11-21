@@ -17,7 +17,7 @@ func _run() -> void:
     state_node.state["first_launch_acknowledged"] = true
     await _enter_game()
     if not _press("TrainingSelect_roadwork"):
-        _finish()
+        await _finish()
         return
     await _settle()
     _require(game.find_child("TrainingResult", true, false) != null, "training result survives offer entry")
@@ -29,7 +29,7 @@ func _run() -> void:
     await _check_title_offer()
     game.queue_free()
     await process_frame
-    _finish()
+    await _finish()
 
 func _check_offer(opponent: Dictionary, offers: Array) -> void:
     var id := str(opponent["id"])
@@ -71,11 +71,11 @@ func _check_offer(opponent: Dictionary, offers: Array) -> void:
     _press("FightOfferSelect_" + id)
     _press("FightOfferSelect_" + other_id)
     await _settle()
-    _require(str(state_node.state["phase"]) == "tactical_prep", id + " advances to tactical prep")
+    _require(str(state_node.state["phase"]) == "game_plan", id + " advances to scouting")
     _require(str(state_node.state["selected_opponent"]) == id, id + " guards duplicate acceptance")
-    _require(game.find_child("V19TacticalMatchup", true, false) != null, id + " tactical screen renders")
+    _require(game.find_child("ReferenceScouting", true, false) != null, id + " scouting screen renders")
     var saved := SaveService.load_game()
-    _require(str(saved.get("phase", "")) == "tactical_prep", id + " saved phase")
+    _require(str(saved.get("phase", "")) == "game_plan", id + " saved phase")
     _require(str(saved.get("selected_opponent", "")) == id, id + " saved opponent")
 
     if opponent == offers.back():
@@ -83,7 +83,7 @@ func _check_offer(opponent: Dictionary, offers: Array) -> void:
         await process_frame
         state_node.state = saved
         await _enter_game()
-        _require(game.find_child("V19TacticalMatchup", true, false) != null, id + " tactical screen restored from save")
+        _require(game.find_child("ReferenceScouting", true, false) != null, id + " scouting screen restored from save")
         _require(str(game.current_opponent.get("id", "")) == id, id + " chosen opponent restored")
 
     var returned := false
@@ -151,6 +151,11 @@ func _require(ok: bool, reason: String) -> void:
         push_error(reason)
 
 func _finish() -> void:
+    if is_instance_valid(game):
+        game.queue_free()
+        await process_frame
+        game = null
+    await create_timer(0.75).timeout
     if failures.is_empty():
         print("PASS: current offers, contract details, preview, selection, back, title offer and resume")
         quit(0)

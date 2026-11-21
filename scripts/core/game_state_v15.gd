@@ -1,10 +1,12 @@
 extends "res://scripts/core/game_state_v14.gd"
 
+const League := preload("res://scripts/core/league_career.gd")
 const STARTING_BASE_STAT := 44
 const EQUIPMENT_PATH := "res://data/equipment.json"
 const EQUIPMENT_SECTIONS := ["personal", "gym"]
 
 func new_career(boxer_name: String, trait_id: String = "") -> void:
+    SaveService.begin_transition()
     super.new_career(boxer_name, trait_id)
     _rebase_starting_stats()
     var career_state: Dictionary = state.get("career_state", {}).duplicate(true)
@@ -15,7 +17,9 @@ func new_career(boxer_name: String, trait_id: String = "") -> void:
         "total_spent": 0
     }
     state["career_state"] = career_state
-    SaveService.save_game(state)
+    career_state.season_start = League.snapshot(state)
+    career_state.career_start = career_state.season_start.duplicate(true)
+    SaveService.finish_transition(state)
 
 func equipment_catalog(section: String = "") -> Array:
     var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(EQUIPMENT_PATH))
@@ -142,6 +146,8 @@ func purchase_equipment(section: String, item_id: String) -> Dictionary:
     equipment_state[section] = section_state
     equipment_state["total_spent"] = int(equipment_state.get("total_spent", 0)) + price
     _store_equipment_state(equipment_state)
+    state.last_camp_action = item_id
+    state.phase = "fight_offer"
     SaveService.save_game(state)
     return {"ok": true, "item": item.duplicate(true), "previous": previous.duplicate(true), "money": int(state.career.money), "stat_changes": stat_changes}
 
@@ -153,6 +159,8 @@ func apply_camp_action(action: Dictionary) -> Dictionary:
         return result
 
     var percent := gym_training_percent(str(action.get("id", "")))
+    if state.career_state.background == "gym":
+        percent += 20.0
     if percent <= 0.0:
         return result
 
@@ -225,3 +233,216 @@ func _store_equipment_state(equipment_state: Dictionary) -> void:
     var career_state: Dictionary = state.get("career_state", {}).duplicate(true)
     career_state["equipment_state"] = equipment_state.duplicate(true)
     state["career_state"] = career_state
+
+func _opponent_selected_phase() -> String:
+    return "game_plan"
+
+func select_background(id: String, boxer_name: String) -> bool:
+    if state.phase != "style_select" or not League.BACKGROUNDS.has(id):
+        return false
+    var book: Dictionary = state.career_state
+    var previous: Dictionary = League.BACKGROUNDS[book.background]
+    var chosen: Dictionary = League.BACKGROUNDS[id]
+    for stat in TRAINABLE_STATS:
+        state.boxer[stat] += int(chosen.stats.get(stat, 0)) - int(previous.stats.get(stat, 0))
+    state.career.money += int(chosen.money) - int(previous.money)
+    state.career.reputation += int(chosen.fans) - int(previous.fans)
+    book.background = id
+    var trimmed := boxer_name.strip_edges().left(16)
+    if not trimmed.is_empty():
+        state.boxer.name = trimmed
+    SaveService.save_game(state)
+    return true
+
+func confirm_talent() -> Dictionary:
+    if state.phase == "talent_reveal":
+        state.career_state.season_start = League.snapshot(state)
+        state.career_state.career_start = state.career_state.season_start.duplicate(true)
+    return super.confirm_talent()
+
+func management_visit() -> bool:
+    if state.phase != "camp":
+        return false
+    state.career.reputation += 2
+    state.last_camp_action = "media_visit"
+    state.phase = "fight_offer"
+    SaveService.save_game(state)
+    return true
+
+func quoted_purse(opponent: Dictionary) -> int:
+    var draw_bonus := mini(10, int(state.career.reputation) / 5)
+    return roundi(float(opponent.purse) * float(state.career_state.purse_rate) * (1.0 + draw_bonus / 100.0))
+
+func select_opponent(opponent: Dictionary) -> void:
+    if state.phase != "fight_offer":
+        return
+    state.career_state.booked_purse = quoted_purse(opponent)
+    super.select_opponent(opponent)
+
+func get_fight_offers(all_opponents: Array) -> Array:
+    var title := {}
+    if bool(state.career.champion):
+        var challengers := all_opponents.filter(func(o): return str(o.get("title_kind", "")) == "world")
+        if not challengers.is_empty():
+            return [challengers[int(state.career_state.defenses + 1) % challengers.size()]]
+    elif world_title_ready():
+        for opponent: Dictionary in all_opponents:
+            if opponent.id == state.world_state.champion_boxer_id and opponent.get("title_kind") == "world":
+                title = opponent
+                break
+        if title.is_empty():
+            title = _opponent_for_title_kind(all_opponents, "world")
+    else:
+        var kind := _eligible_ladder_title_kind()
+        if not kind.is_empty():
+            title = _opponent_for_title_kind(all_opponents, kind)
+    return League.offers(state, all_opponents, title)
+
+func world_title_ready() -> bool:
+    return super.world_title_ready() and League.skill(state.boxer) >= 46.0
+
+func apply_fight_result(result: String, opponent: Dictionary, snapshot: Dictionary = {}) -> void:
+    if state.phase != "fight":
+        return
+    SaveService.begin_transition()
+    var paid := opponent.duplicate(true)
+    paid.purse = int(state.career_state.get("booked_purse", quoted_purse(opponent)))
+    var world_bout: bool = opponent.get("title_kind", "") == "world"
+    var defending := bool(state.career.champion)
+    if world_bout:
+        paid.title_fight = false
+    var won := result.begins_with("WIN")
+    var upset := won and int(opponent.rank) + 5 <= int(state.career.rank)
+    super.apply_fight_result(result, paid, snapshot)
+    var book: Dictionary = state.career_state
+    book.erase("booked_purse")
+    var c: Dictionary = state.career
+    if won:
+        book.streak = maxi(0, int(book.streak)) + 1
+        var growth_stat := "technique" if result == "WIN_DEC" else "power"
+        state.boxer[growth_stat] = mini(100, int(state.boxer[growth_stat]) + 1)
+        if result == "WIN_KO":
+            c.reputation += 2
+    elif result.begins_with("LOSS"):
+        book.streak = mini(0, int(book.streak)) - 1
+    else:
+        book.streak = 0
+    # A sustained losing run with accumulated damage can end a career before
+    # the existing lifetime loss limit, even above the medical retirement floor.
+    if not c.finished and not defending and int(book.streak) <= -6 and int(state.boxer.health) <= 30:
+        c.finished = true
+        c.ending = "decline_retirement"
+    state.last_fight_summary.upset = upset
+    var date: Dictionary = state.world_state.world_date
+    var month := int(date.month) - 1 + int(career_balance.calendar.months_per_fight)
+    date.year += month / 12
+    date.month = month % 12 + 1
+    if world_bout:
+        if won:
+            c.champion = true
+            book.defenses += int(defending)
+            state.world_state.champion_boxer_id = "player_%d" % int(state.meta_state.generation)
+            if int(book.defenses) >= 3 or bool(c.finished):
+                c.finished = true
+                c.ending = "world_champion"
+        elif defending and result.begins_with("LOSS"):
+            c.champion = false
+            c.finished = true
+            c.ending = "title_lost"
+            state.world_state.champion_boxer_id = str(opponent.id)
+        elif defending:
+            book.defenses += 1
+            if int(book.defenses) >= 3:
+                c.finished = true
+                c.ending = "world_champion"
+        if won or defending:
+            state.world_state.title_history.append({"year":date.year, "month":date.month,
+                "boxer":state.boxer.name, "generation":state.meta_state.generation, "opponent":opponent.id,
+                "result":result, "defense":defending, "holder":state.world_state.champion_boxer_id})
+        if c.champion:
+            _award_slot("world_champion", 4)
+            if int(book.defenses) >= 3:
+                _award_slot("three_defenses", 5)
+    if int(c.fights) == 12:
+        book.milestone = _career_review(book.career_start)
+    state.phase = "result"
+    SaveService.finish_transition(state)
+
+func _award_slot(id: String, capacity: int) -> void:
+    var meta: Dictionary = state.meta_state
+    if id not in meta.achievements:
+        meta.achievements.append(id)
+    meta.legacy_capacity = maxi(int(meta.legacy_capacity), capacity)
+
+func _pick_event() -> Dictionary:
+    var preferred := League.event_id(state)
+    for event: Dictionary in events:
+        if event.id == preferred:
+            return event
+    return super._pick_event()
+
+func advance_after_result() -> void:
+    if state.phase == "result":
+        super.advance_after_result()
+
+func resolve_pending_event() -> void:
+    if state.phase == "event":
+        super.resolve_pending_event()
+
+func _begin_next_cycle() -> void:
+    SaveService.begin_transition()
+    super._begin_next_cycle()
+    if not state.career.finished:
+        if bool(state.career.champion):
+            state.phase = "champion_choice"
+        elif int(state.career.fights) > 0 and int(state.career.fights) % 4 == 0:
+            state.phase = "season_review"
+    SaveService.finish_transition(state)
+
+func season_review() -> Dictionary:
+    return _career_review(state.career_state.season_start)
+
+func _career_review(start: Dictionary) -> Dictionary:
+    var report := League.review(state, start, world_title_ready())
+    var goal := career_ladder_next_stage()
+    var available := not _eligible_ladder_title_kind().is_empty() or world_title_ready()
+    report.next_title = "%s · %s" % [goal.get("label", "세계 타이틀"), "제안 가능" if available else "도전 준비 중"]
+    if bool(state.career.champion):
+        report.next_title = "세계 챔피언 · 방어 %d회" % int(state.career_state.defenses)
+    return report
+
+func sign_contract(id: String) -> bool:
+    if state.phase != "season_review" or not League.CONTRACTS.has(id):
+        return false
+    var book: Dictionary = state.career_state
+    book.last_review = season_review()
+    book.contract = id
+    book.purse_rate = League.contract_rate(state, id)
+    book.signed_at = int(state.career.fights)
+    book.season_start = League.snapshot(state)
+    state.phase = "camp"
+    SaveService.save_game(state)
+    return true
+
+func champion_decision(defend: bool) -> bool:
+    if state.phase != "champion_choice":
+        return false
+    if defend:
+        state.phase = "season_review" if int(state.career.fights) % 4 == 0 else "camp"
+    else:
+        state.career.finished = true
+        state.career.ending = "world_champion"
+        state.phase = "career_summary"
+    SaveService.save_game(state)
+    return true
+
+func start_next_generation() -> Dictionary:
+    SaveService.begin_transition()
+    var result := super.start_next_generation()
+    if result.get("ok", false):
+        if str(state.world_state.champion_boxer_id).begins_with("player_"):
+            state.world_state.champion_boxer_id = "diego_reyes"
+        if not state.meta_state.legacy_slots.is_empty():
+            select_background("gym", str(state.boxer.name))
+    SaveService.finish_transition(state)
+    return result

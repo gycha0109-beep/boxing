@@ -59,7 +59,7 @@ func _scouting() -> void:
     _comparison()
 
     var nav := _row(_report_page, 7)
-    _action(nav, "← 컨디션 다시 선택", false, func(): back_requested.emit())
+    _action(nav, "← 상대 다시 선택", false, func(): opponent_back_requested.emit())
     var view_plans := _action(nav, "게임플랜 선택  ›", true, _show_plans.bind(true))
     view_plans.name = "ScoutingShowPlans"
     view_plans.size_flags_stretch_ratio = 1.65
@@ -268,7 +268,6 @@ func _game_plans(parent: VBoxContainer) -> void:
         var nav := _row(parent, 7)
         _action(nav, "← 상대 분석", false, _show_plans.bind(false))
         _action(nav, "← 상대 다시 선택", false, func(): opponent_back_requested.emit())
-        _action(parent, "← 컨디션 다시 선택", false, func(): back_requested.emit())
 
 func _show_plans(show_plans: bool) -> void:
     _report_page.visible = not show_plans

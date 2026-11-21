@@ -52,6 +52,7 @@ func _enter_scene() -> void:
 func _close_scene() -> void:
     main.queue_free()
     await process_frame
+    await create_timer(0.25).timeout
 
 func _settle() -> void:
     await process_frame

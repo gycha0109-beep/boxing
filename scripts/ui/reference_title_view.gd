@@ -92,7 +92,7 @@ func _features() -> void:
     row.add_theme_constant_override("separation", 6)
     add_child(row)
     _feature(row, BOXER, "한 명의 복서", "훈련하고 챔피언에 도전")
-    _feature(row, TACTICS, "전술 준비", "상대에 맞춰 전략 선택")
+    _feature(row, TACTICS, "상대 분석", "상대에 맞춰 전략 선택")
     _feature(row, LEGACY, "유산 계승", "다음 제자에게 노하우 전수")
 
 func _feature(row: HBoxContainer, art: Texture2D, title: String, caption: String) -> void:

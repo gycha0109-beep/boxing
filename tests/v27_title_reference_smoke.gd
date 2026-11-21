@@ -22,7 +22,12 @@ func _run() -> void:
     var resume := _button("TitleContinue")
     _check(resume != null and resume.disabled, "fresh title must not continue the bootstrap boxer")
     _check(not ui.v19_bottom_nav.visible and ui.v19_settings_button.visible, "title must keep settings without career navigation")
+    ui._onboarding_install.clear()
+    ui._guide_settings.clear()
     _check(_press("TitleNewCareer"), "fresh title must expose its start button")
+    await _settle()
+    _check(Save.load_game().get("phase") == "tutorial_welcome", "first installation enters the tutorial")
+    ui._skip_first_bout_guide()
     await _settle()
     _check(Save.load_game().get("phase") == "style_select", "new game must enter boxer creation")
 

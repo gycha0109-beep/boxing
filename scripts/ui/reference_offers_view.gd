@@ -56,7 +56,7 @@ func _hero() -> void:
     title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
     title.add_theme_font_override("font", heading_font)
 
-    var intro_text := "5/12 · 먼저 각 상대의 분석을 열고 강점·약점·버릇을 확인한 다음 계약하세요. 첫 경기는 승리 연습전입니다." if show_first_bout_guide else "상대의 스타일·난이도·보상을 비교하세요."
+    var intro_text := "5/12 · 먼저 각 상대의 분석을 열고 강점·약점·버릇을 확인한 다음 계약하세요. 튜토리얼 경기도 공식 전적에 기록됩니다." if show_first_bout_guide else "상대의 스타일·난이도·보상을 비교하세요."
     var intro := _label(content, intro_text, 12, PAPER, true)
     intro.name = "FightOffersIntro"
     intro.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -138,7 +138,7 @@ func _card(entry: Dictionary) -> void:
         if show_first_bout_guide:
             _analyzed[id] = true
             accept.disabled = false
-            accept.text = "이 상대 선택  ›"
+            accept.text = "7/12 · 상대 선택  ›"
     )
 
 func _analysis(parent: VBoxContainer, opponent: Dictionary, scouting: Dictionary) -> PanelContainer:
@@ -147,7 +147,7 @@ func _analysis(parent: VBoxContainer, opponent: Dictionary, scouting: Dictionary
     var body := _column(panel, 4)
     _label(body, "상대 분석 · %s" % str(opponent["name"]), 14, UI.GOLD_BRIGHT).add_theme_font_override("font", bold_font)
     if show_first_bout_guide:
-        _label(body, "강점은 상대의 위험한 부분, 약점은 공략할 틈, 버릇은 공격을 예측할 단서입니다. 이 세 가지를 보고 전술을 결정하세요.", 12, UI.GOLD_BRIGHT, true)
+        _label(body, "6/12 · 강점은 상대의 위험한 부분, 약점은 공략할 틈, 버릇은 공격을 예측할 단서입니다. 이 세 가지를 보고 전술을 결정하세요.", 12, UI.GOLD_BRIGHT, true)
     for item in [["strength", "강점"], ["weakness", "약점"], ["tell", "주의할 패턴"]]:
         var text := str(scouting.get(item[0], ""))
         if not text.is_empty():

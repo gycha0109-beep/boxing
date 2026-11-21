@@ -33,7 +33,7 @@ static func retirement_profile(state: Dictionary) -> Dictionary:
     var career_state: Dictionary = state.get("career_state", {})
     var high_points := int(career_state.get("career_high_points", career.get("career_points", 0)))
     var ending := str(career.get("ending", ""))
-    var champion := bool(career.get("champion", false)) or ending == "world_champion"
+    var champion := bool(career.get("champion", false)) or ending in ["world_champion", "title_lost"]
 
     var legacy_tier := "early_pro"
     var role := "동네 체육관 관장"

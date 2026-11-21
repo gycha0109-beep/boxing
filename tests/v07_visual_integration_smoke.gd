@@ -81,8 +81,6 @@ func _run() -> void:
     game_state.state.boxer.weight_kg = 61.0
     game_state.state.phase = "fight_offer"
     game_state.select_opponent(opponents[0])
-    _check(bool(game_state.select_tactical_preparation("counter_timing").get("ok", false)), "v1.1 fixture could not select tactical preparation")
-    _check(bool(game_state.select_condition_preparation("sharpness").get("ok", false)), "v1.1 fixture could not select condition preparation")
     var selected: Dictionary = game_state.select_game_plan("counter_trap")
     _check(bool(selected.get("ok", false)), "v1.1 fixture could not select game plan")
 

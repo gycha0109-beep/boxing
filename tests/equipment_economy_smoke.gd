@@ -54,6 +54,8 @@ func _test_personal_equipment_spends_money_and_adds_stats() -> void:
 
 func _test_title_locked_upgrades() -> void:
     game_state.state.career.money = 999999
+    _check(game_state.state.phase == "fight_offer", "purchase consumes the activity")
+    game_state.state.phase = "camp"
     var locked: Dictionary = game_state.can_purchase_equipment("personal", "pro_gloves")
     _check(not bool(locked.get("ok", false)) and str(locked.get("reason", "")) == "locked", "pro gear unlocked before regional title")
 

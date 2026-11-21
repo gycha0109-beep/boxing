@@ -3,6 +3,7 @@ extends VBoxContainer
 signal action_chosen(action: Dictionary)
 signal shop_requested()
 signal guide_skipped()
+signal media_requested()
 
 const REFERENCE_UI := preload("res://scripts/ui/reference_ui.gd")
 const GOLD := REFERENCE_UI.GOLD
@@ -57,6 +58,10 @@ func _ready() -> void:
     var shop := _button("장비 · 체육관 투자  ›")
     shop.pressed.connect(func(): shop_requested.emit())
     add_child(shop)
+    var media := _button("지역 팬 미팅 · 인기 +2")
+    media.name = "ManagementMedia"
+    media.pressed.connect(func(): media_requested.emit())
+    add_child(media)
 
 static func action_title(action: Dictionary) -> String:
     match str(action.get("id", "")):
@@ -166,7 +171,7 @@ func _hero() -> void:
     _shade(portrait, Vector2(0, 0.84), Vector2(0, 1), INK)
 
     var hero := _column(frame, 1)
-    var title := _label(hero, "트레이닝 캠프", 31, WHITE, heading_font)
+    var title := _label(hero, "커리어 관리", 31, WHITE, heading_font)
     title.name = "TrainingTitle"
     title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
@@ -174,9 +179,15 @@ func _hero() -> void:
     var stage := str(GameState.career_ladder_stage().get("label", ""))
     var badge := _panel(hero, GOLD, GOLD_BRIGHT, 1)
     badge.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-    var subtitle := _label(badge, "%s  ·  CAMP %02d" % [stage, int(career.get("fights", 0)) + 1], 11, INK, bold_font)
+    var subtitle := _label(badge, "시즌 %d · %s · %d번째 경기" % [1 + int(career.fights) / 4, stage, int(career.fights) + 1], 11, INK, bold_font)
     subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
     subtitle.custom_minimum_size.x = 137
+    var book: Dictionary = GameState.state.career_state
+    var deal := str(GameState.League.CONTRACTS[book.contract].name) if book.has("signed_at") else "데뷔 계약"
+    var terms := _label(hero, "%s · 인기 %d · %s %d%%" % [
+        GameState.League.BACKGROUNDS[book.background].name, career.reputation, deal, roundi(float(book.purse_rate) * 100)
+    ], 12, WHITE, bold_font)
+    terms.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
     subtitle.add_theme_color_override("font_shadow_color", Color.TRANSPARENT)
 
     var row := _row(hero)
@@ -238,7 +249,7 @@ func _camp_notice() -> void:
         return
     var title := _label(row, "이번 캠프  1회 선택", 15, GOLD_BRIGHT, heading_font)
     title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-    var note := _label(row, "훈련 또는 회복을 선택하면\n경기 계약 단계로 이동합니다.", 10, WHITE)
+    var note := _label(row, "이번 경기에 쓸 관리 기회는 한 번입니다.\n활동을 마치면 경기 제안이 열립니다.", 10, WHITE)
     note.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
 func _grid(node_name: String) -> GridContainer:

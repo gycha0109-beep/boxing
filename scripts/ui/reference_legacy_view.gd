@@ -40,6 +40,7 @@ var candidates: Array
 var definition_for: Callable
 var ending: String
 var notice: String
+var milestone: Dictionary
 var heading_font: Font
 var bold_font: Font
 
@@ -124,6 +125,19 @@ func _career_report() -> void:
     _copy(rankings, "최종 #%d · 최고 %dpt" % [int(career.get("rank", 50)), int(profile.get("career_high_points", 0))], 10, MUTED, true)
     _rule(report)
     _copy(report, ending, 11, PAPER, true)
+    if not milestone.is_empty():
+        var milestone_card := _card(self, 7, GOLD_EDGE)
+        milestone_card.name = "LegacyMilestone"
+        _title(milestone_card, "12전 커리어 평가", 15, UI.GOLD_BRIGHT)
+        _copy(milestone_card, "%d전 %d승 %d패 %d무 · 랭킹 #%d (%+d계단)" % [
+            int(milestone.get("fights", 0)), int(milestone.get("wins", 0)), int(milestone.get("losses", 0)),
+            int(milestone.get("draws", 0)), int(milestone.get("rank", 50)), int(milestone.get("rank_gain", 0)),
+        ], 11, PAPER, true)
+        _copy(milestone_card, "인기 %+d · 평균 능력치 성장 %+.1f · 건강 %d · %s" % [
+            int(milestone.get("fan_gain", 0)), float(milestone.get("skill_gain", 0.0)),
+            int(milestone.get("health", 0)), str(milestone.get("injury", "부상 없음")),
+        ], 11, MUTED, true)
+        _copy(milestone_card, "세계 타이틀 도전 가능" if bool(milestone.get("title_ready", false)) else "세계 타이틀 도전 준비 중", 10, UI.GOLD_BRIGHT, true)
 
 func _choices() -> void:
     _title(self, "다음 세대에게 전할 유산을 선택하세요", 17, UI.GOLD_BRIGHT)

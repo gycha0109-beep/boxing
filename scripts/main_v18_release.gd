@@ -265,7 +265,6 @@ func _render_game_plan() -> void:
         entry["effect"] = _plan_effect_text(plan)
         view.plans.append(entry)
     view.plan_chosen.connect(_choose_game_plan)
-    view.back_requested.connect(_return_to_condition_preparation)
     view.opponent_back_requested.connect(_return_to_fight_offers)
     body.add_child(view)
     _reset_reference_scroll()
@@ -448,6 +447,8 @@ func _render_result() -> void:
     view.money_text = _v17_money
     view.heading_font = REFERENCE_UI.heading_font(_v18_font(780))
     view.bold_font = _v18_font(620)
+    if int(GameState.state.career.fights) == 12 and GameState.state.career_state.has("milestone"):
+        _review_panel("12전 커리어 평가", GameState.state.career_state.milestone)
     view.continue_requested.connect(_continue_from_reference_result)
     body.add_child(view)
     _reset_reference_scroll()
@@ -508,6 +509,7 @@ func _render_career_summary() -> void:
     view.meta = state.get("meta_state", {})
     view.profile = GameState.retirement_legacy_profile()
     view.ending = GameState.ending_text()
+    view.milestone = state.get("career_state", {}).get("milestone", {})
     view.notice = legacy_notice
     view.pending = GameState.pending_retirement_legacy()
     view.selected = state.get("career_state", {}).get("retirement_legacy_selected", {})
@@ -562,6 +564,7 @@ func _render_reference_creation(choosing_style: bool, choosing_talent: bool = fa
             previous.queue_free()
     var view := REFERENCE_CREATION.new()
     view.name = "ReferenceBoxerCreation"
+    view.career = GameState
     view.choosing_style = choosing_style
     view.choosing_talent = choosing_talent
     view.talent_requires_choice = false
@@ -749,6 +752,14 @@ func _render_phase() -> void:
     if _tutorial_special_screen():
         _render_tutorial_story()
         return
+    if v17_overlay.is_empty() and GameState.state.phase in ["season_review", "champion_choice"]:
+        _clear_body()
+        _render_status()
+        _render_career_decision()
+        _configure_mobile_scroll()
+        _v17_sync_nav()
+        _reset_reference_scroll()
+        return
     if v17_overlay in ["match_blocked", "training_blocked"]:
         _clear_body()
         _render_status()
@@ -888,10 +899,10 @@ func _v19_render_blocked_tab(tab_id: String) -> void:
         panel = _v17_panel(body, false)
         if phase == "equipment_shop":
             _v17_title(panel, "장비 투자 단계입니다", 22)
-            _v17_copy(panel, "장비 구매는 선택 사항입니다. 구매하거나 캠프로 돌아가 훈련을 진행한 다음 경기에 도전할 수 있습니다.", true)
+            _v17_copy(panel, "장비 하나를 구매하면 경기 제안을 받습니다. 다른 활동을 고르려면 관리 메뉴로 돌아가세요.", true)
         elif phase == "camp":
             _v17_title(panel, "경기 준비 중", 22)
-            _v17_copy(panel, "캠프에서 훈련 또는 회복을 선택하면 경기 계약 단계로 진행합니다.", true)
+            _v17_copy(panel, "관리 메뉴에서 활동 하나를 마치면 경기 제안이 열립니다.", true)
         else:
             _v17_title(panel, "선수 생성 진행 중", 22)
             _v17_copy(panel, "선수의 스타일과 재능을 확정하면 경기 준비를 시작할 수 있습니다.", true)
@@ -1028,6 +1039,8 @@ func _v17_render_career_home() -> void:
     if previous != null and previous.is_queued_for_deletion():
         body.remove_child(previous)
     var state: Dictionary = GameState.state
+    if state.career_state.has("milestone"):
+        _review_panel("12전 커리어 평가", state.career_state.milestone)
     var view := REFERENCE_CAREER.new()
     view.name = "ReferenceCareerRecord"
     view.boxer = state.get("boxer", {})
@@ -1109,6 +1122,10 @@ func _render_camp() -> void:
     training.heading_font = REFERENCE_UI.heading_font(_v18_font(780))
     training.action_chosen.connect(_choose_camp_action)
     training.shop_requested.connect(_open_equipment_shop)
+    training.media_requested.connect(func():
+        if GameState.management_visit():
+            _render_phase()
+    )
     body.add_child(training)
     _reset_reference_scroll()
 
@@ -1179,10 +1196,15 @@ func _render_offers() -> void:
             "portrait": _v17_opponent_texture(opponent),
             "style": _style_label(str(opponent.get("style", ""))),
             "country": _v17_country(opponent),
-            "purse": _v17_money(int(opponent.get("purse", 0))),
+            "purse": _v17_money(GameState.quoted_purse(opponent)),
         })
     view.opponent_chosen.connect(_accept_reference_offer)
     body.add_child(view)
+    var action_id := str(GameState.state.last_camp_action)
+    if action_id == "media_visit":
+        _v17_copy(view, "팬 미팅 완료 · 인기 +2", true)
+    elif GameState.equipment_total_spent() > 0 and not GameState.equipment_definition(action_id).is_empty():
+        _v17_copy(view, "장비 구매 완료 · " + str(GameState.equipment_definition(action_id).name), true)
     var result := _render_camp_result(view, true)
     if result != null:
         view.move_child(result.get_parent(), 1)
@@ -1366,3 +1388,47 @@ func _tutorial_attach() -> void:
     spotlight.skipped.connect(_skip_first_bout_guide)
     add_child(spotlight)
     spotlight.call_deferred("_position_dialogue")
+
+
+func _review_panel(heading: String, report: Dictionary) -> void:
+    var panel := _v17_panel(body, true)
+    _v17_title(panel, heading, 21)
+    _v17_copy(panel, "%d전 %d승 %d패 %d무 · 랭킹 #%d (%+d계단)" % [
+        report.fights, report.wins, report.losses, report.draws, report.rank, report.rank_gain], false)
+    _v17_copy(panel, "인기 %d (%+d) · %d경기 평균 능력치 %+.1f" % [
+        report.fans, report.fan_gain, int(report.fights) - int(report.since), report.skill_gain], true)
+    _v17_copy(panel, str(report.get("next_title", "")), false)
+    var span := int(report.fights) - int(report.since)
+    if span > 0:
+        _v17_copy(panel, "성장 속도 · 경기당 평균 능력치 %+.2f" % (float(report.skill_gain) / span), true)
+    _v17_copy(panel, "건강 %d · 부상 %s · 세계 타이틀 %s" % [
+        report.health, report.injury, "도전 가능" if report.title_ready else "자격 준비 중"], true)
+
+func _render_career_decision() -> void:
+    var c: Dictionary = GameState.state.career
+    if GameState.state.phase == "champion_choice":
+        _v17_section_heading("세계 챔피언", "방어전 %d / 3회 · 다음 경기에 도전하거나 지금 은퇴할 수 있습니다." % int(GameState.state.career_state.defenses))
+        for defend: bool in [true, false]:
+            var button := _v17_gold_button("방어전 준비" if defend else "챔피언으로 은퇴")
+            button.pressed.connect(func():
+                if GameState.champion_decision(defend):
+                    _render_phase()
+            )
+            body.add_child(button)
+        return
+    _review_panel("시즌 %d 평가" % (int(c.fights) / 4), GameState.season_review())
+    if int(c.fights) == 12 and GameState.state.career_state.has("milestone"):
+        _review_panel("12전 커리어 평가", GameState.state.career_state.milestone)
+    _v17_section_heading("다음 네 경기 계약", "랭킹을 반영한 파이트머니입니다. 계체 결과와 경기 비용은 정산 때 반영됩니다.")
+    var choices := VBoxContainer.new()
+    body.add_child(choices)
+    for id: String in GameState.League.CONTRACTS:
+        var contract: Dictionary = GameState.League.CONTRACTS[id]
+        var rate := roundi(GameState.League.contract_rate(GameState.state, id) * 100)
+        var button := _v17_gold_button("%s · %d%%\n%s" % [contract.name, rate, contract.detail])
+        button.name = "Contract_" + id
+        button.pressed.connect(func():
+            if GameState.sign_contract(id):
+                _render_phase()
+        )
+        choices.add_child(button)

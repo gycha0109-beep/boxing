@@ -36,26 +36,6 @@ def tier_for(points):
     return 'title'
 
 
-def base_offers(points):
-    cur=tier_for(points); idx=TIERS.index(cur); same=[]; lower=[]; higher=[]
-    for o in OPPS:
-        if o.get('title_fight'): continue
-        oi=TIERS.index(o['tier'])
-        if oi==idx: same.append(o)
-        elif oi==idx-1: lower.append(o)
-        elif oi==idx+1: higher.append(o)
-    out=[]
-    if lower: out.append(lower[0])
-    for o in same:
-        if len(out)<2: out.append(o)
-    if higher and len(out)<3: out.append(higher[0])
-    for bucket in (same,higher):
-        for o in bucket:
-            if len(out)>=3: break
-            if o not in out: out.append(o)
-    return out
-
-
 def next_title_kind(s):
     for kind in TITLE_ORDER:
         if kind not in s['titles']:
@@ -77,20 +57,31 @@ def title_opponent(kind):
 
 
 def offers(s):
-    out=[]
-    kind=eligible_title_kind(s)
-    if kind:
-        title=title_opponent(kind)
-        if title: out.append(title)
-    for o in base_offers(s['points']):
-        if o not in out: out.append(o)
-        if len(out)>=3: break
-    if len(out)<3:
-        for o in OPPS:
-            if o.get('title_fight'): continue
-            if o not in out: out.append(o)
-            if len(out)>=3: break
-    return out
+    kind = eligible_title_kind(s)
+    skill = sum(s['boxer'][k] for k in TRAINABLE) / len(TRAINABLE)
+    title = title_opponent(kind) if kind and (kind != 'world' or skill >= 46) else None
+    if s['champion']:
+        champions = [o for o in OPPS if o.get('title_kind') == 'world']
+        return [champions[(s['defenses'] + 1) % len(champions)]]
+    result = [title] if title else []
+    target = 42 + (skill - 44) * .5 + round(s['points'] * .49) * .32
+    target += max(-3, min(4, (s['wins'] - s['losses']) * .35)) + max(-2, min(2, s['streak']))
+    if not s['fights']:
+        target += (0, 6, 10)[s['background']]
+    elif s['contract']:
+        target += {'steady': -2, 'challenge': 5, 'draw': 1}[s['contract']]
+    if s.get('upset'):
+        target += 2
+    pool = [o for o in OPPS if not o.get('title_kind')]
+    for offset in (0, -4, 8 if s['reputation'] >= 15 or s['contract'] == 'draw' else 4):
+        if len(result) == 3:
+            break
+        def distance(o):
+            return abs(sum(o['stats'].values()) / 5 - target - offset) + 3 * (o['id'] == s['last_opp'])
+        best = min(pool, key=distance)
+        pool.remove(best)
+        result.append(best)
+    return result
 
 
 def choose_action(rng,s):
@@ -166,6 +157,9 @@ def maybe_buy_equipment(rng,s):
             if delta: s['boxer'][stat]=max(1,min(100,s['boxer'][stat]+delta))
 
 
+    return True
+
+
 def gym_percent(s,action_id):
     best=0.0
     for slot in s['equipment']['gym']:
@@ -183,7 +177,7 @@ def apply_camp(rng,s,a):
             raw=e[stat]; gain=max(1,round(raw*growth)) if raw>0 else raw
             b[stat]=max(1,min(100,b[stat]+gain))
     if a.get('kind','training')=='training':
-        pct=gym_percent(s,a['id'])
+        pct=gym_percent(s,a['id']) + (20 if s['background'] == 2 else 0)
         if pct>0:
             for stat in TRAINABLE:
                 raw=int(e.get(stat,0))
@@ -252,16 +246,22 @@ def apply_event(rng,s,last_result):
         if prefix and not last_result.startswith(prefix): continue
         eligible.extend([e]*max(1,int(e.get('weight',1))))
     if not eligible: return
-    e=rng.choice(eligible); eff=e['effects']; b=s['boxer']
+    preferred = ('quiet_week' if s['boxer']['injury'] else 'family_support' if s['streak'] <= -2
+                 else 'viral_clip' if last_result == 'WIN_KO' else 'local_sponsor' if s['streak'] >= 2
+                 else 'rival_callout' if s['upset'] or s['reputation'] >= 18 else '')
+    e=next((item for item in eligible if item['id']==preferred), None) or rng.choice(eligible)
+    eff=e['effects']; b=s['boxer']
     s['money']+=eff.get('money',0); s['reputation']=max(0,s['reputation']+eff.get('reputation',0)); b['fatigue']=max(0,min(100,b['fatigue']+eff.get('fatigue',0))); b['health']=max(0,min(100,b['health']+eff.get('health',0)))
     if 'injury' in eff: assign_injury(rng,b,eff['injury'])
 
 
 def ending(s):
     b=s['boxer']
-    if s['champion']: return 'world_champion'
+    if s.get('retire_champion'): return 'world_champion'
+    if s.get('lost_title'): return 'title_lost'
     if b['health']<=CB['retirement']['health_floor']: return 'health_retirement'
     if s['losses']>=CB['retirement']['loss_limit']: return 'loss_retirement'
+    if s.get('declining'): return 'decline_retirement'
     if s['money']<=CB['retirement']['debt_floor']: return 'bankrupt'
     if s['age_months']>=CB['calendar']['max_age_years']*12: return 'age_retirement'
     if s['fights']>=CB['calendar']['max_fights']: return 'fight_limit'
@@ -276,22 +276,42 @@ def simulate(seed):
         for stat,v in source.get('stat_bonus',{}).items():
             b[stat]=max(1,min(100,b[stat]+v))
     s={'boxer':b,'money':120000,'reputation':0,'wins':0,'losses':0,'draws':0,'fights':0,'points':0,'age_months':19*12,'champion':False,'injury_fights':0,'plan_counts':Counter(),'trait':trait['id'],'identity':identity['id'],'titles':[],'equipment':{'personal':{},'gym':{}},'growth_carry':{},'equipment_spent':0}
+    background = (seed - 1) % 3
+    s.update(background=background, contract=None, rate=1.0, streak=0, defenses=0, last_opp='', ever_champion=False)
+    s['money'] += (0, 35000, 65000)[background]
+    s['reputation'] += (0, 4, 9)[background]
+    for stat, bonus in ({}, {'technique': 5, 'speed': 3}, {'defense': 3, 'conditioning': 2})[background].items():
+        b[stat] += bonus
     while not ending(s):
-        maybe_buy_equipment(rng,s)
-        a=choose_action(rng,s); apply_camp(rng,s,a)
+        needs_care = b['health'] < 72 or b['fatigue'] > 58 or bool(b['injury']) or b['weight_kg'] > 61.65
+        if needs_care or not maybe_buy_equipment(rng,s):
+            a=choose_action(rng,s)
+            if a['cost'] <= s['money']:
+                apply_camp(rng,s,a)
+            else:
+                s['reputation'] += 2
         if b['injury']: s['injury_fights']+=1
         opts=offers(s); opp=choose_opp(rng,opts)
         if opp is None: break
         plan_id=choose_plan(rng,opp); s['plan_counts'][plan_id]+=1
+        booked = round(opp['purse']*s['rate']*(1+min(10,s['reputation']//5)/100))
         purse_mult=weigh_in(s)*b['modifiers'].get('purse_multiplier',1.0)
         out=fight(seed*1000+s['fights'],opp,effective_player(b),plan_id); result=out['result']
-        s['fights']+=1; s['age_months']+=CB['calendar']['months_per_fight']; gross=round(opp['purse']*purse_mult); s['money']+=round(gross*CB['economy']['purse_net_multiplier']); s['money']-=CB['economy']['cycle_cost_by_tier'].get(opp['tier'],0)
+        s['fights']+=1; s['age_months']+=CB['calendar']['months_per_fight']; gross=round(booked*purse_mult); s['money']+=round(gross*CB['economy']['purse_net_multiplier']); s['money']-=CB['economy']['cycle_cost_by_tier'].get(opp['tier'],0)
         ff=14; hl=1
         if result=='LOSS_KO': ff+=12; hl+=8
         elif result=='WIN_KO': ff+=5; hl+=2
         elif result.startswith('LOSS'): ff+=7; hl+=4
         hl+=round(max(0,100-out['player_hp'])/20)
         b['fatigue']=min(100,b['fatigue']+ff); b['health']=max(0,b['health']-hl); b['weight_kg']=min(68,b['weight_kg']+.35)
+        defending = s['champion']
+        s['upset'] = result.startswith('WIN') and opp['rank'] + 5 <= 50 - round(s['points']*.49)
+        s['last_opp'] = opp['id']
+        s['streak'] = max(0,s['streak'])+1 if result.startswith('WIN') else min(0,s['streak'])-1 if result.startswith('LOSS') else 0
+        if result.startswith('WIN'):
+            key = 'technique' if result=='WIN_DEC' else 'power'
+            b[key] = min(100,b[key]+1)
+            s['reputation'] += 2 * (result=='WIN_KO')
         rep_mult=b['modifiers'].get('reputation_multiplier',1.0)
         if result.startswith('WIN'):
             s['wins']+=1; s['reputation']+=round(opp['reputation_reward']*rep_mult); s['points']=min(100,s['points']+opp['career_points_win'])
@@ -299,7 +319,7 @@ def simulate(seed):
             if title_kind in TITLE_ORDER and title_kind not in s['titles']:
                 s['titles'].append(title_kind)
             elif title_kind=='world':
-                s['champion']=True
+                s['champion']=s['ever_champion']=True
         elif result.startswith('LOSS'):
             s['losses']+=1; s['reputation']=max(0,s['reputation']-2); s['points']=max(0,s['points']-opp['career_points_loss'])
         else:
@@ -307,7 +327,24 @@ def simulate(seed):
         chance=CB['injury']['base_fight_chance']+(CB['injury']['ko_loss_bonus'] if result=='LOSS_KO' else 0)+(CB['injury']['high_fatigue_bonus'] if b['fatigue']>=75 else 0)
         chance*=b['modifiers'].get('injury_risk_multiplier',1.0)
         if rng.random()<chance: assign_injury(rng,b)
+        if defending:
+            s['defenses'] += 1
+            if result.startswith('LOSS'):
+                s['lost_title'] = True
+                s['champion'] = False
+        if s['champion'] and (s['defenses'] == 3 or seed % 2 == 0):
+            s['retire_champion'] = True
+        if not ending(s) and not defending and s['streak'] <= -6 and b['health'] <= 30:
+            s['declining'] = True
+        if ending(s):
+            break
         apply_event(rng,s,result)
+        if ending(s):
+            break
+        if s['fights'] % 4 == 0:
+            s['contract'] = rng.choice(['steady','challenge','draw'])
+            ranking_bonus = min(10, round(s['points']*.49)//5)/100
+            s['rate'] = {'steady':1.1,'challenge':1.35,'draw':1.2+min(15,s['reputation']//5)/100}[s['contract']] + ranking_bonus
         rec=b['modifiers'].get('recovery_bonus',0); b['fatigue']=max(0,b['fatigue']-12-rec); b['health']=min(100,b['health']+2+rec//2)
         if b['injury']:
             b['injury']['remaining_camps']=max(0,b['injury']['remaining_camps']-1)
@@ -320,8 +357,8 @@ def main(n=10000):
     end=Counter(r['ending'] for r in runs); identities=Counter(r['identity'] for r in runs); plans=Counter(); title_counts=Counter()
     for r in runs:
         plans.update(r['plan_counts']); title_counts.update(r['titles'])
-    champ=end['world_champion']/n; avg_f=statistics.mean(r['fights'] for r in runs); avg_w=statistics.mean(r['wins'] for r in runs); avg_money=statistics.mean(r['money'] for r in runs); avg_spent=statistics.mean(r['equipment_spent'] for r in runs); injury_share=statistics.mean(r['injury_fights']/max(1,r['fights']) for r in runs)
-    print(f"careers={n} policy=base44_title_ladder_equipment")
+    champ=sum(r['ever_champion'] for r in runs)/n; avg_f=statistics.mean(r['fights'] for r in runs); avg_w=statistics.mean(r['wins'] for r in runs); avg_money=statistics.mean(r['money'] for r in runs); avg_spent=statistics.mean(r['equipment_spent'] for r in runs); injury_share=statistics.mean(r['injury_fights']/max(1,r['fights']) for r in runs)
+    print(f"careers={n} policy=one_activity_three_backgrounds_season_contracts")
     print(f"champion_rate={champ:.3f}")
     print(f"avg_fights={avg_f:.2f} avg_wins={avg_w:.2f} avg_final_money={avg_money:.0f} avg_equipment_spent={avg_spent:.0f}")
     print(f"injury_fight_share={injury_share:.3f}")

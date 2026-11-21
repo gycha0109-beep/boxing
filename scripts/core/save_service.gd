@@ -12,8 +12,22 @@ const DEFAULT_WORLD_YEAR := 2030
 const DEFAULT_LEGACY_CAPACITY := 3
 const MAX_LEGACY_CAPACITY := 5
 
+const League := preload("res://scripts/core/league_career.gd")
+static var _batch_depth := 0
+
+# Inherited career operations have intermediate checkpoints. Publish the completed
+# transition once, so a restart cannot repeat a purse, recovery or generation.
+static func begin_transition() -> void:
+    _batch_depth += 1
+
+static func finish_transition(state: Dictionary) -> bool:
+    _batch_depth -= 1
+    return save_game(state)
+
 static func save_game(state: Dictionary) -> bool:
     _ensure_foundation(state)
+    if _batch_depth > 0:
+        return true
     if not _validate_payload(state):
         return false
 
@@ -66,6 +80,9 @@ static func _load_from(path: String) -> Dictionary:
         return {}
     if not _validate_payload(payload):
         return {}
+    League.ensure(payload)
+    if str(payload.phase) in ["tactical_prep", "condition_prep"]:
+        payload.phase = "game_plan"
     return payload
 
 static func _load_previous_v2() -> Dictionary:
@@ -109,6 +126,8 @@ static func _load_legacy_v1() -> Dictionary:
 static func _migrate_v2(old: Dictionary) -> Dictionary:
     var migrated: Dictionary = old.duplicate(true)
     _ensure_foundation(migrated)
+    if str(migrated.phase) in ["tactical_prep", "condition_prep"]:
+        migrated.phase = "game_plan"
     return migrated
 
 static func _migrate_v1(old: Dictionary) -> Dictionary:
@@ -177,6 +196,7 @@ static func _ensure_foundation(payload: Dictionary) -> void:
     career_state["selected_game_plan"] = str(payload.get("selected_game_plan", ""))
     career_state["active_fight"] = payload.get("active_fight", {}).duplicate(true)
     payload["career_state"] = career_state
+    League.ensure(payload)
 
 static func _validate_payload(payload: Dictionary) -> bool:
     if not _validate_runtime_payload(payload):

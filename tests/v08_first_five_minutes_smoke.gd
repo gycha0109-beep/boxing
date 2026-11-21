@@ -24,39 +24,33 @@ func _run() -> void:
     _check(main_view.find_child("ReferenceTitle", true, false) != null, "fresh career renders the title")
     _check(_music_mode() == "menu", "title uses menu music")
     _check(main_view.find_child("FightStage", true, false) == null, "no ring before fight entry")
+    main_view._onboarding_install.clear()
+    main_view._guide_settings.clear()
     await _press("TitleNewCareer")
+    _saved_phase("tutorial_welcome")
+    main_view._skip_first_bout_guide()
+    await _settle()
     _saved_phase("style_select")
     _check(bool(Save.load_game().get("first_launch_acknowledged", false)), "title acknowledgement persists")
     _check(main_view.find_children("BoxerStyle_*", "Button", true, false).size() == game_state.boxing_styles().size(), "all defined styles are selectable")
     _check(main_view.find_child("BoxerStyleIntro", true, false) != null, "style selection explains what the player is choosing")
-    var style_instructions := main_view.find_child("BoxerStyleInstructions", true, false) as Label
-    _check(style_instructions != null and style_instructions.text.contains("2/2단계") and style_instructions.text.contains("다음 카드"), "style selection explains selection and the next card")
-    _check(main_view.find_child("BoxerStatGuide", true, false) != null, "style selection explains the stat guide")
+    var background := main_view.find_child("CareerBackground", true, false) as OptionButton
+    _check(background != null and background.item_count == 3, "three starting backgrounds")
+    var ring_name := main_view.find_child("CareerName", true, false) as LineEdit
+    if ring_name != null:
+        ring_name.text = "Debut QA"
+    _check(ring_name != null, "creation accepts a ring name")
     for style: Dictionary in game_state.boxing_styles():
         var style_id := str(style.get("id", ""))
         var description := main_view.find_child("BoxerStyleDescription_" + style_id, true, false) as Label
         _check(description != null and description.text == str(style.get("description", "")), "style card explains " + style_id)
-    var balanced_guide := main_view.find_child("BoxerStyleWalkthrough_balanced", true, false) as HBoxContainer
-    _check(balanced_guide != null and balanced_guide.visible, "style walkthrough starts by highlighting balanced")
-    await _press("BoxerStyleNext_balanced")
-    var pressure_guide := main_view.find_child("BoxerStyleWalkthrough_pressure_fighter", true, false) as HBoxContainer
-    _check(pressure_guide != null and pressure_guide.visible, "style walkthrough advances to pressure fighter")
-    await _press("BoxerStyleNext_pressure_fighter")
-    var outside_guide := main_view.find_child("BoxerStyleWalkthrough_out_boxer", true, false) as HBoxContainer
-    _check(outside_guide != null and outside_guide.visible, "style walkthrough advances to out boxer")
-    for stat: String in Creation.STATS:
-        var help := main_view.find_child("BoxerStatHelp_" + stat, true, false) as Label
-        _check(help != null and help.text == game_state.stat_help(stat), "style selection explains " + stat)
-    var conditioning_help := main_view.find_child("BoxerStatHelp_conditioning", true, false) as Label
-    var conditioning_label := conditioning_help.get_parent().get_child(0) as Label if conditioning_help != null else null
-    _check(conditioning_label != null and conditioning_label.text == "체력(지구력)", "stat guide distinguishes stamina from health")
-
     var trait_id := str(game_state.state.boxer.trait_id)
     var talent: Dictionary = game_state.talent_definition()
     _check(not trait_id.is_empty() and not talent.is_empty(), "new boxer receives one defined talent")
     await _press("BoxerStyle_out_boxer")
     _saved_phase("talent_reveal")
     var boxer: Dictionary = Save.load_game().boxer
+    _check(boxer.name == "Debut QA", "ring name persists")
     var styles_by_id: Dictionary = {}
     for style: Dictionary in game_state.boxing_styles():
         styles_by_id[str(style.get("id", ""))] = style
@@ -73,30 +67,7 @@ func _run() -> void:
     for hidden_value in ["0.025", "1.28", "1.12", "0.72", "0.94", "0.78", "1.18", "1.2", "0.82"]:
         _check(not talent_text.contains(hidden_value), "reveal hides internal tuning coefficient " + hidden_value)
 
-    _check(main_view.find_child("BoxerReselectTalent", true, false) is Button, "talent reveal lets the player open talent selection")
-    await _press("BoxerReselectTalent")
-    _saved_phase("talent_reveal")
-    _check(main_view.find_child("BoxerTalentPickerTitle", true, false) != null, "talent selection lists available choices")
-    _check(main_view.find_children("ReferenceBoxerCreation", "VBoxContainer", true, false).size() == 1, "talent picker replaces the reveal screen")
-    var talent_options: Array = game_state.talent_options()
-    _check(main_view.find_children("TalentSelect_*", "Button", true, false).size() == talent_options.size(), "every defined talent can be selected")
-    var chosen_trait_id := "technician" if trait_id != "technician" else "glass_cannon"
-    await _press("TalentSelect_" + chosen_trait_id)
-    _saved_phase("talent_reveal")
-    _check(main_view.find_children("ReferenceBoxerCreation", "VBoxContainer", true, false).size() == 1, "selected talent returns to one reveal screen")
-    trait_id = chosen_trait_id
-    talent = game_state.talent_definition()
-    boxer = Save.load_game().boxer
-    _check(boxer.trait_id == chosen_trait_id and boxer.trait_name == talent.get("name"), "chosen talent name and id persist")
-    _check((boxer.get("modifiers", {}) as Dictionary) == talent.get("modifiers", {}), "chosen talent gameplay modifiers persist")
-    talent_name = main_view.find_child("BoxerTalentName", true, false) as Label
-    _check(talent_name != null and talent_name.text == talent.get("name"), "reselection returns to the updated talent reveal")
-    for stat: String in Creation.STATS:
-        var bonus := int(talent.get("stat_bonus", {}).get(stat, 0))
-        var style_bonus := int(styles_by_id.get("out_boxer", {}).get("stat_bonus", {}).get(stat, 0))
-        _check(int(boxer.get(stat, 0)) == clampi(44 + bonus + style_bonus, 1, 100), "selected talent updates starting " + stat)
-
-    var first_style_boxer: Dictionary = boxer.duplicate(true)
+    _check(main_view.find_child("BoxerReselectTalent", true, false) == null, "assigned talent remains fixed")
     _check(main_view.find_child("BoxerReselectStyle", true, false) is Button, "talent reveal lets the player reselect the boxing style")
     await _press("BoxerReselectStyle")
     _saved_phase("style_select")
@@ -109,7 +80,7 @@ func _run() -> void:
     var pressure_bonus: Dictionary = styles_by_id.get("pressure_fighter", {}).get("stat_bonus", {})
     var out_bonus: Dictionary = styles_by_id.get("out_boxer", {}).get("stat_bonus", {})
     for stat: String in Creation.STATS:
-        var expected := clampi(int(first_style_boxer.get(stat, 50)) - int(out_bonus.get(stat, 0)) + int(pressure_bonus.get(stat, 0)), 1, 100)
+        var expected := clampi(int(boxer.get(stat, 50)) - int(out_bonus.get(stat, 0)) + int(pressure_bonus.get(stat, 0)), 1, 100)
         _check(int(reselection_boxer.get(stat, 0)) == expected, "reselection replaces rather than stacks the " + stat + " style bonus")
 
     await _press("BoxerBeginCareer")
@@ -151,17 +122,8 @@ func _run() -> void:
     var opponent: Dictionary = offers[0]
     _check(_text(main_view).contains(str(opponent.name)), "offers show the actual roster name")
     await _press("FightOfferSelect_" + str(opponent.id))
-    _saved_phase("tactical_prep")
-    _check(Save.load_game().selected_opponent == opponent.id, "selected opponent persists")
-    _check(_text(main_view).contains(str(opponent.name)), "tactical preparation shows the selected opponent")
-    await _press("PreparationSelect_distance_drill")
-    await _press("PreparationConfirm")
-    _saved_phase("condition_prep")
-    _check(Save.load_game().selected_tactical_prep == "distance_drill", "confirmed tactical preparation persists")
-    await _press("PreparationSelect_sharpness")
-    await _press("PreparationConfirm")
     _saved_phase("game_plan")
-    _check(Save.load_game().selected_condition_prep == "sharpness", "confirmed condition preparation persists")
+    _check(Save.load_game().selected_opponent == opponent.id, "scouting opens for the chosen opponent")
     var reading := main_view.find_child("ScoutingTendency_body", true, false) as Label
     _check(reading != null and reading.text == "%d%%" % roundi(float(opponent.tendencies.body) * 100.0), "scouting uses selected opponent data")
     await _press("ScoutingShowPlans")
@@ -222,6 +184,7 @@ func _settle() -> void:
 func _finish() -> void:
     main_view.queue_free()
     await _settle()
+    await create_timer(0.25).timeout
     for path in [Save.SAVE_PATH, Save.BACKUP_PATH]:
         if FileAccess.file_exists(path):
             DirAccess.remove_absolute(ProjectSettings.globalize_path(path))

@@ -105,14 +105,6 @@ func _run() -> void:
     _check(not offer_accept.disabled, "opponent selection did not unlock after analysis")
     offer_accept.pressed.emit()
     await process_frame
-    _coach("tactical_prep")
-    _check(bool(game_state.select_tactical_preparation(str(game_state.tactical_preparations()[0]["id"])).get("ok", false)), "tactical preparation failed")
-    main_view._render_phase()
-    await process_frame
-    _coach("condition_prep")
-    _check(bool(game_state.select_condition_preparation(str(game_state.condition_preparations()[0]["id"])).get("ok", false)), "condition preparation failed")
-    main_view._render_phase()
-    await process_frame
     _coach("game_plan")
     main_view._choose_game_plan("balanced")
     await process_frame
@@ -135,6 +127,17 @@ func _run() -> void:
     var fight_view: Node = main_view.body.get_node_or_null("ReferenceBattle")
     if fight_view != null:
         _check(str(fight_view.get("tutorial_target_action")) == "guard", "obsolete jab highlight remained on battle UI")
+    var saved := SaveService.load_game()
+    var checkpoint: Dictionary = saved.active_fight
+    _check(int(checkpoint.exchange_no) > 0 and not str(checkpoint.pending_opponent_action).is_empty(), "mid-fight checkpoint")
+    game_state.state = saved
+    main_view.combat = null
+    main_view.current_opponent = {}
+    main_view._start_fight()
+    var resumed: Dictionary = main_view.combat.export_state()
+    for key in ["round_no", "exchange_no", "player_hp", "opponent_hp", "player_stamina", "opponent_stamina"]:
+        _check(is_equal_approx(float(checkpoint[key]), float(resumed[key])), "resumed " + key)
+    _check(resumed.rng_state == checkpoint.rng_state and resumed.pending_opponent_action == checkpoint.pending_opponent_action, "restored the same pending exchange")
     for i in range(50):
         if bool(main_view.combat.snapshot().get("finished", false)):
             break

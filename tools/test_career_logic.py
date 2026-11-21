@@ -1,52 +1,33 @@
 #!/usr/bin/env python3
-import json
-from pathlib import Path
+from simulate_careers import CB, OPPS, TIERS, TITLE_ORDER, TRAINABLE, offers
 
-ROOT=Path(__file__).resolve().parents[1]
-OPPS=json.loads((ROOT/'data/opponents.json').read_text())
-CB=json.loads((ROOT/'data/career_balance.json').read_text())
-TIERS=[t['id'] for t in CB['career_points']['tiers']]
-
-def tier_for(points):
-    for t in CB['career_points']['tiers']:
-        if t['min'] <= points <= t['max']:
-            return t['id']
-    raise AssertionError(points)
-
-def offers(points):
-    cur=tier_for(points); idx=TIERS.index(cur); same=[]; lower=[]; higher=[]
-    for o in OPPS:
-        oi=TIERS.index(o['tier'])
-        if o['tier']=='title' and points<88: continue
-        if oi==idx: same.append(o)
-        elif oi==idx-1: lower.append(o)
-        elif oi==idx+1: higher.append(o)
-    out=[]
-    if lower: out.append(lower[0])
-    for o in same:
-        if len(out)<2: out.append(o)
-    if higher and len(out)<3: out.append(higher[0])
-    for bucket in (same,higher):
-        for o in bucket:
-            if len(out)>=3: break
-            if o not in out: out.append(o)
-    return out
 
 def main():
-    assert len({o['id'] for o in OPPS}) == len(OPPS)
-    for tier in TIERS:
-        assert any(o['tier']==tier for o in OPPS), tier
-    for points in [0,10,20,35,40,55,60,70,75,85,88,90,100]:
-        os=offers(points)
-        assert 1 <= len(os) <= 3, (points,len(os))
-        if points < 88:
-            assert not any(o.get('title_fight') for o in os), points
-    assert any(o.get('title_fight') for o in offers(90))
-    econ=CB['economy']
-    assert 0 < econ['purse_net_multiplier'] <= 1
-    assert set(econ['cycle_cost_by_tier']) == set(TIERS)
-    assert CB['retirement']['health_floor'] < 20
-    assert CB['retirement']['loss_limit'] >= 10
-    print('career-logic: PASS')
+    assert len({o["id"] for o in OPPS}) == len(OPPS)
+    assert {o["tier"] for o in OPPS} == set(TIERS)
+    state = dict(boxer=dict.fromkeys(TRAINABLE, 48), titles=[], background=0, fights=0,
+                 streak=0, reputation=0, points=0, wins=0, losses=0, last_opp="",
+                 contract=None, champion=False)
+    debuts = set()
+    for background in range(3):
+        state["background"] = background
+        choices = offers(state)
+        assert len({o["id"] for o in choices}) == 3
+        debuts.add(choices[0]["id"])
+    assert len(debuts) == 3
+    for points in range(0, 101, 5):
+        state["points"] = points
+        assert not any(o.get("title_fight") for o in offers(state))
+    state.update(fights=12, wins=12, titles=TITLE_ORDER.copy())
+    assert not any(o.get("title_kind") == "world" for o in offers(state))
+    state.update(fights=16, points=88)
+    assert offers(state)[0].get("title_kind") == "world"
+    assert 0 < CB["economy"]["purse_net_multiplier"] <= 1
+    assert set(CB["economy"]["cycle_cost_by_tier"]) == set(TIERS)
+    assert CB["retirement"]["health_floor"] < 20
+    assert CB["retirement"]["loss_limit"] >= 10
+    print("career-logic: PASS")
 
-if __name__=='__main__': main()
+
+if __name__ == "__main__":
+    main()

@@ -30,8 +30,11 @@ func select_opponent(opponent: Dictionary) -> void:
     state["selected_tactical_prep"] = ""
     state["selected_condition_prep"] = ""
     state.erase("pre_condition_snapshot")
-    state["phase"] = "tactical_prep"
+    state["phase"] = _opponent_selected_phase()
     SaveService.save_game(state)
+
+func _opponent_selected_phase() -> String:
+    return "tactical_prep"
 
 func tactical_preparations() -> Array:
     return _preparation_section("tactical")

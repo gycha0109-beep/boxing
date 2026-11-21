@@ -33,9 +33,8 @@ func _start_fixture() -> void:
     state.state["boxer"]["weight_kg"] = 60.9
     state.state["boxer"]["health"] = 84
     state.state["boxer"]["fatigue"] = 18
+    state.state.phase = "fight_offer"
     state.select_opponent(opponent)
-    state.select_tactical_preparation("distance_drill")
-    state.select_condition_preparation("sharpness")
     state.select_game_plan("outside_boxing")
 
 func _verify_result(id: String, verdict: String, cards: Array, round_number: int, expect_event: bool) -> void:

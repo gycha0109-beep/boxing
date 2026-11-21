@@ -102,6 +102,7 @@ func _test_ladder_title_fights_and_world_gate() -> void:
     _check(not game_state.world_title_ready(), "world title unlocked before minimum career length")
     _check(_offered_title(opponents, "world").is_empty(), "world champion appeared before 16 fights / 12 wins")
 
+    game_state.state.boxer.technique = 65
     _set_record(16, 12, 100)
     _check(game_state.world_title_ready(), "world title did not unlock after eliminator plus 16 fights / 12 wins")
     var world_title: Dictionary = _offered_title(opponents, "world")
