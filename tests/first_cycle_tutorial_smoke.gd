@@ -25,6 +25,13 @@ func _run() -> void:
     main_view._return_to_reference_title()
     main_view._start_new_career_from_title()
     await process_frame
+    _check(str(game_state.state.get("phase", "")) == "tutorial_welcome", "welcome screen missing")
+    _check(main_view.body.get_node_or_null("FirstCycleStory") != null, "welcome presentation missing")
+    main_view._tutorial_story_next()
+    await process_frame
+    _check(str(game_state.state.get("phase", "")) == "tutorial_overview", "overview missing")
+    main_view._tutorial_story_next()
+    await process_frame
     await process_frame
     _check(bool(game_state.state.get("first_cycle_tutorial", {}).get("active", false)), "new career did not activate tutorial")
     _coach("style_select")
@@ -35,7 +42,7 @@ func _run() -> void:
         for child in creation.get_children():
             if str(child.name).begins_with("BoxerStyleCard_") and child.visible:
                 visible_cards += 1
-        _check(visible_cards == 1, "creation must show only one style at a time")
+        _check(visible_cards == game_state.boxing_styles().size(), "all existing styles must be visible")
 
     _check(bool(game_state.select_boxing_style("balanced").get("ok", false)), "style selection failed")
     main_view._render_phase()
@@ -47,6 +54,9 @@ func _run() -> void:
     _coach("camp")
     _check(not main_view.camp_actions.is_empty(), "no camp actions")
     main_view._choose_camp_action(main_view.camp_actions[0])
+    await process_frame
+    _check(main_view.body.get_node_or_null("FirstCycleStory") != null, "training result screen missing")
+    main_view._tutorial_story_next()
     await process_frame
     _coach("fight_offer")
     var offers: Array = game_state.get_fight_offers(main_view.opponents)
@@ -93,6 +103,9 @@ func _run() -> void:
         _coach("result")
         main_view._continue_from_reference_result()
         await process_frame
+        _check(main_view.body.get_node_or_null("FirstCycleStory") != null, "tutorial completion screen missing")
+        main_view._tutorial_story_next()
+        await process_frame
         var tutorial: Dictionary = game_state.state.get("first_cycle_tutorial", {})
         _check(bool(tutorial.get("complete", false)), "tutorial not marked completed after settlement")
         _check(not bool(tutorial.get("active", true)), "tutorial still active after settlement")
@@ -101,7 +114,7 @@ func _run() -> void:
 
 func _coach(expected_phase: String) -> void:
     _check(str(game_state.state.get("phase", "")) == expected_phase, "wrong phase, expected " + expected_phase)
-    _check(main_view.body.get_node_or_null("FirstCycleCoach") != null, "missing coach in " + expected_phase)
+    _check(main_view.get_node_or_null("FirstCycleSpotlight") != null or expected_phase == "game_plan", "missing tutorial spotlight in " + expected_phase)
 
 
 func _check(condition: bool, message: String) -> void:

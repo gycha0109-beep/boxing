@@ -17,6 +17,8 @@ const REFERENCE_EVENT := preload("res://scripts/ui/reference_career_event_view.g
 const REFERENCE_EQUIPMENT := preload("res://scripts/ui/reference_equipment_shop.gd")
 const REFERENCE_CAREER := preload("res://scripts/ui/reference_career_record.gd")
 const FIRST_BOUT_GUIDE_SETTINGS := "user://first_bout_guide.cfg"
+const FIRST_CYCLE_STORY := preload("res://scripts/ui/first_cycle_story_view.gd")
+const FIRST_CYCLE_SPOTLIGHT := preload("res://scripts/ui/first_cycle_spotlight.gd")
 
 var v19_top_bar: HBoxContainer
 var v19_menu_button: Button
@@ -119,16 +121,19 @@ func _v19_apply_phase_chrome() -> void:
     if GameState.state.is_empty():
         return
     var in_fight := not launch_gate_active and str(GameState.state.get("phase", "")) == "fight" and v17_overlay.is_empty()
+    var in_story := _tutorial_special_screen()
+    var guided := _tutorial_active()
     if is_instance_valid(v19_bottom_nav):
-        v19_bottom_nav.visible = not in_fight and not launch_gate_active
+        v19_bottom_nav.visible = not in_fight and not launch_gate_active and not in_story and not guided
     if is_instance_valid(v19_top_bar):
+        v19_top_bar.visible = not in_story
         v19_top_bar.custom_minimum_size.y = 46 if in_fight else 62
     if is_instance_valid(v19_menu_button):
-        v19_menu_button.visible = not in_fight and not launch_gate_active
+        v19_menu_button.visible = not in_fight and not launch_gate_active and not guided
     if is_instance_valid(v19_money_box):
-        v19_money_box.visible = not in_fight
+        v19_money_box.visible = not in_fight and not guided
     if is_instance_valid(v19_settings_button):
-        v19_settings_button.visible = not in_fight
+        v19_settings_button.visible = not in_fight and not guided
 
 func _render_tactical_preparation() -> void:
     _render_reference_preparation(true)
@@ -327,7 +332,7 @@ func _render_fight(animated_exchange: Dictionary = {}) -> void:
     var stage := FightStage.new()
     stage.close_up = true
     stage.clip_contents = true
-    stage.custom_minimum_size.y = 395.0
+    stage.custom_minimum_size.y = 320.0 if _tutorial_active() else 395.0
     stage.configure(str(boxer.get("name", "")), str(current_opponent.get("name", "")), snap, telegraph)
     stage.opponent_style = _v17_visual_style(current_opponent)
     stage.title_fight = bool(current_opponent.get("title_fight", false))
@@ -415,6 +420,7 @@ func _continue_from_reference_result() -> void:
         var tutorial: Dictionary = GameState.state.get("first_cycle_tutorial", {}).duplicate(true)
         tutorial["complete"] = true
         tutorial["active"] = false
+        tutorial["complete_pending"] = true
         GameState.state["first_cycle_tutorial"] = tutorial
         SaveService.save_game(GameState.state)
     GameState.advance_after_result()
@@ -591,7 +597,10 @@ func _start_new_career_from_title() -> void:
     current_opponent = {}
     combat = null
     super._start_new_career_from_title()
-    GameState.state["first_cycle_tutorial"] = {"active": _first_bout_guide_enabled(), "complete": false, "actions_seen": []}
+    var guided := _first_bout_guide_enabled()
+    GameState.state["first_cycle_tutorial"] = {"active": guided, "complete": false, "actions_seen": []}
+    if guided:
+        GameState.state["phase"] = "tutorial_welcome"
     SaveService.save_game(GameState.state)
     _render_phase()
     _reset_reference_scroll()
@@ -601,6 +610,9 @@ func _start_new_career_from_title() -> void:
 func _render_phase() -> void:
     if launch_gate_active:
         _render_launch_title()
+        return
+    if _tutorial_special_screen():
+        _render_tutorial_story()
         return
     if v17_overlay in ["match_blocked", "training_blocked"]:
         _clear_body()
@@ -845,6 +857,14 @@ func _set_first_bout_guide(enabled: bool) -> void:
             SaveService.save_game(GameState.state)
 
 func _skip_first_bout_guide() -> void:
+    if str(GameState.state.get("phase", "")) in ["tutorial_welcome", "tutorial_overview"]:
+        GameState.state["phase"] = "style_select"
+    var tutorial: Dictionary = GameState.state.get("first_cycle_tutorial", {}).duplicate(true)
+    tutorial.erase("training_result_pending")
+    tutorial.erase("complete_pending")
+    tutorial["active"] = false
+    GameState.state["first_cycle_tutorial"] = tutorial
+    SaveService.save_game(GameState.state)
     _set_first_bout_guide(false)
     _render_phase()
 
@@ -981,6 +1001,10 @@ func _choose_camp_action(action: Dictionary) -> void:
         "changes": changes,
         "injury": injury_message,
     }
+    if _tutorial_active():
+        var tutorial: Dictionary = GameState.state.get("first_cycle_tutorial", {}).duplicate(true)
+        tutorial["training_result_pending"] = true
+        GameState.state["first_cycle_tutorial"] = tutorial
     SaveService.save_game(GameState.state)
     _render_phase()
     _reset_reference_scroll()
@@ -1083,56 +1107,100 @@ func _choose_fight_action(action: String) -> void:
     super._choose_fight_action(action)
 
 
+func _tutorial_special_screen() -> bool:
+    if not v17_overlay.is_empty():
+        return false
+    var phase := str(GameState.state.get("phase", ""))
+    if phase in ["tutorial_welcome", "tutorial_overview"]:
+        return true
+    var tutorial: Dictionary = GameState.state.get("first_cycle_tutorial", {})
+    return bool(tutorial.get("training_result_pending", false)) or bool(tutorial.get("complete_pending", false))
+
+
+func _render_tutorial_story() -> void:
+    var previous_spotlight := get_node_or_null("FirstCycleSpotlight")
+    if previous_spotlight != null:
+        remove_child(previous_spotlight)
+        previous_spotlight.queue_free()
+    _clear_body()
+    _render_status()
+    var tutorial: Dictionary = GameState.state.get("first_cycle_tutorial", {})
+    var phase := str(GameState.state.get("phase", ""))
+    var view := FIRST_CYCLE_STORY.new()
+    if phase == "tutorial_welcome":
+        view.mode = "welcome"
+    elif phase == "tutorial_overview":
+        view.mode = "overview"
+    elif bool(tutorial.get("training_result_pending", false)):
+        view.mode = "training_result"
+        view.training_result = GameState.state.get("last_camp_result", {})
+    else:
+        view.mode = "finished"
+    view.font = _v18_font(620)
+    view.next_requested.connect(_tutorial_story_next)
+    view.skip_requested.connect(_skip_first_bout_guide)
+    body.add_child(view)
+    _configure_mobile_scroll()
+    _reset_reference_scroll()
+    _v17_sync_nav()
+
+
+func _tutorial_story_next() -> void:
+    var phase := str(GameState.state.get("phase", ""))
+    var tutorial: Dictionary = GameState.state.get("first_cycle_tutorial", {}).duplicate(true)
+    if phase == "tutorial_welcome":
+        GameState.state["phase"] = "tutorial_overview"
+    elif phase == "tutorial_overview":
+        GameState.state["phase"] = "style_select"
+    elif bool(tutorial.get("training_result_pending", false)):
+        tutorial.erase("training_result_pending")
+    elif bool(tutorial.get("complete_pending", false)):
+        tutorial.erase("complete_pending")
+    GameState.state["first_cycle_tutorial"] = tutorial
+    SaveService.save_game(GameState.state)
+    _render_phase()
+
+
 func _tutorial_attach() -> void:
+    var old := get_node_or_null("FirstCycleSpotlight")
+    if old != null:
+        remove_child(old)
+        old.queue_free()
     if not _tutorial_active() or launch_gate_active or not v17_overlay.is_empty():
         return
     if not is_instance_valid(body):
         return
     var phase := str(GameState.state.get("phase", ""))
-    var guidance: Dictionary = {
-        "style_select": [1, "선수 스타일", "좌우로 스타일을 살펴보고 마음에 드는 복서를 선택하세요."],
-        "talent_reveal": [2, "타고난 재능", "이 복서의 고유한 장점을 확인하고 재능을 확정하세요."],
-        "camp": [3, "첫 훈련", "훈련이나 회복 하나를 직접 고르세요. 피로와 능력치가 실제로 달라집니다."],
-        "fight_offer": [4, "상대 계약", "난이도와 보상을 비교해 첫 상대를 선택하세요. 쉬운 상대를 추천합니다."],
-        "tactical_prep": [5, "전술 준비", "상대의 습관을 보고 이번 경기에 사용할 전술을 하나 정하세요."],
-        "condition_prep": [6, "몸 상태 정리", "피로와 체중을 확인하고 경기 직전 컨디션을 결정하세요."],
-        "game_plan": [7, "상대 분석", "강점·약점과 추천 전략을 확인하고 게임플랜을 직접 선택하세요."],
-        "result": [9, "경기 정산", "승패·파이트머니·건강·피로 변화를 확인하고 다음으로 진행하세요."],
+    var info: Dictionary = {
+        "style_select": ["1/10 · 선수 스타일", "복싱 스타일을 비교한 뒤 원하는 카드를 선택하세요.", "BoxerStyle_balanced"],
+        "talent_reveal": ["2/10 · 선수 재능", "타고난 재능을 정하고 복서를 확정하세요.", "BoxerBeginCareer"],
+        "camp": ["3/10 · 첫 훈련", "실제 훈련을 골라 능력치 변화를 확인하세요.", "TrainingSelect_sparring"],
+        "fight_offer": ["5/10 · 첫 상대", "상대의 난이도와 보상을 비교하고 계약하세요.", "FightOfferSelect_*"],
+        "tactical_prep": ["6/10 · 전술 준비", "상대의 습관에 맞춰 전술을 선택하세요.", "PreparationSelect_*"],
+        "condition_prep": ["6/10 · 몸 상태", "피로와 체중을 확인하고 컨디션을 결정하세요.", "PreparationSelect_*"],
+        "game_plan": ["7/10 · 경기 분석", "상대의 강점과 약점을 읽고 게임플랜으로 넘어가세요.", "ScoutingShowPlans"],
+        "result": ["9/10 · 경기 정산", "전적, 파이트머니, 건강과 피로 변화를 확인하세요.", "FightResultContinue"],
     }
-    if phase == "fight" or not guidance.has(phase):
+    if phase == "fight" and _needs_weigh_in_interstitial():
+        info["fight"] = ["7/10 · 공식 계체", "체중 판정을 확인하고 실제 경기에 입장하세요.", "WeighInEnterFight"]
+    elif phase == "fight":
+        var action := _tutorial_next_action()
+        if action.is_empty():
+            return
+        info["fight"] = ["8/10 · 경기 실전", "%s 공격을 직접 시도해보세요. 결과는 실제 전투로 계산됩니다." % {"jab":"잽", "guard":"가드", "body":"바디", "power":"파워", "counter":"카운터"}.get(action, action), "FightAction_" + action]
+    if not info.has(phase):
         return
-    var previous := body.get_node_or_null("FirstCycleCoach")
-    if previous != null:
-        body.remove_child(previous)
-        previous.queue_free()
-    var entry: Array = guidance[phase]
-    var panel := PanelContainer.new()
-    panel.name = "FirstCycleCoach"
-    panel.add_theme_stylebox_override("panel", REFERENCE_UI.beveled_panel_style(Color("#101d2a"), REFERENCE_UI.GOLD_BRIGHT, 7))
-    body.add_child(panel)
-    body.move_child(panel, 0)
-    var column := VBoxContainer.new()
-    column.add_theme_constant_override("separation", 4)
-    panel.add_child(column)
-    var heading := HBoxContainer.new()
-    column.add_child(heading)
-    var label := Label.new()
-    label.text = "코치  ·  첫 경기 %d/9  ·  %s" % [int(entry[0]), str(entry[1])]
-    label.add_theme_color_override("font_color", REFERENCE_UI.GOLD_BRIGHT)
-    label.add_theme_font_size_override("font_size", 13)
-    label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    heading.add_child(label)
-    var skip := Button.new()
-    skip.name = "FirstCycleSkip"
-    skip.text = "안내 끄기"
-    skip.custom_minimum_size = Vector2(78, 34)
-    skip.add_theme_font_size_override("font_size", 11)
-    skip.pressed.connect(_skip_first_bout_guide)
-    heading.add_child(skip)
-    var instruction := Label.new()
-    instruction.name = "FirstCycleInstruction"
-    instruction.text = str(entry[2])
-    instruction.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-    instruction.add_theme_font_size_override("font_size", 12)
-    instruction.add_theme_color_override("font_color", Color("#e8edf2"))
-    column.add_child(instruction)
+    var entry: Array = info[phase]
+    if phase == "fight" and _needs_weigh_in_interstitial():
+        entry = ["7/10 · 공식 계체", "체중 판정을 확인하고 실제 경기에 입장하세요.", "WeighInEnterFight"]
+    var target := body.find_child(str(entry[2]), true, false) as Control
+    if target == null:
+        return
+    var spotlight := FIRST_CYCLE_SPOTLIGHT.new()
+    spotlight.focus = target
+    spotlight.font = _v18_font(580)
+    spotlight.step_title = str(entry[0])
+    spotlight.instruction = str(entry[1])
+    spotlight.skipped.connect(_skip_first_bout_guide)
+    add_child(spotlight)
+    spotlight.call_deferred("_position_dialogue")
