@@ -489,8 +489,15 @@ func _render_reference_creation(choosing_style: bool) -> void:
         view.talent = GameState.talent_definition()
     view.style_chosen.connect(_choose_boxing_style, CONNECT_DEFERRED)
     view.talent_confirmed.connect(_confirm_talent, CONNECT_DEFERRED)
+    view.style_reselect_requested.connect(_return_to_style_selection, CONNECT_DEFERRED)
     body.add_child(view)
     _reset_reference_scroll()
+
+func _return_to_style_selection() -> void:
+    if str(GameState.state.get("phase", "")) != "talent_reveal":
+        return
+    GameState.begin_boxer_creation()
+    _render_phase()
 
 
 func _render_launch_title() -> void:

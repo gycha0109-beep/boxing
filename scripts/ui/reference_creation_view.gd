@@ -2,6 +2,7 @@ extends VBoxContainer
 
 signal style_chosen(style_id: String)
 signal talent_confirmed()
+signal style_reselect_requested()
 
 const UI := preload("res://scripts/ui/reference_ui.gd")
 const Art := preload("res://scripts/ui/reference_result_art.gd")
@@ -273,6 +274,17 @@ func _talent_reveal() -> void:
     _label(details, str(talent.get("description", "이 선수만의 타고난 장단점입니다.")), 13, PAPER, null, true)
     _stat_changes(details, talent.get("stat_bonus", {}))
     _label(details, "이 선수의 재능은 커리어 동안 유지됩니다.", 11, MUTED)
+
+    var reselect := _secondary_action("복싱 스타일 다시 선택", 14, 48)
+    reselect.name = "BoxerReselectStyle"
+    reselect.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    reselect.tooltip_text = "스타일 선택으로 돌아가 다른 복싱 스타일을 고릅니다."
+    reselect.pressed.connect(func():
+        if not _submitted and not is_queued_for_deletion():
+            _submitted = true
+            style_reselect_requested.emit()
+    )
+    add_child(reselect)
 
     var stats := _column(_panel(self), 3)
     var heading := _row(stats, 5)

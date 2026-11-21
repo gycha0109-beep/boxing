@@ -70,6 +70,25 @@ func _run() -> void:
     for hidden_value in ["0.025", "1.28", "1.12", "0.72", "0.94", "0.78", "1.18", "1.2", "0.82"]:
         _check(not talent_text.contains(hidden_value), "reveal hides internal tuning coefficient " + hidden_value)
 
+    var first_style_boxer: Dictionary = boxer.duplicate(true)
+    var styles_by_id: Dictionary = {}
+    for style: Dictionary in game_state.boxing_styles():
+        styles_by_id[str(style.get("id", ""))] = style
+    _check(main_view.find_child("BoxerReselectStyle", true, false) is Button, "talent reveal lets the player reselect the boxing style")
+    await _press("BoxerReselectStyle")
+    _saved_phase("style_select")
+    _check(str(Save.load_game().boxer.trait_id) == trait_id, "returning to style selection preserves the revealed talent")
+    await _press("BoxerStyle_pressure_fighter")
+    _saved_phase("talent_reveal")
+    var reselection_boxer: Dictionary = Save.load_game().boxer
+    _check(reselection_boxer.identity_id == "pressure_fighter", "reselected boxing style persists")
+    _check(reselection_boxer.trait_id == trait_id, "reselecting the style preserves the same talent")
+    var pressure_bonus: Dictionary = styles_by_id.get("pressure_fighter", {}).get("stat_bonus", {})
+    var out_bonus: Dictionary = styles_by_id.get("out_boxer", {}).get("stat_bonus", {})
+    for stat: String in Creation.STATS:
+        var expected := clampi(int(first_style_boxer.get(stat, 50)) - int(out_bonus.get(stat, 0)) + int(pressure_bonus.get(stat, 0)), 1, 100)
+        _check(int(reselection_boxer.get(stat, 0)) == expected, "reselection replaces rather than stacks the " + stat + " style bonus")
+
     await _press("BoxerBeginCareer")
     _saved_phase("camp")
     _check(_music_mode() == "career", "camp uses career music")
@@ -92,7 +111,7 @@ func _run() -> void:
     await _press("TrainingSelect_mitts")
     _saved_phase("fight_offer")
     var camp := Save.load_game()
-    _check(int(camp.boxer.technique) > int(boxer.technique) and int(camp.boxer.fatigue) > int(boxer.fatigue), "training saves the actual stat gain and fatigue")
+    _check(int(camp.boxer.technique) > int(reselection_boxer.technique) and int(camp.boxer.fatigue) > int(reselection_boxer.fatigue), "training saves the actual stat gain and fatigue")
     _check(_music_mode() == "fight_week", "offers use fight-week music")
     var offers: Array = game_state.get_fight_offers(main_view.opponents)
     if offers.is_empty():
