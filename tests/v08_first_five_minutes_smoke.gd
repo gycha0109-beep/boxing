@@ -57,6 +57,9 @@ func _run() -> void:
     await _press("BoxerStyle_out_boxer")
     _saved_phase("talent_reveal")
     var boxer: Dictionary = Save.load_game().boxer
+    var styles_by_id: Dictionary = {}
+    for style: Dictionary in game_state.boxing_styles():
+        styles_by_id[str(style.get("id", ""))] = style
     _check(boxer.identity_id == "out_boxer" and boxer.trait_id == trait_id, "chosen style and original talent persist")
     var talent_name := main_view.find_child("BoxerTalentName", true, false) as Label
     _check(talent_name != null and talent_name.text == talent.get("name"), "reveal shows the correct talent")
@@ -70,10 +73,30 @@ func _run() -> void:
     for hidden_value in ["0.025", "1.28", "1.12", "0.72", "0.94", "0.78", "1.18", "1.2", "0.82"]:
         _check(not talent_text.contains(hidden_value), "reveal hides internal tuning coefficient " + hidden_value)
 
+    _check(main_view.find_child("BoxerReselectTalent", true, false) is Button, "talent reveal lets the player open talent selection")
+    await _press("BoxerReselectTalent")
+    _saved_phase("talent_reveal")
+    _check(main_view.find_child("BoxerTalentPickerTitle", true, false) != null, "talent selection lists available choices")
+    _check(main_view.find_children("ReferenceBoxerCreation", "VBoxContainer", true, false).size() == 1, "talent picker replaces the reveal screen")
+    var talent_options: Array = game_state.talent_options()
+    _check(main_view.find_children("TalentSelect_*", "Button", true, false).size() == talent_options.size(), "every defined talent can be selected")
+    var chosen_trait_id := "technician" if trait_id != "technician" else "glass_cannon"
+    await _press("TalentSelect_" + chosen_trait_id)
+    _saved_phase("talent_reveal")
+    _check(main_view.find_children("ReferenceBoxerCreation", "VBoxContainer", true, false).size() == 1, "selected talent returns to one reveal screen")
+    trait_id = chosen_trait_id
+    talent = game_state.talent_definition()
+    boxer = Save.load_game().boxer
+    _check(boxer.trait_id == chosen_trait_id and boxer.trait_name == talent.get("name"), "chosen talent name and id persist")
+    _check((boxer.get("modifiers", {}) as Dictionary) == talent.get("modifiers", {}), "chosen talent gameplay modifiers persist")
+    talent_name = main_view.find_child("BoxerTalentName", true, false) as Label
+    _check(talent_name != null and talent_name.text == talent.get("name"), "reselection returns to the updated talent reveal")
+    for stat: String in Creation.STATS:
+        var bonus := int(talent.get("stat_bonus", {}).get(stat, 0))
+        var style_bonus := int(styles_by_id.get("out_boxer", {}).get("stat_bonus", {}).get(stat, 0))
+        _check(int(boxer.get(stat, 0)) == clampi(44 + bonus + style_bonus, 1, 100), "selected talent updates starting " + stat)
+
     var first_style_boxer: Dictionary = boxer.duplicate(true)
-    var styles_by_id: Dictionary = {}
-    for style: Dictionary in game_state.boxing_styles():
-        styles_by_id[str(style.get("id", ""))] = style
     _check(main_view.find_child("BoxerReselectStyle", true, false) is Button, "talent reveal lets the player reselect the boxing style")
     await _press("BoxerReselectStyle")
     _saved_phase("style_select")

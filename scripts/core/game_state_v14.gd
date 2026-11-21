@@ -83,6 +83,31 @@ func talent_definition() -> Dictionary:
             return talent_data.duplicate(true)
     return {}
 
+func talent_options() -> Array:
+    return traits.duplicate(true)
+
+func select_talent(trait_id: String) -> Dictionary:
+    if str(state.get("phase", "")) != "talent_reveal":
+        return {"ok": false, "reason": "wrong_phase"}
+    var selected: Dictionary = _pick_trait(trait_id)
+    if selected.is_empty() or str(selected.get("id", "")) != trait_id:
+        return {"ok": false, "reason": "unknown_talent"}
+
+    var boxer: Dictionary = state.get("boxer", {})
+    var previous: Dictionary = talent_definition()
+    var previous_bonus: Dictionary = previous.get("stat_bonus", {})
+    var selected_bonus: Dictionary = selected.get("stat_bonus", {})
+    for stat in TRAINABLE_STATS:
+        var without_old := int(boxer.get(stat, 50)) - int(previous_bonus.get(stat, 0))
+        boxer[stat] = clamp(without_old + int(selected_bonus.get(stat, 0)), 1, 100)
+    boxer["trait_id"] = str(selected.get("id", ""))
+    boxer["trait_name"] = str(selected.get("name", "무특성"))
+    boxer["modifiers"] = selected.get("modifiers", {}).duplicate(true)
+    state["boxer"] = boxer
+    state["talent_revealed"] = true
+    SaveService.save_game(state)
+    return {"ok": true, "talent": selected.duplicate(true)}
+
 func confirm_talent() -> Dictionary:
     if str(state.get("phase", "")) != "talent_reveal":
         return {"ok": false, "reason": "wrong_phase"}

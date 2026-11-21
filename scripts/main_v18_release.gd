@@ -471,25 +471,34 @@ func _render_style_select() -> void:
 func _render_talent_reveal() -> void:
     _render_reference_creation(false)
 
-func _render_reference_creation(choosing_style: bool) -> void:
+func _render_reference_creation(choosing_style: bool, choosing_talent: bool = false) -> void:
     var previous := body.get_node_or_null("ReferenceBoxerCreation")
-    if previous != null and previous.is_queued_for_deletion():
+    if previous != null:
         body.remove_child(previous)
+        if not previous.is_queued_for_deletion():
+            previous.queue_free()
     var view := REFERENCE_CREATION.new()
     view.name = "ReferenceBoxerCreation"
     view.choosing_style = choosing_style
+    view.choosing_talent = choosing_talent
     view.heading_font = REFERENCE_UI.heading_font(_v18_font(780))
     view.bold_font = _v18_font(620)
     for stat: String in REFERENCE_CREATION.STATS:
         view.stat_help[stat] = GameState.stat_help(stat)
     if choosing_style:
         view.styles = GameState.boxing_styles()
+    elif choosing_talent:
+        view.boxer = GameState.state.get("boxer", {})
+        view.talents = GameState.talent_options()
     else:
         view.boxer = GameState.state.get("boxer", {})
         view.talent = GameState.talent_definition()
     view.style_chosen.connect(_choose_boxing_style, CONNECT_DEFERRED)
     view.talent_confirmed.connect(_confirm_talent, CONNECT_DEFERRED)
     view.style_reselect_requested.connect(_return_to_style_selection, CONNECT_DEFERRED)
+    view.talent_picker_requested.connect(_open_talent_picker, CONNECT_DEFERRED)
+    view.talent_chosen.connect(_select_talent, CONNECT_DEFERRED)
+    view.talent_picker_cancelled.connect(_close_talent_picker, CONNECT_DEFERRED)
     body.add_child(view)
     _reset_reference_scroll()
 
@@ -498,6 +507,20 @@ func _return_to_style_selection() -> void:
         return
     GameState.begin_boxer_creation()
     _render_phase()
+
+func _open_talent_picker() -> void:
+    if str(GameState.state.get("phase", "")) != "talent_reveal":
+        return
+    _render_reference_creation(false, true)
+
+func _select_talent(talent_id: String) -> void:
+    var result: Dictionary = GameState.select_talent(talent_id)
+    if bool(result.get("ok", false)):
+        _render_phase()
+
+func _close_talent_picker() -> void:
+    if str(GameState.state.get("phase", "")) == "talent_reveal":
+        _render_phase()
 
 
 func _render_launch_title() -> void:

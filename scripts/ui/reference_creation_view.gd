@@ -3,6 +3,9 @@ extends VBoxContainer
 signal style_chosen(style_id: String)
 signal talent_confirmed()
 signal style_reselect_requested()
+signal talent_picker_requested()
+signal talent_chosen(talent_id: String)
+signal talent_picker_cancelled()
 
 const UI := preload("res://scripts/ui/reference_ui.gd")
 const Art := preload("res://scripts/ui/reference_result_art.gd")
@@ -27,7 +30,9 @@ const GREEN := Color("#9ddfa9")
 const RED := Color("#f2a091")
 
 var choosing_style := true
+var choosing_talent := false
 var styles: Array
+var talents: Array
 var boxer: Dictionary
 var talent: Dictionary
 var stat_help: Dictionary
@@ -51,6 +56,8 @@ func _ready() -> void:
     _masthead()
     if choosing_style:
         _style_picker()
+    elif choosing_talent:
+        _talent_picker()
     else:
         _talent_reveal()
 
@@ -275,6 +282,17 @@ func _talent_reveal() -> void:
     _stat_changes(details, talent.get("stat_bonus", {}))
     _label(details, "이 선수의 재능은 커리어 동안 유지됩니다.", 11, MUTED)
 
+    var change_talent := _secondary_action("재능 다시 선택", 14, 48)
+    change_talent.name = "BoxerReselectTalent"
+    change_talent.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    change_talent.tooltip_text = "커리어를 시작하기 전에 타고난 재능을 바꿉니다."
+    change_talent.pressed.connect(func():
+        if not _submitted and not is_queued_for_deletion():
+            _submitted = true
+            talent_picker_requested.emit()
+    )
+    add_child(change_talent)
+
     var reselect := _secondary_action("복싱 스타일 다시 선택", 14, 48)
     reselect.name = "BoxerReselectStyle"
     reselect.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -306,6 +324,49 @@ func _talent_reveal() -> void:
             talent_confirmed.emit()
     )
     add_child(begin)
+
+func _talent_picker() -> void:
+    var guidance := _column(_panel(self), 2)
+    var title := _label(guidance, "타고난 재능을 선택하세요", 15, UI.GOLD_BRIGHT, heading_font)
+    title.name = "BoxerTalentPickerTitle"
+    var instructions := _label(guidance, "재능을 고르면 시작 능력치와 커리어 특성이 바뀝니다. 원하는 재능의 [이 재능 선택]을 누르세요. 커리어를 시작하기 전에는 언제든 다시 바꿀 수 있습니다.", 12, MUTED, null, true)
+    instructions.name = "BoxerTalentPickerInstructions"
+
+    var current_id := str(boxer.get("trait_id", ""))
+    for talent_value: Dictionary in talents:
+        var id := str(talent_value.get("id", ""))
+        var is_current := id == current_id
+        var card := _panel(self, UI.GOLD_BRIGHT if is_current else UI.GOLD_DARK, 7)
+        card.name = "BoxerTalentCard_" + id
+        var content := _column(card, 3)
+        var heading := _row(content, 5)
+        var name := _label(heading, str(talent_value.get("name", "")), 19, PAPER, heading_font)
+        name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+        if is_current:
+            _label(heading, "현재 선택", 11, UI.GOLD_BRIGHT, bold_font)
+        _label(content, str(talent_value.get("description", "")), 12, MUTED, null, true)
+        _stat_changes(content, talent_value.get("stat_bonus", {}))
+        var choose := _action("현재 선택됨" if is_current else "이 재능 선택", 13, 44)
+        choose.name = "TalentSelect_" + id
+        choose.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+        choose.disabled = is_current
+        choose.pressed.connect(_select_talent.bind(id))
+        content.add_child(choose)
+
+    var back := _secondary_action("재능 화면으로 돌아가기", 13, 48)
+    back.name = "BoxerTalentPickerBack"
+    back.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    back.pressed.connect(func():
+        if not _submitted and not is_queued_for_deletion():
+            _submitted = true
+            talent_picker_cancelled.emit()
+    )
+    add_child(back)
+
+func _select_talent(talent_id: String) -> void:
+    if not _submitted and not is_queued_for_deletion():
+        _submitted = true
+        talent_chosen.emit(talent_id)
 
 func _stat_changes(parent: VBoxContainer, bonuses: Dictionary) -> HFlowContainer:
     var changes := HFlowContainer.new()
