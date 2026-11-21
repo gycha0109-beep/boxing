@@ -1205,6 +1205,10 @@ func _tutorial_attach() -> void:
     if not is_instance_valid(body):
         return
     var phase := str(GameState.state.get("phase", ""))
+    # The roulette screen carries its own step label and motion; do not cover
+    # the reel with the generic spotlight coach panel.
+    if phase == "talent_reveal" and not bool(GameState.state.get("first_cycle_tutorial", {}).get("talent_roll_seen", false)):
+        return
     var info: Dictionary = {
         "style_select": ["1/10 · 선수 스타일", "복싱 스타일을 비교한 뒤 원하는 카드를 선택하세요.", "BoxerStyle_balanced"],
         "talent_reveal": ["2/10 · 타고난 재능", "재능은 무작위로 정해집니다. 추첨 연출을 보고 결과를 확인하세요.", "RandomTalentContinue"],

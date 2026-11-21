@@ -50,11 +50,28 @@ func _run() -> void:
     _coach("talent_reveal")
     var roll: Node = main_view.body.get_node_or_null("FirstCycleTalentRoll")
     _check(roll != null, "random talent draw screen missing")
+    var reel: Node = roll.find_child("TalentRouletteViewport", true, false) if roll != null else null
+    var strip: Node = roll.find_child("TalentRouletteStrip", true, false) if roll != null else null
+    _check(reel != null, "visible roulette reel missing")
+    _check(strip != null and strip.get_child_count() == 28, "roulette cards missing")
+    var shown_talents: Dictionary = {}
+    var icon_count := 0
+    if strip != null:
+        for card in strip.get_children():
+            shown_talents[str(card.get_meta("talent_id", ""))] = true
+            var card_content: Node = card.get_child(0) if card.get_child_count() > 0 else null
+            var icon: TextureRect = card_content.get_child(0) as TextureRect if card_content != null and card_content.get_child_count() > 0 else null
+            if icon != null and icon.texture != null:
+                icon_count += 1
+    _check(shown_talents.size() == game_state.talent_options().size(), "roulette does not show every talent type")
+    _check(icon_count == 28, "one or more roulette talent icons are missing")
     var assigned_id := str(game_state.state.get("boxer", {}).get("trait_id", ""))
     _check(not assigned_id.is_empty(), "random talent not assigned")
-    main_view._confirm_talent()
-    await process_frame
-    _check(str(game_state.state.get("phase", "")) == "talent_reveal", "career advanced before talent reveal")
+    _check(bool(roll.get_node("RandomTalentContinue").disabled), "roulette button must remain locked during spin")
+    await create_timer(4.9).timeout
+    _check(not bool(roll.get_node("RandomTalentContinue").disabled), "roulette did not finish and unlock result")
+    var result_name: Node = roll.find_child("TalentResultName", true, false)
+    _check(result_name != null and str(result_name.text) == str(game_state.state.get("boxer", {}).get("trait_name", "")), "roulette stopped on a different talent")
     main_view._complete_random_talent_roll()
     await process_frame
     _check(bool(game_state.state.get("first_cycle_tutorial", {}).get("talent_roll_seen", false)), "talent reveal not recorded")
@@ -127,6 +144,9 @@ func _run() -> void:
 
 func _coach(expected_phase: String) -> void:
     _check(str(game_state.state.get("phase", "")) == expected_phase, "wrong phase, expected " + expected_phase)
+    if expected_phase == "talent_reveal":
+        _check(main_view.body.get_node_or_null("FirstCycleTalentRoll") != null, "missing dedicated talent roulette")
+        return
     _check(main_view.get_node_or_null("FirstCycleSpotlight") != null or expected_phase == "game_plan", "missing tutorial spotlight in " + expected_phase)
 
 
