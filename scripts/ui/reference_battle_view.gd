@@ -2,6 +2,7 @@ extends VBoxContainer
 
 signal action_chosen(id: String)
 signal settlement_requested()
+signal tutorial_skipped()
 
 const UI := preload("res://scripts/ui/reference_ui.gd")
 const ACTION_ART := preload("res://assets/visual/reference_v1/battle_actions.png")
@@ -23,6 +24,8 @@ var stage: FightStage
 var snapshot: Dictionary
 var telegraph: Dictionary
 var show_first_exchange_guide := false
+var tutorial_target_action := ""
+var tutorial_hint := ""
 var player_name: String
 var opponent_name: String
 var player_style: String
@@ -193,9 +196,17 @@ func _prediction() -> void:
     forecast.name = "FightPrediction"
     forecast.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     var result := _last_exchange_text()
-    if show_first_exchange_guide:
-        var tip := _label(content, "첫 경기 3/4 · 상대 읽기와 코너 조언을 보고 행동을 고르세요.", 11, UI.GOLD_BRIGHT, bold_font, true)
+    if not tutorial_hint.is_empty():
+        var tutorial_row := _row(content, 4)
+        var tip := _label(tutorial_row, tutorial_hint, 11, UI.GOLD_BRIGHT, bold_font, true)
         tip.name = "FirstBoutFightGuide"
+        tip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+        var skip := Button.new()
+        skip.name = "FirstBoutFightGuideSkip"
+        skip.text = "끄기"
+        skip.custom_minimum_size = Vector2(46, 30)
+        skip.pressed.connect(func(): tutorial_skipped.emit())
+        tutorial_row.add_child(skip)
     elif not result.is_empty():
         var update := _label(content, result, 10, MUTED)
         update.name = "FightEventLabel"
@@ -234,10 +245,11 @@ func _action_row() -> void:
         button.mouse_filter = Control.MOUSE_FILTER_PASS
         button.add_theme_font_override("font", bold_font)
         button.add_theme_font_size_override("font_size", 13)
-        var tint := UI.GOLD_BRIGHT if bool(action["recommended"]) else Color("#aa895b")
+        var highlighted := id == tutorial_target_action
+        var tint := UI.GOLD_BRIGHT if highlighted or bool(action["recommended"]) else Color("#aa895b")
         for state in ["font_color", "font_pressed_color", "font_hover_color", "font_focus_color"]:
             button.add_theme_color_override(state, PAPER)
-        button.add_theme_stylebox_override("normal", UI.beveled_panel_style(INK, tint, 4))
+        button.add_theme_stylebox_override("normal", UI.beveled_panel_style(Color("#3b2b12") if highlighted else INK, tint, 4))
         button.add_theme_stylebox_override("hover", UI.beveled_panel_style(Color("#172637"), tint, 4))
         button.add_theme_stylebox_override("pressed", UI.beveled_panel_style(Color("#352417"), UI.GOLD_BRIGHT, 4))
         button.add_theme_stylebox_override("disabled", UI.beveled_panel_style(INK, Color("#5b6270"), 4))

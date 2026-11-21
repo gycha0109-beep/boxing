@@ -91,21 +91,39 @@ func _masthead() -> void:
     step.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 
 func _style_picker() -> void:
-    var guidance := _column(_panel(self), 2)
-    _style_guide_title = _label(guidance, "1/2단계 · 복싱 스타일을 고릅니다", 13, UI.GOLD_BRIGHT, bold_font)
-    _style_guide_title.name = "BoxerStyleIntro"
-    _style_guide_body = _label(guidance, "복싱 스타일 선택 1/2단계입니다. 금색 테두리 카드의 설명을 읽어 보세요. [다음 스타일]은 다음 카드를 보여주고, 오른쪽 [선택]은 이 스타일을 정합니다. 선택하면 2/2단계에서 타고난 재능을 확인합니다.", 12, MUTED, null, true)
-    _style_guide_body.name = "BoxerStyleInstructions"
-    _style_guide_replay = _secondary_action("스타일 설명 다시 보기", 11, 34)
-    _style_guide_replay.name = "BoxerStyleGuideReplay"
-    _style_guide_replay.visible = false
-    _style_guide_replay.pressed.connect(_replay_style_walkthrough)
-    guidance.add_child(_style_guide_replay)
-    _stat_guide()
+    var navigation := _row(self, 7)
+    var previous := _secondary_action("‹ 이전", 12, 48)
+    previous.name = "StylePrevious"
+    previous.pressed.connect(_browse_style.bind(-1))
+    navigation.add_child(previous)
+    var instruction := _label(navigation, "스타일을 둘러보고 선택하세요", 12, UI.GOLD_BRIGHT, bold_font, true)
+    instruction.name = "BoxerStyleIntro"
+    instruction.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    instruction.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    var next := _action("다음 ›", 12, 48)
+    next.name = "StyleNext"
+    next.pressed.connect(_browse_style.bind(1))
+    navigation.add_child(next)
     for style: Dictionary in styles:
         _style_order.append(str(style.get("id", "")))
         _style_card(style)
-    _update_style_walkthrough()
+    _style_walkthrough_index = 0
+    _show_browsed_style()
+
+
+func _browse_style(direction: int) -> void:
+    if _style_order.is_empty():
+        return
+    _style_walkthrough_index = wrapi(_style_walkthrough_index + direction, 0, _style_order.size())
+    _show_browsed_style()
+    call_deferred("_scroll_style_picker_to_top")
+
+
+func _show_browsed_style() -> void:
+    for index in range(_style_order.size()):
+        var card: PanelContainer = _style_cards[_style_order[index]]
+        card.visible = index == _style_walkthrough_index
+        card.add_theme_stylebox_override("panel", UI.beveled_panel_style(PANEL, UI.GOLD_BRIGHT, 6))
 
 func _style_card(style: Dictionary) -> void:
     var id := str(style.get("id", ""))

@@ -337,7 +337,14 @@ func _render_fight(animated_exchange: Dictionary = {}) -> void:
     view.stage = stage
     view.snapshot = snap
     view.telegraph = telegraph
-    view.show_first_exchange_guide = _show_first_bout_guide() and int(snap["exchange"]) == 0
+    view.show_first_exchange_guide = false
+    if _tutorial_active():
+        view.tutorial_target_action = _tutorial_next_action()
+        if not view.tutorial_target_action.is_empty():
+            var action_labels := {"jab": "잽", "guard": "가드", "body": "바디", "power": "파워", "counter": "카운터"}
+            view.tutorial_hint = "첫 경기 8/9 · %s 버튼을 눌러 직접 효과를 확인하세요." % str(action_labels.get(view.tutorial_target_action, ""))
+        else:
+            view.tutorial_hint = "첫 경기 8/9 · 기본 조작을 익혔습니다. 자유롭게 경기를 끝내세요."
     view.player_name = str(boxer.get("name", "무명 복서"))
     view.player_style = str(boxer.get("identity_name", "균형형"))
     view.player_trait = str(boxer.get("trait_name", ""))
@@ -361,6 +368,7 @@ func _render_fight(animated_exchange: Dictionary = {}) -> void:
             "recommended": selected_plan.get("action_modifiers", {}).has(id),
         })
     view.action_chosen.connect(_choose_fight_action)
+    view.tutorial_skipped.connect(_skip_first_bout_guide)
     view.settlement_requested.connect(_render_phase)
     body.add_child(view)
     if not animated_exchange.is_empty():
@@ -392,7 +400,7 @@ func _render_result() -> void:
     var plan := GameState.get_game_plan(str(summary.get("game_plan", "balanced")))
     view.plan_name = str(plan.get("name", "균형 운영"))
     view.injury_text = str(injury.get("name", ""))
-    view.show_first_settlement_guide = _show_first_bout_guide(1)
+    view.show_first_settlement_guide = false
     view.money_text = _v17_money
     view.heading_font = REFERENCE_UI.heading_font(_v18_font(780))
     view.bold_font = _v18_font(620)
@@ -403,6 +411,12 @@ func _render_result() -> void:
 func _continue_from_reference_result() -> void:
     if str(GameState.state.get("phase", "")) != "result":
         return
+    if _tutorial_active() and int(GameState.state.get("career", {}).get("fights", 0)) == 1:
+        var tutorial: Dictionary = GameState.state.get("first_cycle_tutorial", {}).duplicate(true)
+        tutorial["complete"] = true
+        tutorial["active"] = false
+        GameState.state["first_cycle_tutorial"] = tutorial
+        SaveService.save_game(GameState.state)
     GameState.advance_after_result()
     current_opponent = {}
     _render_phase()
@@ -577,6 +591,9 @@ func _start_new_career_from_title() -> void:
     current_opponent = {}
     combat = null
     super._start_new_career_from_title()
+    GameState.state["first_cycle_tutorial"] = {"active": _first_bout_guide_enabled(), "complete": false, "actions_seen": []}
+    SaveService.save_game(GameState.state)
+    _render_phase()
     _reset_reference_scroll()
 
 
@@ -593,6 +610,7 @@ func _render_phase() -> void:
         _v17_sync_nav()
         return
     super._render_phase()
+    call_deferred("_tutorial_attach")
 
 func _v17_open_training() -> void:
     v17_overlay = ""
@@ -819,6 +837,12 @@ func _set_first_bout_guide(enabled: bool) -> void:
     _guide_settings.set_value("tutorial", "enabled", enabled)
     if _guide_settings.save(FIRST_BOUT_GUIDE_SETTINGS) != OK:
         push_warning("Could not save the first-bout guide preference.")
+    if not GameState.state.is_empty() and GameState.state.has("first_cycle_tutorial"):
+        var tutorial: Dictionary = GameState.state["first_cycle_tutorial"].duplicate(true)
+        if not bool(tutorial.get("complete", false)):
+            tutorial["active"] = enabled
+            GameState.state["first_cycle_tutorial"] = tutorial
+            SaveService.save_game(GameState.state)
 
 func _skip_first_bout_guide() -> void:
     _set_first_bout_guide(false)
@@ -916,7 +940,7 @@ func _render_camp() -> void:
         body.remove_child(previous)
     var training := REFERENCE_TRAINING.new()
     training.actions = camp_actions
-    training.show_first_bout_guide = _show_first_bout_guide()
+    training.show_first_bout_guide = false
     training.guide_skipped.connect(_skip_first_bout_guide)
     training.bold_font = _v18_font(620)
     training.heading_font = REFERENCE_UI.heading_font(_v18_font(780))
@@ -973,7 +997,7 @@ func _render_offers() -> void:
     var view := REFERENCE_OFFERS.new()
     view.heading_font = REFERENCE_UI.heading_font(_v18_font(780))
     view.bold_font = _v18_font(620)
-    view.show_first_bout_guide = _show_first_bout_guide()
+    view.show_first_bout_guide = false
     for opponent: Dictionary in GameState.get_fight_offers(opponents):
         if view.show_first_bout_guide and view.recommended_opponent_id.is_empty() and opponent.get("difficulty") == "safe":
             view.recommended_opponent_id = str(opponent["id"])
@@ -1024,3 +1048,91 @@ func _render_camp_result(parent: Container, compact: bool = false) -> VBoxContai
         _v17_copy(panel, "현재 건강 %d / 100   ·   피로 %d / 100" % [int(boxer["health"]), int(boxer["fatigue"])], true)
         return panel
     return null
+
+# One continuous first-career tutorial. Progress follows the real saved game phase,
+# while combat action milestones are stored as actual player inputs.
+func _tutorial_active() -> bool:
+    if GameState.state.is_empty() or not _first_bout_guide_enabled():
+        return false
+    var tutorial: Dictionary = GameState.state.get("first_cycle_tutorial", {})
+    var career: Dictionary = GameState.state.get("career", {})
+    var generation := int(GameState.state.get("meta_state", {}).get("generation", 1))
+    return bool(tutorial.get("active", false)) and not bool(tutorial.get("complete", false)) and generation == 1 and int(career.get("fights", 0)) <= 1
+
+
+func _tutorial_next_action() -> String:
+    var tutorial: Dictionary = GameState.state.get("first_cycle_tutorial", {})
+    var seen: Array = tutorial.get("actions_seen", [])
+    for action_id in ["jab", "guard", "body", "power", "counter"]:
+        if not seen.has(action_id):
+            return action_id
+    return ""
+
+
+func _choose_fight_action(action: String) -> void:
+    if fight_input_locked:
+        return
+    if _tutorial_active() and str(GameState.state.get("phase", "")) == "fight":
+        var tutorial: Dictionary = GameState.state.get("first_cycle_tutorial", {}).duplicate(true)
+        var seen: Array = tutorial.get("actions_seen", []).duplicate()
+        if action in ["jab", "guard", "body", "power", "counter"] and not seen.has(action):
+            seen.append(action)
+            tutorial["actions_seen"] = seen
+            GameState.state["first_cycle_tutorial"] = tutorial
+            SaveService.save_game(GameState.state)
+    super._choose_fight_action(action)
+
+
+func _tutorial_attach() -> void:
+    if not _tutorial_active() or launch_gate_active or not v17_overlay.is_empty():
+        return
+    if not is_instance_valid(body):
+        return
+    var phase := str(GameState.state.get("phase", ""))
+    var guidance: Dictionary = {
+        "style_select": [1, "선수 스타일", "좌우로 스타일을 살펴보고 마음에 드는 복서를 선택하세요."],
+        "talent_reveal": [2, "타고난 재능", "이 복서의 고유한 장점을 확인하고 재능을 확정하세요."],
+        "camp": [3, "첫 훈련", "훈련이나 회복 하나를 직접 고르세요. 피로와 능력치가 실제로 달라집니다."],
+        "fight_offer": [4, "상대 계약", "난이도와 보상을 비교해 첫 상대를 선택하세요. 쉬운 상대를 추천합니다."],
+        "tactical_prep": [5, "전술 준비", "상대의 습관을 보고 이번 경기에 사용할 전술을 하나 정하세요."],
+        "condition_prep": [6, "몸 상태 정리", "피로와 체중을 확인하고 경기 직전 컨디션을 결정하세요."],
+        "game_plan": [7, "상대 분석", "강점·약점과 추천 전략을 확인하고 게임플랜을 직접 선택하세요."],
+        "result": [9, "경기 정산", "승패·파이트머니·건강·피로 변화를 확인하고 다음으로 진행하세요."],
+    }
+    if phase == "fight" or not guidance.has(phase):
+        return
+    var previous := body.get_node_or_null("FirstCycleCoach")
+    if previous != null:
+        body.remove_child(previous)
+        previous.queue_free()
+    var entry: Array = guidance[phase]
+    var panel := PanelContainer.new()
+    panel.name = "FirstCycleCoach"
+    panel.add_theme_stylebox_override("panel", REFERENCE_UI.beveled_panel_style(Color("#101d2a"), REFERENCE_UI.GOLD_BRIGHT, 7))
+    body.add_child(panel)
+    body.move_child(panel, 0)
+    var column := VBoxContainer.new()
+    column.add_theme_constant_override("separation", 4)
+    panel.add_child(column)
+    var heading := HBoxContainer.new()
+    column.add_child(heading)
+    var label := Label.new()
+    label.text = "코치  ·  첫 경기 %d/9  ·  %s" % [int(entry[0]), str(entry[1])]
+    label.add_theme_color_override("font_color", REFERENCE_UI.GOLD_BRIGHT)
+    label.add_theme_font_size_override("font_size", 13)
+    label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    heading.add_child(label)
+    var skip := Button.new()
+    skip.name = "FirstCycleSkip"
+    skip.text = "안내 끄기"
+    skip.custom_minimum_size = Vector2(78, 34)
+    skip.add_theme_font_size_override("font_size", 11)
+    skip.pressed.connect(_skip_first_bout_guide)
+    heading.add_child(skip)
+    var instruction := Label.new()
+    instruction.name = "FirstCycleInstruction"
+    instruction.text = str(entry[2])
+    instruction.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+    instruction.add_theme_font_size_override("font_size", 12)
+    instruction.add_theme_color_override("font_color", Color("#e8edf2"))
+    column.add_child(instruction)
