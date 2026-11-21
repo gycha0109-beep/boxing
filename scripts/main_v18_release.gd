@@ -17,6 +17,9 @@ const REFERENCE_EVENT := preload("res://scripts/ui/reference_career_event_view.g
 const REFERENCE_EQUIPMENT := preload("res://scripts/ui/reference_equipment_shop.gd")
 const REFERENCE_CAREER := preload("res://scripts/ui/reference_career_record.gd")
 const FIRST_BOUT_GUIDE_SETTINGS := "user://first_bout_guide.cfg"
+const INSTALL_ONBOARDING_SETTINGS := "user://onboarding_install.cfg"
+# Disabled unless explicitly enabled in project.godot for internal preview builds.
+const DEV_RESET_SETTING := "application/config/dev_reset_enabled"
 const FIRST_CYCLE_STORY := preload("res://scripts/ui/first_cycle_story_view.gd")
 const FIRST_CYCLE_SPOTLIGHT := preload("res://scripts/ui/first_cycle_spotlight.gd")
 const FIRST_CYCLE_TALENT_ROLL := preload("res://scripts/ui/first_cycle_talent_roll.gd")
@@ -25,6 +28,8 @@ var v19_top_bar: HBoxContainer
 var v19_menu_button: Button
 var v19_money_box: Control
 var v19_settings_button: Button
+var _dev_reset_confirmation: ConfirmationDialog
+var _onboarding_install := ConfigFile.new()
 var v19_bottom_nav: Control
 var v19_previous_overlay: String = ""
 var _equipment_section := "personal"
@@ -33,9 +38,17 @@ var _guide_settings := ConfigFile.new()
 
 func _ready() -> void:
     _guide_settings.load(FIRST_BOUT_GUIDE_SETTINGS)
+    _onboarding_install.load(INSTALL_ONBOARDING_SETTINGS)
+    # An existing career is an existing installation even if this marker was
+    # introduced by an update. Fresh installs use the bootstrapped placeholder
+    # career with first_launch_acknowledged == false.
+    if not bool(_onboarding_install.get_value("install", "tutorial_started", false)):
+        if bool(GameState.state.get("first_launch_acknowledged", false)):
+            _mark_onboarding_started()
     _v19_disable_legacy_bitmap_fx()
     super._ready()
     _v19_apply_phase_chrome()
+    _install_dev_reset_confirmation()
 
 func _v19_disable_legacy_bitmap_fx() -> void:
     # The v0.7 impact PNGs contain baked rectangular backplates on-device.
@@ -91,6 +104,7 @@ func _v17_top_bar() -> Control:
     settings.tooltip_text = "설정 준비 중"
     bar.add_child(settings)
     v19_settings_button = settings
+
     return bar
 
 func _v17_bottom_nav() -> Control:
@@ -127,14 +141,14 @@ func _v19_apply_phase_chrome() -> void:
     if is_instance_valid(v19_bottom_nav):
         v19_bottom_nav.visible = not in_fight and not launch_gate_active and not in_story and not guided
     if is_instance_valid(v19_top_bar):
-        v19_top_bar.visible = not in_story
+        v19_top_bar.visible = not in_story or _dev_reset_enabled()
         v19_top_bar.custom_minimum_size.y = 46 if in_fight else 62
     if is_instance_valid(v19_menu_button):
         v19_menu_button.visible = not in_fight and not launch_gate_active and not guided
     if is_instance_valid(v19_money_box):
         v19_money_box.visible = not in_fight and not guided
     if is_instance_valid(v19_settings_button):
-        v19_settings_button.visible = not in_fight and not guided
+        v19_settings_button.visible = not in_fight or _dev_reset_enabled()
 
 func _render_tactical_preparation() -> void:
     _render_reference_preparation(true)
@@ -655,13 +669,76 @@ func _start_new_career_from_title() -> void:
     current_opponent = {}
     combat = null
     super._start_new_career_from_title()
-    var guided := _first_bout_guide_enabled()
+    var guided := _first_bout_guide_enabled() and not bool(_onboarding_install.get_value("install", "tutorial_started", false))
+    _mark_onboarding_started()
     GameState.state["first_cycle_tutorial"] = {"active": guided, "complete": false, "talent_roll_seen": false, "actions_seen": []}
     if guided:
         GameState.state["phase"] = "tutorial_welcome"
     SaveService.save_game(GameState.state)
     _render_phase()
     _reset_reference_scroll()
+
+
+func _mark_onboarding_started() -> void:
+    _onboarding_install.set_value("install", "tutorial_started", true)
+    if _onboarding_install.save(INSTALL_ONBOARDING_SETTINGS) != OK:
+        push_warning("Unable to persist first-install tutorial marker.")
+
+
+func _dev_reset_enabled() -> bool:
+    return OS.has_feature("editor") or OS.has_feature("tc_dev_preview") or bool(ProjectSettings.get_setting(DEV_RESET_SETTING, false))
+
+
+func _install_dev_reset_confirmation() -> void:
+    if not _dev_reset_enabled() or _dev_reset_confirmation != null:
+        return
+    _dev_reset_confirmation = ConfirmationDialog.new()
+    _dev_reset_confirmation.name = "DevFactoryResetConfirmation"
+    _dev_reset_confirmation.title = "개발용 전체 초기화"
+    _dev_reset_confirmation.dialog_text = "이 브라우저의 선수·전적·유산·튜토리얼 저장 정보를 삭제합니다. 취소할 수 없습니다."
+    _dev_reset_confirmation.ok_button_text = "전체 초기화"
+    _dev_reset_confirmation.cancel_button_text = "취소"
+    _dev_reset_confirmation.dialog_autowrap = true
+    _dev_reset_confirmation.confirmed.connect(_confirm_dev_factory_reset)
+    add_child(_dev_reset_confirmation)
+
+
+func _request_dev_factory_reset() -> void:
+    if not _dev_reset_enabled():
+        return
+    _install_dev_reset_confirmation()
+    _dev_reset_confirmation.popup_centered(Vector2i(350, 0))
+
+
+func _confirm_dev_factory_reset() -> void:
+    if not _dev_reset_enabled():
+        return
+    # Remove current and legacy backups before generating the fresh save,
+    # preventing an obsolete backup from being loaded later.
+    for path in [
+        SaveService.SAVE_PATH,
+        SaveService.BACKUP_PATH,
+        SaveService.PREVIOUS_SAVE_PATH,
+        SaveService.PREVIOUS_BACKUP_PATH,
+        "user://career_v1.json",
+        "user://career_v1.backup.json",
+        INSTALL_ONBOARDING_SETTINGS,
+        FIRST_BOUT_GUIDE_SETTINGS,
+    ]:
+        if FileAccess.file_exists(path):
+            var error := DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+            if error != OK:
+                push_warning("Failed removing developer reset file: " + path)
+    _guide_settings.clear()
+    _onboarding_install.clear()
+    _guide_settings.set_value("tutorial", "enabled", true)
+    _guide_settings.save(FIRST_BOUT_GUIDE_SETTINGS)
+    v17_overlay = ""
+    v19_previous_overlay = ""
+    current_opponent = {}
+    combat = null
+    launch_gate_active = true
+    _start_new_career_from_title()
 
 
 # Keep real career state distinct from navigation-only panels.
@@ -858,6 +935,14 @@ func _v19_open_settings() -> void:
     mute.button_pressed = AudioServer.is_bus_mute(0)
     mute.toggled.connect(func(value: bool): AudioServer.set_bus_mute(0, value))
     panel.add_child(mute)
+    if _dev_reset_enabled():
+        var dev_panel := _v17_panel(body, false)
+        _v17_copy(dev_panel, "개발자 도구 · 브라우저의 전체 게임 데이터를 초기화합니다.", true)
+        var reset_button := REFERENCE_UI.action_button("개발용 전체 초기화", _v18_font(620), false)
+        reset_button.name = "DevFactoryResetButton"
+        reset_button.custom_minimum_size.y = 54
+        reset_button.pressed.connect(_request_dev_factory_reset)
+        dev_panel.add_child(reset_button)
     _v19_menu_button(panel, "가이드 다시 보기", _v19_open_first_bout_guide)
     _v19_menu_button(panel, "게임으로 돌아가기", Callable(self, "_v19_close_secondary"))
     _v17_sync_nav()
@@ -898,8 +983,7 @@ func _first_bout_guide_enabled() -> bool:
 func _show_first_bout_guide(fight_count: int = 0) -> bool:
     var state: Dictionary = GameState.state
     return (
-        _first_bout_guide_enabled()
-        and int(state.get("meta_state", {}).get("generation", 1)) == 1
+        _tutorial_active()
         and int(state.get("career", {}).get("fights", 0)) == fight_count
     )
 
@@ -910,7 +994,8 @@ func _set_first_bout_guide(enabled: bool) -> void:
     if not GameState.state.is_empty() and GameState.state.has("first_cycle_tutorial"):
         var tutorial: Dictionary = GameState.state["first_cycle_tutorial"].duplicate(true)
         if not bool(tutorial.get("complete", false)):
-            tutorial["active"] = enabled
+            # Once dismissed it cannot be reactivated on a later career.
+            tutorial["active"] = bool(tutorial.get("active", false)) and enabled
             GameState.state["first_cycle_tutorial"] = tutorial
             SaveService.save_game(GameState.state)
 

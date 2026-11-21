@@ -22,6 +22,7 @@ func _run() -> void:
     main_view = scene.instantiate()
     get_root().add_child(main_view)
     await process_frame
+    main_view._onboarding_install.clear()
     main_view._return_to_reference_title()
     main_view._start_new_career_from_title()
     await process_frame
