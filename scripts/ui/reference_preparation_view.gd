@@ -24,6 +24,7 @@ var boxer_portrait: Texture2D
 var opponent_portrait: Texture2D
 var opponent_details: String
 var locked_tactic: String
+var guide_tip := ""
 var options: Array[Dictionary] = []
 var bold_font: Font
 var heading_font: Font
@@ -103,6 +104,9 @@ func _instruction() -> void:
     _label(info, title, 13, UI.GOLD_BRIGHT, bold_font)
     var caption := "영구 성장 없이 이번 경기에서 활용할 행동을 준비합니다." if is_tactical else "추가 영구 성장 없이 경기 당일 컨디션을 조정합니다."
     _label(info, caption, 11, PAPER)
+    if not guide_tip.is_empty():
+        var tip := _label(info, guide_tip, 12, UI.GOLD_BRIGHT, bold_font)
+        tip.name = "FirstBoutPreparationGuide"
 
 func _option_card(option: Dictionary) -> void:
     var id := str(option["id"])

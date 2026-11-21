@@ -22,6 +22,7 @@ const PREDICTIONS := {
 var stage: FightStage
 var snapshot: Dictionary
 var telegraph: Dictionary
+var show_first_exchange_guide := false
 var player_name: String
 var opponent_name: String
 var player_style: String
@@ -163,7 +164,8 @@ func _bar(parent: HBoxContainer, value: float, tint: Color, height: float) -> Pr
     return meter
 
 func _tactical_read() -> void:
-    var panel := _panel(self, INK, UI.GOLD_DARK, 5)
+    var edge := UI.GOLD_BRIGHT if show_first_exchange_guide else UI.GOLD_DARK
+    var panel := _panel(self, INK, edge, 5)
     panel.name = "V19TacticalRead"
     var row := _row(panel, 8)
     var read := _column(row, 2)
@@ -191,7 +193,10 @@ func _prediction() -> void:
     forecast.name = "FightPrediction"
     forecast.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     var result := _last_exchange_text()
-    if not result.is_empty():
+    if show_first_exchange_guide:
+        var tip := _label(content, "첫 경기 3/4 · 상대 읽기와 코너 조언을 보고 행동을 고르세요.", 11, UI.GOLD_BRIGHT, bold_font, true)
+        tip.name = "FirstBoutFightGuide"
+    elif not result.is_empty():
         var update := _label(content, result, 10, MUTED)
         update.name = "FightEventLabel"
 

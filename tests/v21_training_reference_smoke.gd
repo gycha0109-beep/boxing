@@ -3,6 +3,7 @@ extends SceneTree
 const MAIN_PATH := "res://scenes/Main.tscn"
 const PROFILE_STATS := ["power", "speed", "technique", "defense", "conditioning"]
 
+var scene: PackedScene
 var failures: Array[String] = []
 var state_node: Node
 var main: Control
@@ -17,6 +18,7 @@ func _run() -> void:
         return
 
     state_node = root.get_node("GameState")
+    scene = load(MAIN_PATH) as PackedScene
     var actions: Array = JSON.parse_string(FileAccess.get_file_as_string("res://data/camp_actions.json"))
     _require(actions.size() == 8, "expected eight existing camp actions")
     for action: Dictionary in actions:
@@ -43,7 +45,6 @@ func _open_camp() -> void:
     state_node.rng.seed = 42
 
 func _enter_scene() -> void:
-    var scene := load(MAIN_PATH) as PackedScene
     main = scene.instantiate()
     root.add_child(main)
     await _settle()

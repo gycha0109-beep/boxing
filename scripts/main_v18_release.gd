@@ -16,6 +16,7 @@ const REFERENCE_CREATION := preload("res://scripts/ui/reference_creation_view.gd
 const REFERENCE_EVENT := preload("res://scripts/ui/reference_career_event_view.gd")
 const REFERENCE_EQUIPMENT := preload("res://scripts/ui/reference_equipment_shop.gd")
 const REFERENCE_CAREER := preload("res://scripts/ui/reference_career_record.gd")
+const FIRST_BOUT_GUIDE_SETTINGS := "user://first_bout_guide.cfg"
 
 var v19_top_bar: HBoxContainer
 var v19_menu_button: Button
@@ -25,8 +26,10 @@ var v19_bottom_nav: Control
 var v19_previous_overlay: String = ""
 var _equipment_section := "personal"
 var _equipment_receipt: Dictionary
+var _guide_settings := ConfigFile.new()
 
 func _ready() -> void:
+    _guide_settings.load(FIRST_BOUT_GUIDE_SETTINGS)
     _v19_disable_legacy_bitmap_fx()
     super._ready()
     _v19_apply_phase_chrome()
@@ -149,6 +152,15 @@ func _render_reference_preparation(tactical: bool) -> void:
     view.name = view_name
     view.is_tactical = tactical
     view.boxer = GameState.state["boxer"]
+    if _show_first_bout_guide():
+        if tactical:
+            view.guide_tip = str(current_opponent.get("scouting", {}).get("tell", ""))
+        else:
+            var limit := float(GameState.career_balance["weight_class"]["limit_kg"])
+            if float(view.boxer.get("weight_kg", 0.0)) > limit:
+                view.guide_tip = "계체 기준 %.1fkg을 넘었습니다. 체중 조절 효과를 확인하세요." % limit
+            else:
+                view.guide_tip = "계체 기준 %.1fkg 이내입니다. 피로를 보고 컨디션을 준비하세요." % limit
     view.opponent = current_opponent
     view.boxer_portrait = VisualAssetCatalog.identity_portrait_texture(true)
     view.opponent_portrait = _v17_opponent_texture(current_opponent)
@@ -325,6 +337,7 @@ func _render_fight(animated_exchange: Dictionary = {}) -> void:
     view.stage = stage
     view.snapshot = snap
     view.telegraph = telegraph
+    view.show_first_exchange_guide = _show_first_bout_guide() and int(snap["exchange"]) == 0
     view.player_name = str(boxer.get("name", "무명 복서"))
     view.player_style = str(boxer.get("identity_name", "균형형"))
     view.player_trait = str(boxer.get("trait_name", ""))
@@ -379,6 +392,7 @@ func _render_result() -> void:
     var plan := GameState.get_game_plan(str(summary.get("game_plan", "balanced")))
     view.plan_name = str(plan.get("name", "균형 운영"))
     view.injury_text = str(injury.get("name", ""))
+    view.show_first_settlement_guide = _show_first_bout_guide(1)
     view.money_text = _v17_money
     view.heading_font = REFERENCE_UI.heading_font(_v18_font(780))
     view.bold_font = _v18_font(620)
@@ -708,6 +722,7 @@ func _v19_open_menu() -> void:
     _v19_menu_button(panel, "훈련", Callable(self, "_v17_open_training"))
     _v19_menu_button(panel, "커리어", Callable(self, "_v17_open_overlay").bind("career"))
     _v19_menu_button(panel, "상점", Callable(self, "_v17_open_shop"))
+    _v19_menu_button(panel, "가이드 다시 보기", _v19_open_first_bout_guide)
     _v19_menu_button(panel, "타이틀 화면", Callable(self, "_return_to_reference_title"))
     _v19_menu_button(panel, "닫기", Callable(self, "_v19_close_secondary"))
     _v17_sync_nav()
@@ -723,8 +738,59 @@ func _v19_open_settings() -> void:
     mute.button_pressed = AudioServer.is_bus_mute(0)
     mute.toggled.connect(func(value: bool): AudioServer.set_bus_mute(0, value))
     panel.add_child(mute)
+    _v19_menu_button(panel, "가이드 다시 보기", _v19_open_first_bout_guide)
     _v19_menu_button(panel, "게임으로 돌아가기", Callable(self, "_v19_close_secondary"))
     _v17_sync_nav()
+
+func _v19_open_first_bout_guide() -> void:
+    _clear_body()
+    _v17_section_heading("첫 경기 가이드", "훈련 → 경기 준비 → 전투 → 정산")
+    for step: Array in [
+        ["1/4  훈련", "캠프마다 훈련이나 회복을 한 번 고릅니다. 결과에서 능력치, 피로, 체중 변화를 확인하세요."],
+        ["2/4  경기 준비", "난이도와 보상을 비교해 상대를 고릅니다. 상대 습관에 맞춰 전술을 준비하고, 계체 기준에 맞게 컨디션을 조정하세요. 상대 분석에서 추천 게임플랜을 확인할 수 있습니다."],
+        ["3/4  전투", "교환 전에 상대 움직임과 예측을 읽고 행동 하나를 고릅니다. 가드는 스태미나를 회복할 때 쓸 수 있습니다."],
+        ["4/4  정산", "판정과 입금, 건강과 피로를 확인한 다음 다음 캠프를 준비하세요. 랭킹을 올려 타이틀에 도전하고, 은퇴하면 유산을 다음 선수에게 물려줄 수 있습니다."],
+    ]:
+        var panel := _v17_panel(body, true)
+        _v17_eyebrow(panel, step[0])
+        _v17_copy(panel, step[1], false)
+    var controls := _v17_panel(body, false)
+    var enabled := CheckButton.new()
+    enabled.name = "FirstBoutGuideToggle"
+    enabled.text = "첫 경기 중 안내 표시"
+    enabled.add_theme_color_override("font_color", V17_TEXT)
+    enabled.add_theme_color_override("font_hover_color", V17_GOLD)
+    enabled.add_theme_color_override("font_pressed_color", V17_TEXT)
+    enabled.button_pressed = _first_bout_guide_enabled()
+    enabled.toggled.connect(_set_first_bout_guide)
+    enabled.custom_minimum_size.y = 54
+    controls.add_child(enabled)
+    var back := REFERENCE_UI.action_button("게임으로 돌아가기", _v18_font(620), true)
+    back.name = "FirstBoutGuideBack"
+    back.pressed.connect(_v19_close_secondary)
+    controls.add_child(back)
+    _configure_mobile_scroll()
+    _reset_reference_scroll()
+
+func _first_bout_guide_enabled() -> bool:
+    return bool(_guide_settings.get_value("tutorial", "enabled", true))
+
+func _show_first_bout_guide(fight_count: int = 0) -> bool:
+    var state: Dictionary = GameState.state
+    return (
+        _first_bout_guide_enabled()
+        and int(state.get("meta_state", {}).get("generation", 1)) == 1
+        and int(state.get("career", {}).get("fights", 0)) == fight_count
+    )
+
+func _set_first_bout_guide(enabled: bool) -> void:
+    _guide_settings.set_value("tutorial", "enabled", enabled)
+    if _guide_settings.save(FIRST_BOUT_GUIDE_SETTINGS) != OK:
+        push_warning("Could not save the first-bout guide preference.")
+
+func _skip_first_bout_guide() -> void:
+    _set_first_bout_guide(false)
+    _render_phase()
 
 func _v19_menu_button(parent: Node, label_text: String, action: Callable) -> void:
     var btn := Button.new()
@@ -813,8 +879,13 @@ func _v17_nav_style(selected: bool) -> StyleBoxFlat:
 
 # The reference-driven camp uses the existing career actions and transition logic.
 func _render_camp() -> void:
+    var previous := body.get_node_or_null("ReferenceTraining")
+    if previous != null and previous.is_queued_for_deletion():
+        body.remove_child(previous)
     var training := REFERENCE_TRAINING.new()
     training.actions = camp_actions
+    training.show_first_bout_guide = _show_first_bout_guide()
+    training.guide_skipped.connect(_skip_first_bout_guide)
     training.bold_font = _v18_font(620)
     training.heading_font = REFERENCE_UI.heading_font(_v18_font(780))
     training.action_chosen.connect(_choose_camp_action)
@@ -870,7 +941,10 @@ func _render_offers() -> void:
     var view := REFERENCE_OFFERS.new()
     view.heading_font = REFERENCE_UI.heading_font(_v18_font(780))
     view.bold_font = _v18_font(620)
+    view.show_first_bout_guide = _show_first_bout_guide()
     for opponent: Dictionary in GameState.get_fight_offers(opponents):
+        if view.show_first_bout_guide and view.recommended_opponent_id.is_empty() and opponent.get("difficulty") == "safe":
+            view.recommended_opponent_id = str(opponent["id"])
         view.offers.append({
             "opponent": opponent,
             "portrait": _v17_opponent_texture(opponent),

@@ -2,6 +2,7 @@ extends VBoxContainer
 
 signal action_chosen(action: Dictionary)
 signal shop_requested()
+signal guide_skipped()
 
 const REFERENCE_UI := preload("res://scripts/ui/reference_ui.gd")
 const GOLD := REFERENCE_UI.GOLD
@@ -38,6 +39,7 @@ const CARD_COPY := {
 }
 
 var actions: Array = []
+var show_first_bout_guide := false
 var heading_font: Font
 var bold_font: Font
 var _extras: GridContainer
@@ -221,6 +223,19 @@ func _pair(parent: VBoxContainer, title: String, value: String, color: Color = W
 
 func _camp_notice() -> void:
     var row := _row(_panel(self, PANEL, GOLD, 7), 10)
+    if show_first_bout_guide:
+        var instructions := _column(row, 2)
+        instructions.alignment = BoxContainer.ALIGNMENT_CENTER
+        var title := _label(instructions, "첫 경기 1/4 · 훈련", 15, GOLD_BRIGHT, heading_font)
+        title.name = "FirstBoutTrainingGuide"
+        var copy := _label(instructions, "훈련이나 회복을 고른 뒤 몸의 변화를 확인하세요.", 12, WHITE)
+        copy.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+        var skip := REFERENCE_UI.action_button("안내 건너뛰기", bold_font)
+        skip.name = "FirstBoutGuideSkip"
+        skip.size_flags_horizontal = Control.SIZE_SHRINK_END
+        skip.pressed.connect(func(): guide_skipped.emit())
+        row.add_child(skip)
+        return
     var title := _label(row, "이번 캠프  1회 선택", 15, GOLD_BRIGHT, heading_font)
     title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
     var note := _label(row, "훈련 또는 회복을 선택하면\n경기 계약 단계로 이동합니다.", 10, WHITE)

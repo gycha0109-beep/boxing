@@ -51,6 +51,9 @@ func _run() -> void:
     await _press("BoxerBeginCareer")
     _saved_phase("camp")
     _check(_music_mode() == "career", "camp uses career music")
+    var guide_enabled: bool = main_view._first_bout_guide_enabled()
+    _guide_visibility("FirstBoutTrainingGuide", guide_enabled)
+    _guide_visibility("FirstBoutGuideSkip", guide_enabled)
     _check(_text(main_view).contains("장비 · 체육관 투자"), "camp offers optional equipment investment")
     var training := main_view.find_child("TrainingPrimaryGrid", true, false)
     _check(training != null and training.find_children("TrainingSelect_*", "Button", true, false).size() >= 4, "camp shows at least four primary training options")
@@ -75,6 +78,12 @@ func _run() -> void:
         await _finish()
         return
     _check(main_view.find_children("FightOfferSelect_*", "Button", true, false).size() == offers.size(), "all current offers appear")
+    if guide_enabled:
+        var safe_offer_count := 0
+        for offer: Dictionary in offers:
+            if offer.get("difficulty") == "safe":
+                safe_offer_count += 1
+        _guide_visibility("FirstBoutOpponentRecommendation", safe_offer_count > 0)
     var opponent: Dictionary = offers[0]
     _check(_text(main_view).contains(str(opponent.name)), "offers show the actual roster name")
     await _press("FightOfferSelect_" + str(opponent.id))
@@ -101,6 +110,7 @@ func _run() -> void:
     await _press("WeighInEnterFight")
     _check(Save.load_game().weigh_in_acknowledged and main_view.find_child("FightStage", true, false) != null, "confirmation enters the ring")
     _check(_music_mode() == "fight", "fight uses fight music")
+    _guide_visibility("FirstBoutFightGuide", guide_enabled)
 
     # The fixed-HUD smoke plays the full bout. This fixture focuses on
     # first-launch transitions and the separately rendered result.
@@ -108,6 +118,7 @@ func _run() -> void:
     main_view._render_phase()
     await _settle()
     _saved_phase("result")
+    _guide_visibility("FirstBoutResultGuide", guide_enabled)
     var verdict := main_view.find_child("FightResultVerdict", true, false) as Label
     _check(verdict != null and verdict.text == "판정승", "result shows the localized verdict")
     _check(main_view.find_child("FightResultContinue", true, false) is Button, "result offers continuation")
@@ -124,6 +135,9 @@ func _press(id: String) -> void:
 
 func _saved_phase(expected: String) -> void:
     _check(game_state.state.phase == expected and Save.load_game().get("phase") == expected, "runtime and saved phase are " + expected)
+
+func _guide_visibility(id: String, expected: bool) -> void:
+    _check((main_view.find_child(id, true, false) != null) == expected, "guide visibility: " + id)
 
 func _music_mode() -> String:
     var music := main_view.get_node_or_null("MusicDirector") as MusicDirector

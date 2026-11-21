@@ -21,6 +21,7 @@ var boxer: Dictionary
 var career: Dictionary
 var result_id: String
 var result_text: String
+var show_first_settlement_guide := false
 var opponent_name: String
 var opponent_portrait: Texture2D
 var weight_class: String
@@ -320,6 +321,16 @@ func _match_commentary() -> void:
             line = "%d개 라운드 중 %d개에서 앞서고 %d개에서 뒤졌습니다." % [rounds, ahead, behind]
             if even > 0:
                 line = "라운드별 채점 · 우세 %d / 열세 %d / 동점 %d" % [ahead, behind, even]
+    if show_first_settlement_guide:
+        var guide := _column(_frame(self, STEEL, UI.GOLD, 7), 2)
+        guide.name = "FirstBoutResultGuide"
+        var heading := _row(guide, 7)
+        _label(heading, "첫 경기 4/4 · 안내 완료", 13, UI.GOLD_BRIGHT, bold_font)
+        if not line.is_empty():
+            var note := _label(heading, line, 10, MUTED, null, true)
+            note.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+        _label(guide, "다음 캠프에서 회복하거나 장비에 투자하세요.", 12, PAPER, null, true)
+        return
     if line.is_empty():
         return
     var row := _row(_frame(self, STEEL, UI.GOLD_DARK, 7), 6)

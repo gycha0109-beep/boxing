@@ -10,6 +10,8 @@ const PAPER := Color("#f7f4ec")
 const MUTED := Color("#bec9d3")
 
 var offers: Array[Dictionary] = []
+var show_first_bout_guide := false
+var recommended_opponent_id := ""
 var heading_font: Font
 var bold_font: Font
 var _open_details: Control
@@ -53,7 +55,9 @@ func _hero() -> void:
     title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
     title.add_theme_font_override("font", heading_font)
 
-    var intro := _label(content, "상대의 스타일·난이도·보상을 비교하세요.", 12, PAPER, true)
+    var intro_text := "첫 경기 2/4 · 난이도와 보상을 비교해 상대를 고르세요." if show_first_bout_guide else "상대의 스타일·난이도·보상을 비교하세요."
+    var intro := _label(content, intro_text, 12, PAPER, true)
+    intro.name = "FightOffersIntro"
     intro.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
 func _card(entry: Dictionary) -> void:
@@ -61,7 +65,8 @@ func _card(entry: Dictionary) -> void:
     var id := str(opponent["id"])
     var scouting: Dictionary = opponent.get("scouting", {})
     var is_title := bool(opponent.get("title_fight", false))
-    var card := _panel(self, NAVY, UI.GOLD_BRIGHT if is_title else UI.GOLD_DARK, 5)
+    var recommended := id == recommended_opponent_id
+    var card := _panel(self, NAVY, UI.GOLD_BRIGHT if is_title or recommended else UI.GOLD_DARK, 5)
     card.name = "OpponentCard_" + id
     var content := _column(card, 5)
     var row := _row(content, 8)
@@ -90,7 +95,12 @@ func _card(entry: Dictionary) -> void:
     var identity := _label(details_row, "%s  [%s]" % [entry["style"], entry["country"]], 11, UI.GOLD_BRIGHT, true)
     identity.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     var difficulty := str(UI.DIFFICULTY.get(opponent.get("difficulty", ""), "미정"))
-    _label(details_row, "난이도 %s" % difficulty, 11, MUTED)
+    var difficulty_text := "난이도 %s" % difficulty
+    if recommended:
+        difficulty_text = "첫 경기 추천 · " + difficulty_text
+    var difficulty_label := _label(details_row, difficulty_text, 11, UI.GOLD_BRIGHT if recommended else MUTED)
+    if recommended:
+        difficulty_label.name = "FirstBoutOpponentRecommendation"
     if is_title:
         var match_title := _label(info, str(opponent.get("title_label", "타이틀전")), 11, UI.GOLD_BRIGHT, true)
         match_title.add_theme_font_override("font", bold_font)
