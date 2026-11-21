@@ -48,8 +48,21 @@ func _run() -> void:
     main_view._render_phase()
     await process_frame
     _coach("talent_reveal")
-    _check(bool(game_state.confirm_talent().get("ok", false)), "talent confirmation failed")
-    main_view._render_phase()
+    var talent_picker: Node = main_view.body.get_node_or_null("ReferenceBoxerCreation")
+    _check(talent_picker != null and bool(talent_picker.get("choosing_talent")), "tutorial skipped the talent selection screen")
+    main_view._confirm_talent()
+    await process_frame
+    _check(str(game_state.state.get("phase", "")) == "talent_reveal", "tutorial allowed skipping talent selection")
+    var choices: Array = game_state.talent_options()
+    _check(choices.size() > 1, "talent options unavailable")
+    var selected_id := str(choices[1].get("id", ""))
+    main_view._select_talent(selected_id)
+    await process_frame
+    _check(bool(game_state.state.get("first_cycle_tutorial", {}).get("talent_selected", false)), "talent selection not recorded")
+    _check(str(game_state.state.get("boxer", {}).get("trait_id", "")) == selected_id, "chosen talent not applied to boxer")
+    var reveal: Node = main_view.body.get_node_or_null("ReferenceBoxerCreation")
+    _check(reveal != null and not bool(reveal.get("choosing_talent")), "talent reveal was not shown after selection")
+    main_view._confirm_talent()
     await process_frame
     _coach("camp")
     _check(not main_view.camp_actions.is_empty(), "no camp actions")

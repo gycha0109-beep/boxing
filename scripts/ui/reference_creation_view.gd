@@ -31,6 +31,7 @@ const RED := Color("#f2a091")
 
 var choosing_style := true
 var choosing_talent := false
+var talent_requires_choice := false
 var styles: Array
 var talents: Array
 var boxer: Dictionary
@@ -317,15 +318,15 @@ func _talent_reveal() -> void:
 
 func _talent_picker() -> void:
     var guidance := _column(_panel(self), 2)
-    var title := _label(guidance, "타고난 재능을 선택하세요", 15, UI.GOLD_BRIGHT, heading_font)
+    var title := _label(guidance, "내 복서의 재능을 직접 선택하세요", 17, UI.GOLD_BRIGHT, heading_font)
     title.name = "BoxerTalentPickerTitle"
-    var instructions := _label(guidance, "재능을 고르면 시작 능력치와 커리어 특성이 바뀝니다. 원하는 재능의 [이 재능 선택]을 누르세요. 커리어를 시작하기 전에는 언제든 다시 바꿀 수 있습니다.", 12, MUTED, null, true)
+    var instructions := _label(guidance, "재능마다 장점과 단점이 다릅니다. 하나를 고르면 효과를 확인한 뒤 확정합니다.", 12, MUTED, null, true)
     instructions.name = "BoxerTalentPickerInstructions"
 
     var current_id := str(boxer.get("trait_id", ""))
     for talent_value: Dictionary in talents:
         var id := str(talent_value.get("id", ""))
-        var is_current := id == current_id
+        var is_current := id == current_id and not talent_requires_choice
         var card := _panel(self, UI.GOLD_BRIGHT if is_current else UI.GOLD_DARK, 7)
         card.name = "BoxerTalentCard_" + id
         var content := _column(card, 3)
@@ -336,7 +337,7 @@ func _talent_picker() -> void:
             _label(heading, "현재 선택", 11, UI.GOLD_BRIGHT, bold_font)
         _label(content, str(talent_value.get("description", "")), 12, MUTED, null, true)
         _stat_changes(content, talent_value.get("stat_bonus", {}))
-        var choose := _action("현재 선택됨" if is_current else "이 재능 선택", 13, 44)
+        var choose := _action("현재 선택됨" if is_current else "이 재능 선택  ›", 13, 44)
         choose.name = "TalentSelect_" + id
         choose.size_flags_horizontal = Control.SIZE_EXPAND_FILL
         choose.disabled = is_current
