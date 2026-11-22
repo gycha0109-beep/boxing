@@ -22,7 +22,9 @@ const SPARRING := preload("res://assets/visual/reference_v1/training_sparring.pn
 const RUNNING := preload("res://assets/visual/reference_v1/training_running.png")
 const BAG := preload("res://assets/visual/reference_v1/training_bag.png")
 const REST := preload("res://assets/visual/reference_v1/training_rest.png")
-const PRIMARY_IDS := ["sparring", "roadwork", "mitts", "full_rest"]
+const PRIMARY_IDS := ["sparring", "roadwork", "mitts", "heavy_bag", "defense_drill"]
+const RECOVERY_IDS := ["full_rest", "rehab"]
+const WEIGHT_IDS := ["weight_cut"]
 const STAT_LABELS := {
     "power": "파워", "speed": "속도", "technique": "기술", "defense": "수비",
     "conditioning": "지구력", "health": "건강", "fatigue": "피로", "weight": "체중",
@@ -43,8 +45,6 @@ var actions: Array = []
 var show_first_bout_guide := false
 var heading_font: Font
 var bold_font: Font
-var _extras: GridContainer
-var _toggle: Button
 
 func _ready() -> void:
     name = "ReferenceTraining"
@@ -52,12 +52,13 @@ func _ready() -> void:
     add_theme_constant_override("separation", 7)
     _hero()
     _camp_notice()
-    _add_cards(_grid("TrainingPrimaryGrid"), true)
-    _tip()
-    _management()
-    var shop := _button("장비 · 체육관 투자  ›")
+    var shop := _button("훈련 효율 높이기 · 체육관 장비 투자  ›")
+    shop.name = "TrainingUpgradeShop"
     shop.pressed.connect(func(): shop_requested.emit())
     add_child(shop)
+    _training_programs()
+    _tip()
+    _body_care()
     var media := _button("지역 팬 미팅 · 인기 +2")
     media.name = "ManagementMedia"
     media.pressed.connect(func(): media_requested.emit())
@@ -247,9 +248,9 @@ func _camp_notice() -> void:
         skip.pressed.connect(func(): guide_skipped.emit())
         row.add_child(skip)
         return
-    var title := _label(row, "이번 캠프  1회 선택", 15, GOLD_BRIGHT, heading_font)
+    var title := _label(row, "이번 캠프 · 훈련 1회", 15, GOLD_BRIGHT, heading_font)
     title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-    var note := _label(row, "이번 경기에 쓸 관리 기회는 한 번입니다.\n활동을 마치면 경기 제안이 열립니다.", 10, WHITE)
+    var note := _label(row, "기본 훈련은 무료입니다.\n장비에 투자하면 성장 효율이 높아집니다.", 10, WHITE)
     note.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
 func _grid(node_name: String) -> GridContainer:
@@ -261,17 +262,25 @@ func _grid(node_name: String) -> GridContainer:
     add_child(grid)
     return grid
 
-func _add_cards(grid: GridContainer, primary: bool) -> void:
-    if primary:
-        for id in PRIMARY_IDS:
-            for value: Dictionary in actions:
-                if str(value.get("id", "")) == id:
-                    _card(grid, value)
-                    break
-        return
-    for action: Dictionary in actions:
-        if str(action.get("id", "")) not in PRIMARY_IDS:
-            _card(grid, action)
+func _training_programs() -> void:
+    _label(self, "기본 훈련 · 무료", 17, GOLD_BRIGHT, heading_font)
+    var grid := _grid("TrainingPrimaryGrid")
+    for id: String in PRIMARY_IDS:
+        for action: Dictionary in actions:
+            if str(action.get("id", "")) == id:
+                _card(grid, action)
+                break
+
+func _body_care() -> void:
+    _label(self, "몸 관리", 17, GOLD_BRIGHT, heading_font)
+    var help := _label(self, "휴식은 무료, 재활 치료는 유료입니다. 체중 감량은 계체 준비를 위한 선택입니다.", 11, MUTED)
+    help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+    var grid := _grid("TrainingBodyCareGrid")
+    for id: String in RECOVERY_IDS + WEIGHT_IDS:
+        for action: Dictionary in actions:
+            if str(action.get("id", "")) == id:
+                _card(grid, action)
+                break
 
 func _photo_for(id: String) -> Texture2D:
     match id:
@@ -307,7 +316,11 @@ func _card(grid: GridContainer, action: Dictionary) -> void:
     summary.custom_minimum_size.y = 15
     var tradeoff := _label(effect_box, " · ".join(effect_parts(tradeoffs)), 10, RED if float(tradeoffs.get("fatigue", 0)) > 0 else CYAN, bold_font)
     tradeoff.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-    _label(content, "%s원  ·  추가 위험 %.1f%%" % [_money(cost), float(action.get("risk", 0.0)) * 100.0], 10, GOLD_BRIGHT)
+    if str(action.get("kind", "")) == "training":
+        var efficiency := int(round(GameState.gym_training_percent(id)))
+        _label(content, "무료 · 성장 효율 +%d%%" % efficiency if efficiency > 0 else "무료 · 기본 훈련", 10, GOLD_BRIGHT)
+    else:
+        _label(content, "무료" if cost == 0 else "%s원" % _money(cost), 10, GOLD_BRIGHT)
 
     var choose := _button("선택" if affordable else "잔액 부족", true)
     choose.name = "TrainingSelect_" + id
@@ -353,22 +366,9 @@ func _choose(action: Dictionary, button: Button) -> void:
     if not button.disabled and button.is_visible_in_tree() and not is_queued_for_deletion():
         action_chosen.emit(action)
 
-func _management() -> void:
-    _toggle = _button("다른 훈련 · 체중 · 재활  보기 ▼")
-    _toggle.name = "TrainingMoreActions"
-    _toggle.pressed.connect(_toggle_extras)
-    add_child(_toggle)
-    _extras = _grid("TrainingAdditionalActions")
-    _extras.hide()
-    _add_cards(_extras, false)
-
-func _toggle_extras() -> void:
-    _extras.visible = not _extras.visible
-    _toggle.text = "다른 훈련 · 체중 · 재활  접기 ▲" if _extras.visible else "다른 훈련 · 체중 · 재활  보기 ▼"
-
 func _tip() -> void:
     var row := _row(_panel(self, PANEL, GOLD_DARK, 7), 10)
-    var title := _label(row, "캠프 팁", 14, GOLD_BRIGHT, heading_font)
+    var title := _label(row, "육성 팁", 14, GOLD_BRIGHT, heading_font)
     title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-    var note := _label(row, "경기 전에는 훈련으로 얻는 능력치와\n피로·체중 변화도 함께 확인하세요.", 10)
+    var note := _label(row, "돈으로 훈련 효율을 높이는 장비에 투자하세요.\n투자한 장비는 이후 훈련에도 적용됩니다.", 10)
     note.size_flags_horizontal = Control.SIZE_EXPAND_FILL

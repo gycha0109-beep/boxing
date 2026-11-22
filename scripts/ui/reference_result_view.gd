@@ -191,10 +191,26 @@ func _settlement() -> void:
     _stat_row(table, &"plan", "게임플랜", plan_name)
     if summary.has("purse"):
         _stat_row(table, &"money", "파이트머니", "%s원" % _signed_money(int(summary["purse"])), UI.GOLD_BRIGHT, 17)
+    if summary.has("attendance"):
+        _stat_row(table, &"users", "관중 / 흥행 배분금", "%s명  ·  %s원" % [
+            _signed_money(int(summary["attendance"])), _signed_money(int(summary.get("gate_share", 0))),
+        ], UI.GOLD_BRIGHT)
+    if int(summary.get("sponsor_payment", 0)) > 0:
+        _stat_row(table, &"handshake", "스폰서 · " + str(summary.get("sponsor_name", "")), "%s원" % _signed_money(int(summary["sponsor_payment"])), UI.GOLD_BRIGHT)
+        _stat_row(table, &"", "기본 후원금", "%s원" % _signed_money(int(summary.get("sponsor_base", 0))), MUTED)
+        if int(summary.get("sponsor_win_bonus", 0)) > 0:
+            _stat_row(table, &"", "승리 보너스", "%s원" % _signed_money(int(summary.sponsor_win_bonus)), MUTED)
+        if int(summary.get("sponsor_ko_bonus", 0)) > 0:
+            _stat_row(table, &"", "KO 보너스", "%s원" % _signed_money(int(summary.sponsor_ko_bonus)), MUTED)
+        if int(summary.get("sponsor_defense_bonus", 0)) > 0:
+            _stat_row(table, &"", "세계 타이틀 방어 보너스", "%s원" % _signed_money(int(summary.sponsor_defense_bonus)), MUTED)
+        if int(summary.get("sponsor_rounding_adjustment", 0)) != 0:
+            _stat_row(table, &"", "계약 정산 반올림", "%s원" % _signed_money(int(summary.sponsor_rounding_adjustment)), MUTED)
     if summary.has("cycle_cost") and summary.has("purse"):
         var cost := int(summary["cycle_cost"])
-        _stat_row(table, &"", "캠프 비용", "%s원  ·  잔액 변동 %s원" % [
-            _signed_money(-cost), _signed_money(int(summary["purse"]) - cost),
+        var business_income := int(summary.get("business_income", 0))
+        _stat_row(table, &"", "캠프 비용", "%s원  ·  이번 경기 순수익 %s원" % [
+            _signed_money(-cost), _signed_money(int(summary["purse"]) + business_income - cost),
         ], MUTED)
     var cards: Array = summary.get("round_cards", [])
     var scores: Array[String] = []

@@ -26,6 +26,7 @@ var receipt: Dictionary
 var money: int
 var spent: int
 var unavailable := false
+var purchase_complete := false
 var money_text: Callable
 var heading_font: Font
 var bold_font: Font
@@ -42,10 +43,15 @@ func _ready() -> void:
         _label(info, "개인 장비는 능력치를 높이고, 체육관 장비는 해당 훈련의 성장 효율을 높입니다.", 13, MUTED, null, true)
     else:
         _wallet()
+        if purchase_complete:
+            var notice := _column(_panel(self, 6, UI.GOLD), 2)
+            _label(notice, "이번 캠프의 장비 구매를 완료했습니다.", 14, UI.GOLD_BRIGHT, heading_font, true)
+            _label(notice, "구매 결과를 확인한 뒤 경기 제안으로 이동할 수 있습니다.", 12, MUTED, bold_font, true)
         _tabs()
         for item in slots:
             _item(item)
-    var back := UI.action_button("현재 단계로 돌아가기" if unavailable else "캠프로 돌아가기", bold_font)
+    var back_label := "현재 단계로 돌아가기" if unavailable else ("경기 제안으로 이동" if purchase_complete else "캠프로 돌아가기")
+    var back := UI.action_button(back_label, bold_font)
     back.name = "EquipmentShopBack"
     back.pressed.connect(func(): back_requested.emit())
     add_child(back)
@@ -150,6 +156,9 @@ func _item(data: Dictionary) -> void:
         "money":
             reason = "부족한 금액  " + _money(int(upgrade["price"]) - money)
             buy.text = "자금 부족"
+        "activity_used":
+            reason = "이번 캠프 활동을 이미 사용했습니다."
+            buy.text = "활동 완료"
         "":
             reason = "관리 기회 사용 · 구매 후  " + _money(money - int(upgrade["price"]))
         _:

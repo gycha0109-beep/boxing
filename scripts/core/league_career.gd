@@ -97,7 +97,7 @@ static func event_id(state: Dictionary) -> String:
     if str(state.last_result) == "WIN_KO":
         return "viral_clip"
     if streak >= 2:
-        return "local_sponsor"
+        return "rival_callout"
     if bool(state.last_fight_summary.get("upset", false)) or int(state.career.reputation) >= 18:
         return "rival_callout"
     return ""

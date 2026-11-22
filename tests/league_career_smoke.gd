@@ -26,7 +26,7 @@ func _run() -> void:
         check(game.select_background(id, id), "background selection")
         check(game.select_boxing_style("balanced").ok and game.confirm_talent().ok, "creation")
         debuts.append(game.get_fight_offers(roster)[0].id)
-        check(game.state.career.money == 120000 + game.League.BACKGROUNDS[id].money, "starting purse")
+        check(game.state.career.money == 120000 + game.League.BACKGROUNDS[id].money, "starting purse without advance fund")
         check(game.state.career.reputation == game.League.BACKGROUNDS[id].fans, "starting reputation")
         for stat: String in game.League.STATS:
             check(game.state.boxer[stat] == 44 + int(game.talent_definition().stat_bonus.get(stat, 0)) + int(game.League.BACKGROUNDS[id].stats.get(stat, 0)), "starting " + stat)
@@ -52,6 +52,8 @@ func _run() -> void:
         var weigh: float = float(game.state.last_weigh_in.purse_multiplier)
         game.apply_fight_result("WIN_DEC", opponent, {"player_hp":100.0})
         check(game.state.last_fight_summary.gross_purse == roundi(quote * weigh), "booked purse used")
+        check(game.state.last_fight_summary.has("attendance") and game.state.last_fight_summary.has("gate_share"), "fight settlement includes gate revenue")
+        check(int(game.state.last_fight_summary.business_income) == int(game.state.last_fight_summary.gate_share) + int(game.state.last_fight_summary.sponsor_payment), "business income breakdown matches settlement")
         game.apply_fight_result("WIN_DEC", opponent)
         check(int(game.state.career.fights) == bout, "single settlement")
         if bout == 12:
@@ -60,8 +62,39 @@ func _run() -> void:
         game.advance_after_result()
         if game.state.phase == "event":
             game.resolve_pending_event()
+        if game.state.phase == "sponsor_offer":
+            view._render_phase()
+            await process_frame
+            await process_frame
+            var sponsor_button := view.find_child("Sponsor_local_steady", true, false) as Button
+            if sponsor_button == null:
+                for candidate: Button in view.find_children("Sponsor_*_steady", "Button", true, false):
+                    sponsor_button = candidate
+                    break
+            check(sponsor_button != null, "sponsor selection appears on the correct post-title or renewal date")
+            if sponsor_button != null:
+                sponsor_button.pressed.emit()
+                await process_frame
+                await process_frame
+                check(bool(game.sponsorship_status().get("active", false)), "sponsor active after acceptance")
+        if bout == 3:
+            check(game.state.phase == "gym_fund_intro", "gym fund appears after third completed fight")
+            check(int(game.state.career_state.get("starter_fund_receipt", 0)) == 25000, "third fight gym fund granted")
+            view.v17_overlay = ""
+            view._render_phase()
+            await process_frame
+            await process_frame
+            var shop_guide := view.find_child("GymFundOpenShop*", true, false) as Button
+            check(shop_guide != null, "gym fund shop tutorial button is visible; phase=%s tutorial_story=%s tutorial=%s children=%s" % [game.state.phase, view._tutorial_special_screen(), game.state.get("first_cycle_tutorial", {}), view.body.get_children().map(func(n: Node): return str(n.name))])
+            if shop_guide != null:
+                shop_guide.pressed.emit()
+                await process_frame
+                check(game.state.phase == "equipment_shop", "tutorial opens actual equipment shop")
+                check(game.leave_equipment_shop(), "tutorial shop returns without buying")
+                check(game.state.phase == "camp", "skip purchase returns to camp")
         if bout % 4 == 0:
             check(game.state.phase == "season_review", "four bouts per season")
+            check(game.season_review().total_attendance > 0 and game.season_review().total_gate_income > 0, "season review shows accumulated business performance")
             game.state = SaveService.load_game()
             view._render_phase()
             await process_frame

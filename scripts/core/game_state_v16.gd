@@ -5,19 +5,71 @@ const CareerRisk = preload("res://scripts/core/career_risk_service.gd")
 
 func _ready() -> void:
     super._ready()
+    Business.ensure_state(state)
     CareerRisk.ensure_state(state)
     World.ensure_world(state)
     var career_state: Dictionary = state.get("career_state", {})
     if not career_state.has("career_start_age_months"):
         World.mark_career_start(state)
+    # Resuming after bout three must not skip the one-time funding prompt.
+    _maybe_award_gym_fund()
     SaveService.save_game(state)
 
 func new_career(boxer_name: String, trait_id: String = "") -> void:
     super.new_career(boxer_name, trait_id)
+    Business.ensure_state(state)
     CareerRisk.ensure_state(state)
     World.ensure_world(state)
     World.mark_career_start(state)
     SaveService.save_game(state)
+
+func _maybe_award_gym_fund() -> void:
+    if str(state.get("phase", "")) != "camp" or int(state.career.fights) != 3:
+        return
+    var meta: Dictionary = state.get("meta_state", {})
+    if int(meta.get("generation", 1)) != 1 or bool(meta.get("starter_fund_claimed", false)):
+        return
+    meta["starter_fund_claimed"] = true
+    state["meta_state"] = meta
+    state.career.money = int(state.career.money) + Business.STARTER_SUPPORT
+    var book: Dictionary = state.get("career_state", {})
+    book["starter_fund_receipt"] = Business.STARTER_SUPPORT
+    book["gym_fund_shop_active"] = false
+    state["career_state"] = book
+    state["phase"] = "gym_fund_intro"
+    SaveService.save_game(state)
+
+func open_gym_fund_shop() -> bool:
+    if str(state.get("phase", "")) != "gym_fund_intro":
+        return false
+    state.career_state["gym_fund_shop_active"] = true
+    state.phase = "equipment_shop"
+    SaveService.save_game(state)
+    return true
+
+func skip_gym_fund_shop() -> bool:
+    if str(state.get("phase", "")) != "gym_fund_intro":
+        return false
+    state.phase = "camp"
+    SaveService.save_game(state)
+    return true
+
+func leave_equipment_shop() -> bool:
+    if str(state.get("phase", "")) == "equipment_shop" and bool(state.get("career_state", {}).get("gym_fund_shop_active", false)):
+        state.career_state["gym_fund_shop_active"] = false
+    return super.leave_equipment_shop()
+
+func sign_sponsorship(id: String, contract_style: String = "steady") -> bool:
+    var ok := super.sign_sponsorship(id, contract_style)
+    if ok:
+        _maybe_award_gym_fund()
+    return ok
+
+func decline_sponsorship() -> bool:
+    var ok := super.decline_sponsorship()
+    if ok:
+        _maybe_award_gym_fund()
+    return ok
 
 func get_fight_offers(all_opponents: Array) -> Array:
     World.ensure_world(state, all_opponents)
@@ -78,6 +130,7 @@ func _begin_next_cycle() -> void:
     var before_fatigue: int = int(state.get("boxer", {}).get("fatigue", 0))
     super._begin_next_cycle()
     CareerRisk.apply_recovery_limits(state, before_health, before_fatigue)
+    _maybe_award_gym_fund()
     SaveService.save_game(state)
 
 func _check_retirement() -> void:

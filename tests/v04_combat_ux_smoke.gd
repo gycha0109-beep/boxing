@@ -100,7 +100,7 @@ func _test_body_stamina_feedback() -> void:
             continue
         found_hit = true
         _check(str(player_event.get("action", "")) == "body", "body fixture did not preserve action id")
-        _check(float(player_event.get("target_stamina_damage", 0.0)) >= 8.9, "body hit did not expose stamina damage")
+        _check(is_equal_approx(float(player_event.get("target_stamina_damage", 0.0)), 6.84), "conditioning-based body stamina resistance was not applied")
         _check(str(exchange.get("opponent_body_state", "")) == "hurt", "body stamina threshold did not become hurt")
         _check(Presentation.body_state_label(str(exchange.get("opponent_body_state", ""))) == "몸통 데미지 누적", "body state presentation mismatch")
         var headline: String = Presentation.exchange_headline(exchange)

@@ -36,6 +36,10 @@ func _start_fixture() -> void:
     state.state.phase = "fight_offer"
     state.select_opponent(opponent)
     state.select_game_plan("outside_boxing")
+    state.state.career_state.business_state.active_sponsor = {
+        "id": "local", "name": "지역 스포츠 브랜드", "per_fight": 12000,
+        "win_bonus": 5000, "ko_bonus": 3000, "remaining_fights": 4
+    }
 
 func _verify_result(id: String, verdict: String, cards: Array, round_number: int, expect_event: bool) -> void:
     _start_fixture()
@@ -55,8 +59,8 @@ func _verify_result(id: String, verdict: String, cards: Array, round_number: int
     _require(int(before.get("health", -1)) == int(initial_boxer["health"]), "health baseline is stored")
     _require(int(before.get("fatigue", -1)) == int(initial_boxer["fatigue"]), "fatigue baseline is stored")
     var original_money := int(initial_career["money"])
-    var delta := int(report.get("purse", 0)) - int(report.get("cycle_cost", 0))
-    _require(int(settled["career"]["money"]) == original_money + delta, "purse minus fees reaches the real wallet")
+    var delta := int(report.get("purse", 0)) + int(report.get("business_income", 0)) - int(report.get("cycle_cost", 0))
+    _require(int(settled["career"]["money"]) == original_money + delta, "purse, gate and sponsor income minus fees reach the real wallet")
 
     state.state = settled
     await _open_game()
@@ -68,9 +72,11 @@ func _verify_result(id: String, verdict: String, cards: Array, round_number: int
         _require(("ROUND %d 종료" % round_number) in labels, "correct ending round")
         _require("라운드 점수" in labels and _has_text(labels, "R1 %d:%d" % [int(cards[0][0]), int(cards[0][1])]), "recorded round scores are visible")
         _require("거리전" in labels, "the confirmed game plan is visible")
+        _require(_has_text(labels, "관중 / 흥행 배분금"), "gate revenue is visible in the result breakdown")
+        _require(_has_text(labels, "스폰서 · 지역 스포츠 브랜드"), "sponsor payment is visible in the result breakdown")
         _require(_has_text(labels, "#%d  →  #%d" % [int(initial_career["rank"]), int(settled["career"]["rank"])]), "actual rank movement is visible")
         var display_delta: String = ("+" if delta > 0 else "") + ui._v17_money(delta)
-        _require(_has_text(labels, "잔액 변동 %s원" % display_delta), "actual money change is visible")
+        _require(_has_text(labels, "이번 경기 순수익 %s원" % display_delta), "actual money change including business income is visible")
         var health := int(settled["boxer"]["health"])
         _require(("%d%% → %d%% (%+d)" % [int(initial_boxer["health"]), health, health - int(initial_boxer["health"])]) in labels, "condition reflects the actual change")
     _require(int(state.state["career"]["fights"]) == 1, "rendering the saved result does not settle again")

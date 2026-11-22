@@ -124,6 +124,12 @@ func _card(entry: Dictionary) -> void:
     _reward(rewards, "파이트머니", "%s원" % entry["purse"])
     _reward(rewards, "승리 평판", "%+d" % int(opponent.get("reputation_reward", 0)))
     _reward(rewards, "승패 포인트", "%+d / %d" % [int(opponent.get("career_points_win", 0)), -absi(int(opponent.get("career_points_loss", 0)))])
+    var business_preview: Dictionary = GameState.business_preview(opponent)
+    var draw_preview := _label(info, "예상 관중 %s명 · 흥행 배분금 %s원" % [
+        String.num_int64(int(business_preview.get("attendance", 0))),
+        String.num_int64(int(business_preview.get("gate_share", 0))),
+    ], 10, MUTED, true)
+    draw_preview.name = "FightOfferBusinessPreview_" + id
 
     var buttons := _row(info, 6)
     var inspect := UI.action_button("분석", bold_font)

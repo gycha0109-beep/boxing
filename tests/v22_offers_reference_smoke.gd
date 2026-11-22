@@ -50,6 +50,8 @@ func _check_offer(opponent: Dictionary, offers: Array) -> void:
         _require(("%+d / %d" % [int(opponent["career_points_win"]), -absi(int(opponent["career_points_loss"]))]) in labels, id + " career points from roster")
     else:
         _require(false, id + " reward summary")
+    var draw_preview := card.find_child("FightOfferBusinessPreview_" + id, true, false) as Label
+    _require(draw_preview != null and draw_preview.text.contains("예상 관중") and draw_preview.text.contains("흥행 배분금"), id + " estimated gate revenue preview")
 
     var before: Dictionary = state_node.state.duplicate(true)
     var saved_before := SaveService.load_game()

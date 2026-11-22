@@ -455,6 +455,8 @@ func _render_result() -> void:
         _review_panel("12전 커리어 평가", GameState.state.career_state.milestone)
     view.continue_requested.connect(_continue_from_reference_result)
     body.add_child(view)
+    if str(summary.get("title_won", "")) == "district":
+        _v17_section_heading("구·시 챔피언 등극!", "결과를 확인하면 첫 공식 스폰서의 제안을 받을 수 있습니다.")
     _reset_reference_scroll()
 
 func _continue_from_reference_result() -> void:
@@ -757,10 +759,15 @@ func _render_phase() -> void:
     if _tutorial_special_screen():
         _render_tutorial_story()
         return
-    if v17_overlay.is_empty() and GameState.state.phase in ["season_review", "champion_choice"]:
+    if v17_overlay.is_empty() and GameState.state.phase in ["season_review", "champion_choice", "sponsor_offer", "gym_fund_intro"]:
         _clear_body()
         _render_status()
-        _render_career_decision()
+        if GameState.state.phase == "gym_fund_intro":
+            _render_gym_fund_intro()
+        elif GameState.state.phase == "sponsor_offer":
+            _render_sponsorship_decision()
+        else:
+            _render_career_decision()
         _configure_mobile_scroll()
         _v17_sync_nav()
         _reset_reference_scroll()
@@ -774,6 +781,32 @@ func _render_phase() -> void:
         return
     super._render_phase()
     call_deferred("_tutorial_attach")
+
+func _render_gym_fund_intro() -> void:
+    _v17_section_heading("3경기 완주! 체육관 공동 모금", "동료들이 선수의 성장을 응원하며 모아준 특별 지원금입니다.")
+    var panel := _v17_panel(body, true)
+    _v17_title(panel, "+25,000원", 30)
+    _v17_copy(panel, "세 번째 경기를 마쳤습니다. 받은 지원금으로 글러브와 훈련 장비를 살펴보세요. 장비는 훈련과 경기에 영향을 주며, 구매는 선택입니다.", false)
+    var shop_button := _v17_gold_button("상점 둘러보기 · 장비 사용법 알아보기")
+    shop_button.pressed.connect(_open_gym_fund_shop)
+    body.add_child(shop_button)
+    shop_button.name = "GymFundOpenShop"
+    var skip_button := _v17_dark_button("지금은 넘어가기")
+    skip_button.pressed.connect(_skip_gym_fund_shop)
+    body.add_child(skip_button)
+    skip_button.name = "GymFundSkipShop"
+
+func _open_gym_fund_shop() -> void:
+    if GameState.open_gym_fund_shop():
+        _equipment_section = "personal"
+        _equipment_receipt = {}
+        _render_phase()
+        _reset_reference_scroll()
+
+func _skip_gym_fund_shop() -> void:
+    if GameState.skip_gym_fund_shop():
+        _render_phase()
+        _reset_reference_scroll()
 
 func _v17_open_training() -> void:
     v17_overlay = ""
@@ -801,6 +834,13 @@ func _open_equipment_shop() -> void:
     super._open_equipment_shop()
     _reset_reference_scroll()
 
+func _return_from_equipment_shop() -> void:
+    if not GameState.leave_equipment_shop():
+        return
+    _equipment_receipt = {}
+    _render_phase()
+    _reset_reference_scroll()
+
 func _render_equipment_shop() -> void:
     _render_reference_shop(false)
 
@@ -822,12 +862,15 @@ func _render_reference_shop(unavailable: bool) -> void:
     else:
         view.section = _equipment_section
         view.receipt = _equipment_receipt if _equipment_receipt.get("section") == _equipment_section else {}
+        view.purchase_complete = not str(GameState.state.get("last_camp_action", "")).is_empty()
         view.money = int(GameState.state["career"]["money"])
         view.spent = GameState.equipment_total_spent()
         view.slots = _equipment_slots_for_view(_equipment_section)
         view.section_requested.connect(_select_reference_equipment_section, CONNECT_DEFERRED)
         view.purchase_requested.connect(_purchase_reference_equipment, CONNECT_DEFERRED)
         view.back_requested.connect(_return_from_equipment_shop, CONNECT_DEFERRED)
+    if bool(GameState.state.get("career_state", {}).get("gym_fund_shop_active", false)):
+        _v17_section_heading("장비 구매 가이드", "개인 장비와 체육관 장비를 비교해 보세요. 장비를 구매하면 캠프 활동 1회를 사용하며, 구매 없이 돌아갈 수도 있습니다.")
     body.add_child(view)
 
 func _equipment_slots_for_view(section: String) -> Array[Dictionary]:
@@ -904,7 +947,10 @@ func _v19_render_blocked_tab(tab_id: String) -> void:
         panel = _v17_panel(body, false)
         if phase == "equipment_shop":
             _v17_title(panel, "장비 투자 단계입니다", 22)
-            _v17_copy(panel, "장비 하나를 구매하면 경기 제안을 받습니다. 다른 활동을 고르려면 관리 메뉴로 돌아가세요.", true)
+            if str(GameState.state.get("last_camp_action", "")).is_empty():
+                _v17_copy(panel, "장비를 살펴보고 구매 여부를 결정하세요. 구매하지 않고 돌아가도 캠프는 유지됩니다.", true)
+            else:
+                _v17_copy(panel, "장비 구매가 완료되었습니다. 구매 결과를 확인한 뒤 경기 제안으로 이동하세요.", true)
         elif phase == "camp":
             _v17_title(panel, "경기 준비 중", 22)
             _v17_copy(panel, "관리 메뉴에서 활동 하나를 마치면 경기 제안이 열립니다.", true)
@@ -920,7 +966,8 @@ func _v19_render_blocked_tab(tab_id: String) -> void:
             _render_camp_result(body)
             _reset_reference_scroll()
     if phase == "equipment_shop":
-        _v19_menu_button(panel, "훈련 캠프로 돌아가기", Callable(self, "_return_from_equipment_shop"))
+        var return_label := "경기 제안으로 이동" if not str(GameState.state.get("last_camp_action", "")).is_empty() else "훈련 캠프로 돌아가기"
+        _v19_menu_button(panel, return_label, Callable(self, "_return_from_equipment_shop"))
     _v19_menu_button(panel, "현재 단계로 돌아가기", Callable(self, "_v19_return_to_phase"))
 
 # Browser-preview navigation: make both header icons actionable.
@@ -1126,13 +1173,20 @@ func _render_camp() -> void:
     training.bold_font = _v18_font(620)
     training.heading_font = REFERENCE_UI.heading_font(_v18_font(780))
     training.action_chosen.connect(_choose_camp_action)
-    training.shop_requested.connect(_open_equipment_shop)
+    training.shop_requested.connect(_open_training_upgrade_shop)
     training.media_requested.connect(func():
         if GameState.management_visit():
             _render_phase()
     )
     body.add_child(training)
     _reset_reference_scroll()
+
+func _open_training_upgrade_shop() -> void:
+    _open_equipment_shop()
+    if str(GameState.state.get("phase", "")) == "equipment_shop":
+        _equipment_section = "gym"
+        _render_phase()
+        _reset_reference_scroll()
 
 func _choose_camp_action(action: Dictionary) -> void:
     var before: Dictionary = GameState.state["boxer"].duplicate(true)
@@ -1411,6 +1465,53 @@ func _review_panel(heading: String, report: Dictionary) -> void:
         _v17_copy(panel, "성장 속도 · 경기당 평균 능력치 %+.2f" % (float(report.skill_gain) / span), true)
     _v17_copy(panel, "건강 %d · 부상 %s · 세계 타이틀 %s" % [
         report.health, report.injury, "도전 가능" if report.title_ready else "자격 준비 중"], true)
+    if report.has("total_attendance"):
+        _v17_copy(panel, "누적 관중 %s명 · 흥행 배분금 %s원 · 스폰서 수익 %s원" % [
+            str(int(report.total_attendance)), _v17_money(int(report.total_gate_income)),
+            _v17_money(int(report.total_sponsor_income))], true)
+
+func _render_sponsorship_decision() -> void:
+    var status: Dictionary = GameState.sponsorship_status()
+    var offers: Array = GameState.sponsorship_offers()
+    var first_offer: bool = int(GameState.state.career_state.business_state.get("sponsor_decision_fights", -1)) < 0
+    _v17_section_heading("첫 공식 스폰서 제안!" if first_offer else "스폰서 재계약", "타이틀로 가능한 브랜드 등급이, 인지도로 계약 조건이 결정됩니다.")
+    _v17_copy(body, "다음 실제 경기부터 4경기 계약입니다. 안정형과 KO 보너스 중심의 성과형 중 선택하세요.", true)
+    for offer: Dictionary in offers.slice(0, 2):
+        var id := str(offer.get("id", ""))
+        var section := _v17_panel(body, false)
+        _v17_title(section, str(offer.get("name", "스폰서")), 20)
+        for contract_style: String in ["steady", "performance"]:
+            var lost: Dictionary = GameState.Business.payment_for_style(offer, contract_style, "LOSS_DEC")
+            var won: Dictionary = GameState.Business.payment_for_style(offer, contract_style, "WIN_DEC")
+            var ko: Dictionary = GameState.Business.payment_for_style(offer, contract_style, "WIN_KO")
+            var label := "%s · 패배 %s원\n판정승 %s원 · KO승 %s원" % [
+                "안정형" if contract_style == "steady" else "성과형",
+                _v17_money(int(lost.total)), _v17_money(int(won.total)), _v17_money(int(ko.total))]
+            var button := _v17_gold_button(label)
+            button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+            button.custom_minimum_size.y = 70
+            button.name = "Sponsor_" + id + "_" + contract_style
+            button.pressed.connect(Callable(self, "_choose_sponsor").bind(id, contract_style))
+            section.add_child(button)
+    var next_tier: Dictionary = status.get("next_tier", {})
+    if not next_tier.is_empty():
+        _v17_copy(body, "상위 스폰서: %s 타이틀 · 인지도 %d 필요 (현재 %d)" % [
+            str(next_tier.get("title_label", "")), int(next_tier.get("minimum_reputation", 0)),
+            int(GameState.state.career.reputation)], true)
+    var decline := _v17_gold_button("이번에는 계약하지 않기")
+    decline.name = "Sponsor_decline"
+    decline.pressed.connect(_decline_sponsor)
+    body.add_child(decline)
+
+func _choose_sponsor(sponsor_id: String, contract_style: String) -> void:
+    if GameState.sign_sponsorship(sponsor_id, contract_style):
+        _render_phase()
+        _reset_reference_scroll()
+
+func _decline_sponsor() -> void:
+    if GameState.decline_sponsorship():
+        _render_phase()
+        _reset_reference_scroll()
 
 func _render_career_decision() -> void:
     var c: Dictionary = GameState.state.career
@@ -1427,6 +1528,10 @@ func _render_career_decision() -> void:
     _review_panel("시즌 %d 평가" % (int(c.fights) / 4), GameState.season_review())
     if int(c.fights) == 12 and GameState.state.career_state.has("milestone"):
         _review_panel("12전 커리어 평가", GameState.state.career_state.milestone)
+    var sponsorship: Dictionary = GameState.sponsorship_status()
+    if bool(sponsorship.get("active", false)):
+        var active: Dictionary = sponsorship.get("sponsor", {})
+        _v17_section_heading("진행 중 스폰서", "%s · %d경기 남음" % [str(active.get("name", "")), int(active.get("remaining_fights", 0))])
     _v17_section_heading("다음 네 경기 계약", "랭킹을 반영한 파이트머니입니다. 계체 결과와 경기 비용은 정산 때 반영됩니다.")
     var choices := VBoxContainer.new()
     body.add_child(choices)

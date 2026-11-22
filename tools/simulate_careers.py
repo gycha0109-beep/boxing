@@ -4,6 +4,7 @@ import json, random, statistics
 from collections import Counter
 from pathlib import Path
 from sim_combat import fight
+from boxing_business import CONTRACT_LENGTH, STARTER_SUPPORT, best_sponsor_offer, gate_receipts, sponsor_payment, title_level
 
 ROOT=Path(__file__).resolve().parents[1]
 OPPS=json.loads((ROOT/'data/opponents.json').read_text())
@@ -275,7 +276,7 @@ def simulate(seed):
     for source in (trait,identity):
         for stat,v in source.get('stat_bonus',{}).items():
             b[stat]=max(1,min(100,b[stat]+v))
-    s={'boxer':b,'money':120000,'reputation':0,'wins':0,'losses':0,'draws':0,'fights':0,'points':0,'age_months':19*12,'champion':False,'injury_fights':0,'plan_counts':Counter(),'trait':trait['id'],'identity':identity['id'],'titles':[],'equipment':{'personal':{},'gym':{}},'growth_carry':{},'equipment_spent':0}
+    s={'boxer':b,'money':120000,'reputation':0,'wins':0,'losses':0,'draws':0,'fights':0,'points':0,'age_months':19*12,'champion':False,'injury_fights':0,'plan_counts':Counter(),'trait':trait['id'],'identity':identity['id'],'titles':[],'equipment':{'personal':{},'gym':{}},'growth_carry':{},'equipment_spent':0,'active_sponsor':{},'sponsor_decision_fights':-1,'sponsor_decision_level':-1,'total_gate_income':0,'total_sponsor_income':0,'total_attendance':0,'sponsored_fights':0}
     background = (seed - 1) % 3
     s.update(background=background, contract=None, rate=1.0, streak=0, defenses=0, last_opp='', ever_champion=False)
     s['money'] += (0, 35000, 65000)[background]
@@ -298,6 +299,12 @@ def simulate(seed):
         purse_mult=weigh_in(s)*b['modifiers'].get('purse_multiplier',1.0)
         out=fight(seed*1000+s['fights'],opp,effective_player(b),plan_id); result=out['result']
         s['fights']+=1; s['age_months']+=CB['calendar']['months_per_fight']; gross=round(booked*purse_mult); s['money']+=round(gross*CB['economy']['purse_net_multiplier']); s['money']-=CB['economy']['cycle_cost_by_tier'].get(opp['tier'],0)
+        if s['fights']==3: s['money']+=STARTER_SUPPORT
+        gate = gate_receipts(s['reputation'], opp, booked, bool(s['titles']))
+        s['money'] += gate['gate_share']; s['total_gate_income'] += gate['gate_share']; s['total_attendance'] += gate['attendance']
+        sponsor_paid, s['active_sponsor'] = sponsor_payment(s['active_sponsor'], result, bool(s['champion']) and opp.get('title_kind')=='world' and result.startswith('WIN'))
+        s['money'] += sponsor_paid; s['total_sponsor_income'] += sponsor_paid
+        if sponsor_paid: s['sponsored_fights'] += 1
         ff=14; hl=1
         if result=='LOSS_KO': ff+=12; hl+=8
         elif result=='WIN_KO': ff+=5; hl+=2
@@ -341,6 +348,18 @@ def simulate(seed):
         apply_event(rng,s,result)
         if ending(s):
             break
+        if not s['active_sponsor'] and title_level(s['titles']) >= 0:
+            eligible = (s['sponsor_decision_fights'] < 0
+                or s['fights'] >= s['sponsor_decision_fights'] + CONTRACT_LENGTH
+                or title_level(s['titles']) > s['sponsor_decision_level'])
+            if eligible:
+                offer = best_sponsor_offer(s['reputation'], s['titles'])
+                if offer:
+                    sponsor_id, sponsor_data = offer
+                    # Balanced simulation policy: stable guarantee unless selected otherwise in-game.
+                    s['active_sponsor'] = dict(sponsor_data, id=sponsor_id, style='steady', remaining_fights=CONTRACT_LENGTH)
+                    s['sponsor_decision_fights'] = s['fights']
+                    s['sponsor_decision_level'] = title_level(s['titles'])
         if s['fights'] % 4 == 0:
             s['contract'] = rng.choice(['steady','challenge','draw'])
             ranking_bonus = min(10, round(s['points']*.49)//5)/100
@@ -358,9 +377,11 @@ def main(n=10000):
     for r in runs:
         plans.update(r['plan_counts']); title_counts.update(r['titles'])
     champ=sum(r['ever_champion'] for r in runs)/n; avg_f=statistics.mean(r['fights'] for r in runs); avg_w=statistics.mean(r['wins'] for r in runs); avg_money=statistics.mean(r['money'] for r in runs); avg_spent=statistics.mean(r['equipment_spent'] for r in runs); injury_share=statistics.mean(r['injury_fights']/max(1,r['fights']) for r in runs)
-    print(f"careers={n} policy=one_activity_three_backgrounds_season_contracts")
+    avg_gate=statistics.mean(r['total_gate_income'] for r in runs); avg_sponsor=statistics.mean(r['total_sponsor_income'] for r in runs); avg_attendance=statistics.mean(r['total_attendance'] for r in runs)
+    print(f"careers={n} policy=one_activity_three_backgrounds_season_contracts_business")
     print(f"champion_rate={champ:.3f}")
     print(f"avg_fights={avg_f:.2f} avg_wins={avg_w:.2f} avg_final_money={avg_money:.0f} avg_equipment_spent={avg_spent:.0f}")
+    print(f"avg_total_attendance={avg_attendance:.0f} avg_gate_income={avg_gate:.0f} avg_sponsor_income={avg_sponsor:.0f}")
     print(f"injury_fight_share={injury_share:.3f}")
     print("endings="+", ".join(f"{k}:{v/n:.3f}" for k,v in end.most_common()))
     print("titles="+", ".join(f"{k}:{v/n:.3f}" for k,v in title_counts.most_common()))

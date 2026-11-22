@@ -36,6 +36,10 @@ static func exchange_headline(exchange: Dictionary) -> String:
         return "KNOCKDOWN!"
     if bool(opponent_event.get("knockout", false)):
         return "DOWN!"
+    if bool(opponent_event.get("evaded", false)):
+        return "DODGE!"
+    if bool(player_event.get("evaded", false)):
+        return "상대 회피"
     if str(player_event.get("action", "")) == "body" and bool(player_event.get("hit", false)):
         return "BODY HIT"
     if bool(player_event.get("hit", false)):
@@ -66,8 +70,18 @@ static func exchange_detail(exchange: Dictionary, opponent_name: String) -> Stri
         lines.append("상대 STA -%d" % int(round(float(player_event.get("target_stamina_damage", 0.0)))))
     if bool(opponent_event.get("hit", false)):
         lines.append("내 HP -%d" % int(round(float(opponent_event.get("damage", 0.0)))))
+        var defense_multiplier := float(opponent_event.get("defense_damage_multiplier", 1.0))
+        if defense_multiplier < 0.999:
+            lines.append("내 수비로 피해 %d%% 감소" % roundi((1.0 - defense_multiplier) * 100.0))
+        elif defense_multiplier > 1.001:
+            lines.append("수비 부족으로 피해 %d%% 증가" % roundi((defense_multiplier - 1.0) * 100.0))
     if float(opponent_event.get("target_stamina_damage", 0.0)) > 0.0:
         lines.append("내 STA -%d" % int(round(float(opponent_event.get("target_stamina_damage", 0.0)))))
+
+    if bool(player_event.get("evaded", false)):
+        lines.append("%s가 빠른 움직임으로 내 공격을 피했습니다." % opponent_name)
+    if bool(opponent_event.get("evaded", false)):
+        lines.append("상대 펀치를 스피드로 회피했습니다.")
 
     if bool(exchange.get("read_success", false)):
         lines.append("큰 공격을 읽었습니다. Counter Trap 조건 충족.")

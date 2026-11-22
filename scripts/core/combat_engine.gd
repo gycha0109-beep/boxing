@@ -115,8 +115,8 @@ func resolve_exchange(player_action: String) -> Dictionary:
             _finish_decision()
         else:
             round_no += 1
-            player_stamina = min(100.0, player_stamina + 9.0 + float(player.conditioning) * 0.05)
-            opponent_stamina = min(100.0, opponent_stamina + 9.0 + float(opponent.stats.conditioning) * 0.05)
+            player_stamina = min(100.0, player_stamina + _round_stamina_recovery(float(player.conditioning)))
+            opponent_stamina = min(100.0, opponent_stamina + _round_stamina_recovery(float(opponent.stats.conditioning)))
 
     var round_ended: bool = cards.size() > cards_before
     var round_card: Array = []
@@ -180,6 +180,10 @@ func _perform(is_player: bool, action_id: String, target_action: String, reactiv
         "target_stamina_damage": 0.0,
         "stamina_delta": 0.0,
         "knockout": false,
+        "evaded": false,
+        "evasion_chance": 0.0,
+        "defense_damage_multiplier": 1.0,
+        "conditioning_body_multiplier": 1.0,
         "matchup": "",
         "plan_read": _plan_read_state(is_player, action_id, target_action, reactive_window)
     }
@@ -197,7 +201,9 @@ func _perform(is_player: bool, action_id: String, target_action: String, reactiv
         log.append(("나" if is_player else str(opponent.name)) + " 가드")
         return event
 
-    var cost: float = float(action.stamina) * (1.10 - float(actor.conditioning) / 500.0)
+    var conditioning := float(actor.get("conditioning", 50))
+    var fatigue_resistance := _fatigue_resistance_multiplier(conditioning)
+    var cost: float = float(action.stamina) * _stamina_cost_multiplier(conditioning)
     stamina = max(0.0, stamina - cost)
     if is_player:
         player_stamina = stamina
@@ -206,10 +212,10 @@ func _perform(is_player: bool, action_id: String, target_action: String, reactiv
     event["stamina_delta"] = stamina - stamina_before
 
     var accuracy: float = float(action.accuracy)
-    accuracy += (float(actor.technique) - float(target.defense)) * 0.003
-    accuracy += (float(actor.speed) - float(target.speed)) * 0.0015
+    accuracy += _technique_accuracy_adjustment(actor, target, action_id)
     accuracy += float(actor.get("modifiers", {}).get("accuracy_bonus", 0.0))
-    accuracy -= max(0.0, 45.0 - stamina) * float(balance.fight.fatigue_accuracy_penalty)
+    var accuracy_fatigue_threshold := float(balance.fight.get("fatigue_accuracy_threshold", 45.0))
+    accuracy -= max(0.0, accuracy_fatigue_threshold - stamina) * float(balance.fight.fatigue_accuracy_penalty) * fatigue_resistance
 
     var damage_mult: float = 1.0
     if reactive_window and action_id == "counter" and target_action == "power":
@@ -240,23 +246,39 @@ func _perform(is_player: bool, action_id: String, target_action: String, reactiv
         log.append(("나" if is_player else str(opponent.name)) + " " + str(action.label) + " 빗나감")
         return event
 
+    var evasion_chance := _evasion_chance(actor, target)
+    event["evasion_chance"] = evasion_chance
+    if evasion_chance > 0.0 and rng.randf() < evasion_chance:
+        event["miss"] = true
+        event["evaded"] = true
+        log.append(("상대" if is_player else "나") + " 회피")
+        return event
+
     var damage: float = float(action.damage)
-    damage *= 0.62 + float(actor.power) / 100.0 * 0.72
-    damage *= 0.86 + float(actor.technique) / 100.0 * 0.22
+    damage *= _power_damage_multiplier(float(actor.get("power", 50)))
+    damage *= _technique_damage_multiplier(float(actor.get("technique", 50)))
+    var technique_variance := _technique_damage_variance(float(actor.get("technique", 50)))
+    damage *= rng.randf_range(1.0 - technique_variance, 1.0 + technique_variance)
     damage *= damage_mult
-    damage *= rng.randf_range(0.88, 1.12)
-    damage *= 1.0 - max(0.0, 35.0 - stamina) * float(balance.fight.fatigue_damage_penalty)
+    var damage_fatigue_threshold := float(balance.fight.get("fatigue_damage_threshold", 35.0))
+    damage *= 1.0 - max(0.0, damage_fatigue_threshold - stamina) * float(balance.fight.fatigue_damage_penalty) * fatigue_resistance
+    var defense_damage_multiplier := _defense_damage_multiplier(float(target.get("defense", 50)))
+    event["defense_damage_multiplier"] = defense_damage_multiplier
+    damage *= defense_damage_multiplier
     if target_action == "guard":
         damage *= float(balance.fight.guard_mitigation)
 
     var target_stamina_before: float = opponent_stamina if is_player else player_stamina
+    var body_damage_multiplier := _body_stamina_damage_multiplier(float(target.get("conditioning", 50)))
+    var body_stamina_damage := float(action.body_stamina_damage) * body_damage_multiplier
+    event["conditioning_body_multiplier"] = body_damage_multiplier
     if is_player:
         opponent_hp = max(0.0, opponent_hp - damage)
-        opponent_stamina = max(0.0, opponent_stamina - float(action.body_stamina_damage))
+        opponent_stamina = max(0.0, opponent_stamina - body_stamina_damage)
         player_round_score += damage * float(action.score)
     else:
         player_hp = max(20.0 if tutorial_first_bout else 0.0, player_hp - damage)
-        player_stamina = max(0.0, player_stamina - float(action.body_stamina_damage))
+        player_stamina = max(0.0, player_stamina - body_stamina_damage)
         opponent_round_score += damage * float(action.score)
     var target_stamina_after: float = opponent_stamina if is_player else player_stamina
 
@@ -266,6 +288,85 @@ func _perform(is_player: bool, action_id: String, target_action: String, reactiv
     log.append(("나" if is_player else str(opponent.name)) + " " + str(action.label) + " 적중 %.1f" % damage)
     event["knockout"] = _check_ko(is_player, damage)
     return event
+
+func _power_damage_multiplier(power: float) -> float:
+    var effects: Dictionary = balance.get("stat_effects", {})
+    return float(effects.get("power_damage_base", 0.62)) + power * float(effects.get("power_damage_per_point", 0.0072))
+
+func _technique_damage_multiplier(technique: float) -> float:
+    var effects: Dictionary = balance.get("stat_effects", {})
+    return float(effects.get("technique_damage_base", 0.97)) + technique * float(effects.get("technique_damage_per_point", 0.0006))
+
+func _technique_damage_variance(technique: float) -> float:
+    var effects: Dictionary = balance.get("stat_effects", {})
+    return maxf(
+        float(effects.get("technique_variance_min", 0.05)),
+        float(effects.get("technique_variance_base", 0.12)) - technique * float(effects.get("technique_variance_per_point", 0.0007))
+    )
+
+func _technique_accuracy_adjustment(actor: Dictionary, target: Dictionary, action_id: String) -> float:
+    var effects: Dictionary = balance.get("stat_effects", {})
+    var technique := float(actor.get("technique", 50))
+    var defense := float(target.get("defense", 50))
+    var adjustment := (technique - defense) * float(effects.get("technique_accuracy_per_point", 0.0032))
+    if action_id == "counter":
+        adjustment += (technique - 50.0) * float(effects.get("technique_counter_accuracy_per_point", 0.001))
+    return adjustment
+
+func _evasion_chance(attacker: Dictionary, target: Dictionary) -> float:
+    var effects: Dictionary = balance.get("stat_effects", {})
+    var speed_advantage := maxf(0.0, float(target.get("speed", 50)) - float(attacker.get("speed", 50)))
+    return clampf(
+        speed_advantage * float(effects.get("speed_evasion_per_point", 0.003)),
+        0.0,
+        float(effects.get("speed_evasion_cap", 0.15))
+    )
+
+func _defense_damage_multiplier(defense: float) -> float:
+    var effects: Dictionary = balance.get("stat_effects", {})
+    var reduction := (defense - 50.0) * float(effects.get("defense_damage_reduction_per_point", 0.002))
+    var cap := float(effects.get("defense_damage_reduction_cap", 0.10))
+    return clampf(1.0 - reduction, 1.0 - cap, 1.0 + cap)
+
+func _stamina_cost_multiplier(conditioning: float) -> float:
+    var effects: Dictionary = balance.get("stat_effects", {})
+    var multiplier := float(effects.get("conditioning_stamina_cost_base", 1.40))
+    multiplier -= conditioning * float(effects.get("conditioning_stamina_cost_per_point", 0.008))
+    return clampf(
+        multiplier,
+        float(effects.get("conditioning_stamina_cost_min", 0.65)),
+        float(effects.get("conditioning_stamina_cost_max", 1.25))
+    )
+
+func _round_stamina_recovery(conditioning: float) -> float:
+    var effects: Dictionary = balance.get("stat_effects", {})
+    return float(effects.get("conditioning_round_recovery_base", 3.5)) + conditioning * float(effects.get("conditioning_round_recovery_per_point", 0.16))
+
+func _body_stamina_damage_multiplier(conditioning: float) -> float:
+    var effects: Dictionary = balance.get("stat_effects", {})
+    var multiplier := float(effects.get("conditioning_body_resistance_base", 1.40))
+    multiplier -= conditioning * float(effects.get("conditioning_body_resistance_per_point", 0.008))
+    return clampf(
+        multiplier,
+        float(effects.get("conditioning_body_resistance_min", 0.65)),
+        float(effects.get("conditioning_body_resistance_max", 1.25))
+    )
+
+func _fatigue_resistance_multiplier(conditioning: float) -> float:
+    var effects: Dictionary = balance.get("stat_effects", {})
+    var multiplier := 1.0 - (conditioning - 50.0) * float(effects.get("conditioning_fatigue_resistance_per_point", 0.008))
+    return clampf(
+        multiplier,
+        float(effects.get("conditioning_fatigue_resistance_min", 0.60)),
+        float(effects.get("conditioning_fatigue_resistance_max", 1.25))
+    )
+
+func _ko_resistance_multiplier(target: Dictionary) -> float:
+    var effects: Dictionary = balance.get("stat_effects", {})
+    var chin := float(target.get("defense", 50)) * float(effects.get("defense_ko_resistance_weight", 0.65))
+    chin += float(target.get("conditioning", 50)) * float(effects.get("conditioning_ko_resistance_weight", 0.35))
+    var multiplier := 1.0 - (chin - 50.0) * float(effects.get("ko_resistance_per_point", 0.003))
+    return clampf(multiplier, 0.85, 1.15)
 
 func _actor_for_action(base_actor: Dictionary, action_id: String, target_action: String, reactive_window: bool) -> Dictionary:
     var plan: Dictionary = base_actor.get("game_plan", {})
@@ -306,11 +407,10 @@ func _check_ko(attacker_is_player: bool, damage: float) -> bool:
         return true
     if damage < 10.0:
         return false
-    var chin: float = (float(target.defense) + float(target.conditioning)) * 0.5
     var chance: float = float(balance.fight.ko_base_threshold)
     chance += max(0.0, damage - 10.0) * float(balance.fight.ko_damage_scale)
-    chance += max(0.0, 45.0 - chin) * 0.004
     chance += max(0.0, 35.0 - target_hp) * 0.008
+    chance *= _ko_resistance_multiplier(target)
     chance *= float(target.get("modifiers", {}).get("ko_taken_multiplier", 1.0))
     if rng.randf() < clamp(chance, 0.0, 0.72):
         finished = true

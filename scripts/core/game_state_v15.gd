@@ -1,6 +1,7 @@
 extends "res://scripts/core/game_state_v14.gd"
 
 const League := preload("res://scripts/core/league_career.gd")
+const Business := preload("res://scripts/core/boxing_business_service.gd")
 const STARTING_BASE_STAT := 44
 const EQUIPMENT_PATH := "res://data/equipment.json"
 const EQUIPMENT_SECTIONS := ["personal", "gym"]
@@ -19,6 +20,7 @@ func new_career(boxer_name: String, trait_id: String = "") -> void:
     state["career_state"] = career_state
     career_state.season_start = League.snapshot(state)
     career_state.career_start = career_state.season_start.duplicate(true)
+    Business.ensure_state(state)
     SaveService.finish_transition(state)
 
 func equipment_catalog(section: String = "") -> Array:
@@ -92,6 +94,8 @@ func equipment_unlock_label(item: Dictionary) -> String:
 func can_purchase_equipment(section: String, item_id: String) -> Dictionary:
     if str(state.get("phase", "")) not in ["camp", "equipment_shop"]:
         return {"ok": false, "reason": "wrong_phase"}
+    if str(state.get("phase", "")) == "equipment_shop" and not str(state.get("last_camp_action", "")).is_empty():
+        return {"ok": false, "reason": "activity_used"}
     if section not in EQUIPMENT_SECTIONS:
         return {"ok": false, "reason": "unknown_section"}
     var item := equipment_definition(item_id)
@@ -147,9 +151,16 @@ func purchase_equipment(section: String, item_id: String) -> Dictionary:
     equipment_state["total_spent"] = int(equipment_state.get("total_spent", 0)) + price
     _store_equipment_state(equipment_state)
     state.last_camp_action = item_id
-    state.phase = "fight_offer"
+    state.phase = "equipment_shop"
     SaveService.save_game(state)
     return {"ok": true, "item": item.duplicate(true), "previous": previous.duplicate(true), "money": int(state.career.money), "stat_changes": stat_changes}
+
+func leave_equipment_shop() -> bool:
+    if str(state.get("phase", "")) != "equipment_shop":
+        return false
+    state.phase = "fight_offer" if not str(state.get("last_camp_action", "")).is_empty() else "camp"
+    SaveService.save_game(state)
+    return true
 
 func apply_camp_action(action: Dictionary) -> Dictionary:
     var result: Dictionary = super.apply_camp_action(action)
@@ -313,7 +324,10 @@ func apply_fight_result(result: String, opponent: Dictionary, snapshot: Dictiona
         paid.title_fight = false
     var won := result.begins_with("WIN")
     var upset := won and int(opponent.rank) + 5 <= int(state.career.rank)
+    var business_report := Business.settle_bout(state, paid, result)
     super.apply_fight_result(result, paid, snapshot)
+    for key: String in business_report:
+        state.last_fight_summary[key] = business_report[key]
     var book: Dictionary = state.career_state
     book.erase("booked_purse")
     var c: Dictionary = state.career
@@ -397,6 +411,7 @@ func _begin_next_cycle() -> void:
             state.phase = "champion_choice"
         elif int(state.career.fights) > 0 and int(state.career.fights) % 4 == 0:
             state.phase = "season_review"
+        Business.enter_offer_if_due(state)
     SaveService.finish_transition(state)
 
 func season_review() -> Dictionary:
@@ -409,7 +424,32 @@ func _career_review(start: Dictionary) -> Dictionary:
     report.next_title = "%s · %s" % [goal.get("label", "세계 타이틀"), "제안 가능" if available else "도전 준비 중"]
     if bool(state.career.champion):
         report.next_title = "세계 챔피언 · 방어 %d회" % int(state.career_state.defenses)
+    var business: Dictionary = Business.sponsorship_status(state)
+    report["total_attendance"] = int(business.get("total_attendance", 0))
+    report["total_gate_income"] = int(business.get("total_gate_income", 0))
+    report["total_sponsor_income"] = int(business.get("total_sponsor_income", 0))
     return report
+
+func sponsorship_offers() -> Array:
+    return Business.sponsorship_offers(state)
+
+func sponsorship_status() -> Dictionary:
+    return Business.sponsorship_status(state)
+
+func business_preview(opponent: Dictionary) -> Dictionary:
+    return Business.preview_bout(state, opponent)
+
+func sign_sponsorship(id: String, contract_style: String = "steady") -> bool:
+    if not Business.sign_sponsorship(state, id, contract_style):
+        return false
+    SaveService.save_game(state)
+    return true
+
+func decline_sponsorship() -> bool:
+    if not Business.decline_sponsorship(state):
+        return false
+    SaveService.save_game(state)
+    return true
 
 func sign_contract(id: String) -> bool:
     if state.phase != "season_review" or not League.CONTRACTS.has(id):

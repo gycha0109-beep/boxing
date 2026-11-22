@@ -265,7 +265,7 @@ func _show_stat_help(stat_id: String) -> void:
         add_child(stat_help_dialog)
     stat_help_dialog.title = _stat_label(stat_id)
     stat_help_dialog.dialog_text = "%s\n\n%s" % [_stat_label(stat_id), GameState.stat_help(stat_id)]
-    stat_help_dialog.popup_centered(Vector2i(300, 150))
+    stat_help_dialog.popup_centered(Vector2i(380, 240))
 
 func _v17_prep_symbol(parent: VBoxContainer, prep_id: String) -> void:
     var art := TextureRect.new()

@@ -25,6 +25,7 @@ func _run() -> void:
         await _check_action(action)
     await _check_eligibility()
     await _check_resume()
+    await _check_investment_navigation()
 
     if failures.is_empty():
         print("PASS: eight actions, actual results, eligibility, duplicate input, profile and save/resume")
@@ -71,21 +72,20 @@ func _check_action(action: Dictionary) -> void:
         return
 
     var grid := training.find_child("TrainingPrimaryGrid", true, false) as GridContainer
-    _require(grid != null and grid.columns == 2 and grid.get_child_count() == 4, "primary 2×2 grid")
+    _require(grid != null and grid.columns == 2 and grid.get_child_count() == 5, "five training choices in one grid")
     _require(training.find_child("TrainingHeroPhoto", true, false) != null, "hero photo")
     for meter in ["Health", "Fatigue"]:
         var bar := training.find_child("Training%sMeter" % meter, true, false) as ProgressBar
         _require(bar != null and int(bar.value) == (76 if meter == "Health" else 40), "live " + meter)
-    var extras := training.find_child("TrainingAdditionalActions", true, false) as Control
-    _require(extras != null and not extras.visible, "additional actions start collapsed")
+    var body_care := training.find_child("TrainingBodyCareGrid", true, false) as GridContainer
+    _require(body_care != null and body_care.get_child_count() == 3, "recovery and weigh-in care grouped separately")
+    _require(training.find_child("TrainingMoreActions", true, false) == null, "hidden training menu removed")
+    _require(training.find_child("TrainingUpgradeShop", true, false) != null, "permanent training equipment upgrade visible")
     var choose := training.find_child("TrainingSelect_" + id, true, false) as Button
     if choose == null:
         _require(false, "missing action " + id)
         await _close_scene()
         return
-    if not choose.is_visible_in_tree():
-        (training.find_child("TrainingMoreActions", true, false) as Button).pressed.emit()
-        await _settle()
     _require(choose.is_visible_in_tree() and not choose.disabled, id + " should be selectable")
 
     var before: Dictionary = state_node.state["boxer"].duplicate(true)
@@ -131,15 +131,13 @@ func _check_eligibility() -> void:
     state_node.state["career"]["money"] = 5000
     await _enter_scene()
     var training := main.find_child("ReferenceTraining", true, false)
-    var extra := training.find_child("TrainingMoreActions", true, false) as Button
-    extra.pressed.emit()
     var before: Dictionary = state_node.state.duplicate(true)
     for button in training.find_children("TrainingSelect_*", "Button", true, false):
-        if button.name == "TrainingSelect_full_rest":
-            _require(not button.disabled, "a choice costing exactly the balance stays enabled")
-        else:
-            _require(button.disabled, str(button.name) + " disabled at low balance")
+        if button.name in ["TrainingSelect_rehab", "TrainingSelect_weight_cut"]:
+            _require(button.disabled, str(button.name) + " requires paid treatment or weight management")
             button.pressed.emit()
+        else:
+            _require(not button.disabled, str(button.name) + " basic training and rest remain available without funds")
     await _settle()
     _require(state_node.state == before, "disabled choices cannot mutate the career")
     await _check_profile(before["boxer"])
@@ -149,7 +147,23 @@ func _check_eligibility() -> void:
     _require(state_node.state == before, "tab switching preserves the career")
     (main.find_child("TrainingSelect_full_rest", true, false) as Button).pressed.emit()
     await _settle()
-    _require(int(state_node.state["career"]["money"]) == 0, "affordable rest applies at exact balance")
+    _require(int(state_node.state["career"]["money"]) == 5000, "free rest preserves money")
+    await _close_scene()
+
+func _check_investment_navigation() -> void:
+    _open_camp()
+    await _enter_scene()
+    var invest := main.find_child("TrainingUpgradeShop", true, false) as Button
+    _require(invest != null, "training investment button is visible")
+    if invest != null:
+        invest.pressed.emit()
+        await _settle()
+        _require(str(state_node.state.phase) == "equipment_shop", "training investment opens actual equipment store")
+        _require(str(main._equipment_section) == "gym", "training investment opens gym upgrades directly")
+        _require(main.find_child("EquipmentTab_gym", true, false) != null, "gym upgrade tab renders")
+        main._return_from_equipment_shop()
+        await _settle()
+        _require(str(state_node.state.phase) == "camp", "leaving investment shop preserves training opportunity")
     await _close_scene()
 
 func _check_saved_action(id: String) -> void:
@@ -171,6 +185,8 @@ func _check_profile(boxer: Dictionary) -> void:
     if profile == null:
         return
     var labels := _texts(profile)
+    for summary in ["펀치 피해량 · 다운/KO 압박", "선공 판정 · 상대 공격 회피", "명중률 · 카운터 · 피해 편차", "상대 명중률 · 피격 피해 · KO 저항", "스태미나 소모 · 회복 · 피로/바디 내성"]:
+        _require(summary in labels, "profile stat explanation missing: " + summary)
     _require(("%d%%" % int(boxer["fatigue"])) in labels, "profile fatigue in sync")
     _require(("%d / 100" % int(boxer["health"])) in labels, "profile health in sync")
     var bars := profile.find_children("*", "ProgressBar", true, false)

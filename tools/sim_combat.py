@@ -4,8 +4,8 @@ import json, random
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-BAL = json.loads((ROOT / "data/balance.json").read_text())
-PLANS = {p["id"]: p for p in json.loads((ROOT / "data/game_plans.json").read_text())} if (ROOT / "data/game_plans.json").exists() else {}
+BAL = json.loads((ROOT / "data/balance.json").read_text(encoding="utf-8"))
+PLANS = {p["id"]: p for p in json.loads((ROOT / "data/game_plans.json").read_text(encoding="utf-8"))} if (ROOT / "data/game_plans.json").exists() else {}
 STYLE_WEIGHTS = {
     "swarmer": [("body",.34),("jab",.30),("power",.20),("guard",.10),("counter",.06)],
     "out_boxer": [("jab",.48),("guard",.19),("counter",.16),("body",.10),("power",.07)],
@@ -80,13 +80,24 @@ def _apply_action_plan(actor, plan, action_id, target_action, reactive_window):
 def _hit(rng, actor, target, action_id, target_action, stamina, reactive_window):
     action = BAL["actions"][action_id]
     if action_id == "guard":
-        return 0.0, action["stamina"], 0.0
-    cost = action["stamina"] * (1.10 - actor["conditioning"] / 500)
+        return 0.0, action["stamina"], 0.0, False
+
+    effects = BAL.get("stat_effects", {})
+    conditioning = float(actor.get("conditioning", 50))
+    cost_multiplier = effects.get("conditioning_stamina_cost_base", 1.40) - conditioning * effects.get("conditioning_stamina_cost_per_point", .008)
+    cost = action["stamina"] * max(effects.get("conditioning_stamina_cost_min", .65), min(effects.get("conditioning_stamina_cost_max", 1.25), cost_multiplier))
     stamina = max(0.0, stamina - cost)
-    acc = action["accuracy"] + (actor["technique"] - target["defense"]) * .003 + (actor["speed"] - target["speed"]) * .0015
+
+    fatigue_resistance = max(effects.get("conditioning_fatigue_resistance_min", .60), min(effects.get("conditioning_fatigue_resistance_max", 1.25), 1 - (conditioning - 50) * effects.get("conditioning_fatigue_resistance_per_point", .008)))
+    technique = float(actor.get("technique", 50))
+    acc = action["accuracy"] + (technique - float(target.get("defense", 50))) * effects.get("technique_accuracy_per_point", .0032)
+    if action_id == "counter":
+        acc += (technique - 50) * effects.get("technique_counter_accuracy_per_point", .001)
     acc += actor.get("modifiers", {}).get("accuracy_bonus", 0.0)
-    acc -= max(0.0, 45 - stamina) * BAL["fight"]["fatigue_accuracy_penalty"]
-    mult = 1.0; matchups = BAL["matchups"]
+    acc -= max(0.0, BAL["fight"].get("fatigue_accuracy_threshold", 45.0) - stamina) * BAL["fight"]["fatigue_accuracy_penalty"] * fatigue_resistance
+
+    mult = 1.0
+    matchups = BAL["matchups"]
     if reactive_window and action_id == "counter" and target_action == "power":
         acc += matchups["counter_vs_power"]["accuracy"]; mult *= matchups["counter_vs_power"]["damage"]
     elif reactive_window and action_id == "counter" and target_action == "body":
@@ -97,14 +108,34 @@ def _hit(rng, actor, target, action_id, target_action, stamina, reactive_window)
         acc += matchups["power_vs_guard"]["accuracy"]; mult *= matchups["power_vs_guard"]["damage"]
     elif action_id == "body" and target_action == "guard":
         acc += matchups["body_vs_guard"]["accuracy"]; mult *= matchups["body_vs_guard"]["damage"]
+
     acc = max(.18, min(.93, acc))
     if rng.random() > acc:
-        return 0.0, cost, 0.0
-    dmg = action["damage"] * (.62 + actor["power"] / 100 * .72) * (.86 + actor["technique"] / 100 * .22) * mult * rng.uniform(.88, 1.12)
-    dmg *= 1 - max(0, 35 - stamina) * BAL["fight"]["fatigue_damage_penalty"]
+        return 0.0, cost, 0.0, False
+
+    speed_advantage = max(0.0, float(target.get("speed", 50)) - float(actor.get("speed", 50)))
+    evasion = min(effects.get("speed_evasion_cap", .15), speed_advantage * effects.get("speed_evasion_per_point", .003))
+    if evasion > 0 and rng.random() < evasion:
+        return 0.0, cost, 0.0, True
+
+    power_factor = effects.get("power_damage_base", .62) + float(actor.get("power", 50)) * effects.get("power_damage_per_point", .0072)
+    technique_factor = effects.get("technique_damage_base", .97) + technique * effects.get("technique_damage_per_point", .0006)
+    variance = max(effects.get("technique_variance_min", .05), effects.get("technique_variance_base", .12) - technique * effects.get("technique_variance_per_point", .0007))
+    dmg = action["damage"] * power_factor * technique_factor * mult * rng.uniform(1 - variance, 1 + variance)
+    dmg *= 1 - max(0, BAL["fight"].get("fatigue_damage_threshold", 35.0) - stamina) * BAL["fight"]["fatigue_damage_penalty"] * fatigue_resistance
+
+    defense = float(target.get("defense", 50))
+    reduction = (defense - 50) * effects.get("defense_damage_reduction_per_point", .002)
+    cap = effects.get("defense_damage_reduction_cap", .10)
+    dmg *= max(1 - cap, min(1 + cap, 1 - reduction))
     if target_action == "guard":
         dmg *= BAL["fight"]["guard_mitigation"]
-    return max(0.0, dmg), cost, action["body_stamina_damage"]
+
+    target_conditioning = float(target.get("conditioning", 50))
+    body_multiplier = effects.get("conditioning_body_resistance_base", 1.40) - target_conditioning * effects.get("conditioning_body_resistance_per_point", .008)
+    body_multiplier = max(effects.get("conditioning_body_resistance_min", .65), min(effects.get("conditioning_body_resistance_max", 1.25), body_multiplier))
+    body_damage = action["body_stamina_damage"] * body_multiplier
+    return max(0.0, dmg), cost, body_damage, False
 
 
 def fight(seed, opponent, player, plan_id="balanced"):
@@ -136,7 +167,7 @@ def fight(seed, opponent, player, plan_id="balanced"):
                 reactive_window = order_index == 1
                 effective_actor = _apply_action_plan(actor, plan, act, tact, reactive_window) if is_player else actor
                 sta = p_sta if is_player else o_sta
-                dmg, cost, body = _hit(rng, effective_actor, target, act, tact, sta, reactive_window)
+                dmg, cost, body, _evaded = _hit(rng, effective_actor, target, act, tact, sta, reactive_window)
                 if act == "guard":
                     if is_player: p_sta = min(100.0, p_sta - cost); ps += BAL["actions"][act]["score"]
                     else: o_sta = min(100.0, o_sta - cost); os += BAL["actions"][act]["score"]
@@ -150,14 +181,18 @@ def fight(seed, opponent, player, plan_id="balanced"):
                 if target_hp <= 0:
                     return {"result":"WIN_KO" if is_player else "LOSS_KO", "player_hp":p_hp, "opponent_hp":o_hp}
                 if dmg >= 10:
-                    chin = (target_stats["defense"] + target_stats["conditioning"]) / 2
-                    chance = BAL["fight"]["ko_base_threshold"] + max(0, dmg-10) * BAL["fight"]["ko_damage_scale"] + max(0,45-chin)*.004 + max(0,35-target_hp)*.008
-                    chance *= target_stats.get("modifiers", {}).get("ko_taken_multiplier", 1.0)
+                    effects = BAL.get("stat_effects", {})
+                    chin = target_stats["defense"] * effects.get("defense_ko_resistance_weight", .65) + target_stats["conditioning"] * effects.get("conditioning_ko_resistance_weight", .35)
+                    ko_resistance = max(.85, min(1.15, 1 - (chin - 50) * effects.get("ko_resistance_per_point", .003)))
+                    chance = BAL["fight"]["ko_base_threshold"] + max(0, dmg-10) * BAL["fight"]["ko_damage_scale"] + max(0,35-target_hp)*.008
+                    chance *= ko_resistance * target_stats.get("modifiers", {}).get("ko_taken_multiplier", 1.0)
                     if rng.random() < min(.72, max(0.0, chance)):
                         return {"result":"WIN_KO" if is_player else "LOSS_KO", "player_hp":p_hp, "opponent_hp":o_hp}
         cards.append((10,10) if abs(ps-os)<.75 else ((10,9) if ps>os else (9,10)))
-        p_sta = min(100.0, p_sta + 9 + p["conditioning"]*.05)
-        o_sta = min(100.0, o_sta + 9 + o["conditioning"]*.05)
+        recovery_base = BAL.get("stat_effects", {}).get("conditioning_round_recovery_base", 3.5)
+        recovery_per_point = BAL.get("stat_effects", {}).get("conditioning_round_recovery_per_point", .16)
+        p_sta = min(100.0, p_sta + recovery_base + p["conditioning"] * recovery_per_point)
+        o_sta = min(100.0, o_sta + recovery_base + o["conditioning"] * recovery_per_point)
     pt = sum(a for a,_ in cards); ot = sum(b for _,b in cards)
     result = "WIN_DEC" if pt>ot else "LOSS_DEC" if ot>pt else "DRAW"
     return {"result":result, "player_hp":p_hp, "opponent_hp":o_hp}

@@ -58,6 +58,24 @@ func _run() -> void:
     await process_frame
     _check(_phase() == "camp", "training cannot recover from blocked match tab")
     _nonempty("recovered camp")
+
+    main_view._v17_open_shop()
+    await process_frame
+    game_state.state.career.money = 999999
+    main_view._purchase_reference_equipment("personal", "club_gloves")
+    await process_frame
+    _check(_phase() == "equipment_shop", "equipment purchase skipped the result screen")
+    _check(main_view.find_child("EquipmentReceipt", true, false) != null, "equipment purchase result was not displayed")
+    var equipment_back := main_view.find_child("EquipmentShopBack", true, false) as Button
+    _check(equipment_back != null and equipment_back.text == "경기 제안으로 이동", "completed purchase did not show the fight-offer action")
+    var extra_purchase: Dictionary = game_state.can_purchase_equipment("gym", "club_mitts")
+    _check(not bool(extra_purchase.get("ok", false)) and str(extra_purchase.get("reason", "")) == "activity_used", "shop allowed another purchase after the camp activity was used")
+    if equipment_back != null:
+        equipment_back.emit_signal("pressed")
+        await process_frame
+    _check(_phase() == "fight_offer", "equipment result action did not open fight offers")
+    _nonempty("fight offers after equipment purchase")
+
     main_view._v17_open_overlay("profile")
     await process_frame
     _nonempty("profile")

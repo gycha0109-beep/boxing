@@ -9,6 +9,13 @@ const RED := Color("#e84d4c")
 const BLUE := Color("#5ba8f7")
 const PANEL := Color("#0a1724")
 const PANEL_ALT := Color("#111f2d")
+const STAT_EFFECT_SUMMARY := {
+    "power": "펀치 피해량 · 다운/KO 압박",
+    "speed": "선공 판정 · 상대 공격 회피",
+    "technique": "명중률 · 카운터 · 피해 편차",
+    "defense": "상대 명중률 · 피격 피해 · KO 저항",
+    "conditioning": "스태미나 소모 · 회복 · 피로/바디 내성"
+}
 const HERO_ASSET := preload("res://assets/visual/reference_v1/profile_boxer.png")
 const Art := preload("res://scripts/ui/reference_result_art.gd")
 
@@ -26,6 +33,7 @@ func _ready() -> void:
     _condition(boxer)
     _stats(boxer)
     _goal(career)
+    _business()
     _legacy()
 
 func _style(bg: Color = PANEL, edge: Color = GOLD_DARK, pad: int = 8) -> StyleBoxFlat:
@@ -156,7 +164,7 @@ func _stats(boxer: Dictionary) -> void:
         ["speed", "스피드", ""],
         ["technique", "테크닉", "◎"],
         ["defense", "수비", "◇"],
-        ["conditioning", "체력", "♥"]
+        ["conditioning", "지구력", "♥"]
     ]:
         var id: String = str(k[0])
         var val: int = clampi(int(boxer.get(id, 0)), 0, 100)
@@ -189,6 +197,15 @@ func _stats(boxer: Dictionary) -> void:
         var number := _label(line, str(val), 15, WHITE, HORIZONTAL_ALIGNMENT_RIGHT, true)
         number.custom_minimum_size.x = 30
 
+        var effect_row := HBoxContainer.new()
+        effect_row.add_theme_constant_override("separation", 5)
+        main.add_child(effect_row)
+        var indent := Control.new()
+        indent.custom_minimum_size.x = 86
+        effect_row.add_child(indent)
+        var effect := _label(effect_row, str(STAT_EFFECT_SUMMARY.get(id, "")), 9, MUTED)
+        effect.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
 func _goal(career: Dictionary) -> void:
     var box := _panel(self, Color("#23151a"), GOLD, 11)
     var row := HBoxContainer.new()
@@ -203,6 +220,24 @@ func _goal(career: Dictionary) -> void:
     _label(col, str(stage.get("label", "다음 타이틀 도전")), 21, WHITE, HORIZONTAL_ALIGNMENT_LEFT, true)
     var next_action := _label(box, "승리를 쌓아 랭킹을 올리고 타이틀에 도전하세요.", 11, MUTED)
     next_action.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+
+func _business() -> void:
+    var business: Dictionary = GameState.sponsorship_status()
+    var box := _panel(self, PANEL, GOLD_DARK, 9)
+    _label(box, "흥행 · 스폰서", 13, GOLD, HORIZONTAL_ALIGNMENT_LEFT, true)
+    _label(box, "현재 인지도 %d · 누적 흥행 수익 %d원" % [
+        int(GameState.state.career.reputation), int(business.total_gate_income)], 11, WHITE)
+    if bool(business.active):
+        var sponsor: Dictionary = business.sponsor
+        var style_name := "성과형" if str(sponsor.get("style", "steady")) == "performance" else "안정형"
+        _label(box, "%s (%s) · %d경기 남음" % [
+            str(sponsor.get("name", "")), style_name, int(sponsor.get("remaining_fights", 0))], 12, WHITE)
+    else:
+        _label(box, "정식 스폰서 없음 · 구·시 챔피언부터 계약 가능", 11, MUTED)
+    var next_tier: Dictionary = business.get("next_tier", {})
+    if not next_tier.is_empty():
+        _label(box, "다음 단계: %s 타이틀 · 인지도 %d 필요" % [
+            str(next_tier.get("title_label", "")), int(next_tier.get("minimum_reputation", 0))], 10, MUTED)
 
 func _legacy() -> void:
     var box := _panel(self, PANEL, GOLD_DARK, 9)

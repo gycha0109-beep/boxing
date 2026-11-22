@@ -89,7 +89,7 @@ func _run() -> void:
     var guide_enabled: bool = main_view._first_bout_guide_enabled()
     _guide_visibility("FirstBoutTrainingGuide", guide_enabled)
     _guide_visibility("FirstBoutGuideSkip", guide_enabled)
-    _check(_text(main_view).contains("장비 · 체육관 투자"), "camp offers optional equipment investment")
+    _check(main_view.find_child("TrainingUpgradeShop", true, false) != null, "camp offers permanent equipment investment")
     var training := main_view.find_child("TrainingPrimaryGrid", true, false)
     _check(training != null and training.find_children("TrainingSelect_*", "Button", true, false).size() >= 4, "camp shows at least four primary training options")
     main_view.v17_nav_buttons["profile"].pressed.emit()

@@ -25,11 +25,11 @@ const TITLE_REQUIREMENTS := {
 }
 
 const STAT_HELP := {
-    "power": "펀치 피해와 KO 위력",
-    "speed": "선공과 적중에 유리",
-    "technique": "공격 정확도와 피해 안정성",
-    "defense": "피격과 KO 위험을 줄임",
-    "conditioning": "체력 소모를 줄이고 후반을 버팀"
+    "power": "주먹이 더 아프게 꽂힙니다. 강한 펀치와 KO에 유리합니다.",
+    "speed": "먼저 움직이고 상대의 펀치를 피하기 쉬워집니다.",
+    "technique": "펀치를 정확하게 맞히고 카운터를 잘 구사합니다.",
+    "defense": "상대 공격을 덜 맞고, 맞더라도 피해를 줄입니다.",
+    "conditioning": "쉽게 지치지 않고 후반 라운드까지 힘을 유지합니다."
 }
 
 func new_career(boxer_name: String, trait_id: String = "") -> void:

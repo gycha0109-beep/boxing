@@ -20,7 +20,7 @@ const STATS := {
     "speed": "스피드",
     "technique": "테크닉",
     "defense": "수비",
-    "conditioning": "체력",
+    "conditioning": "지구력",
 }
 const INK := Color("#09121b")
 const PANEL := Color("#131c26")
@@ -264,7 +264,7 @@ func _stat_guide() -> void:
     heading.name = "BoxerStatGuide"
     for stat: String in STATS:
         var row := _row(guide, 6)
-        var label: String = "체력(지구력)" if stat == "conditioning" else STATS[stat]
+        var label: String = STATS[stat]
         var stat_name := _label(row, label, 11, PAPER, bold_font)
         stat_name.custom_minimum_size.x = 72 if stat == "conditioning" else 58
         var meaning := _label(row, str(stat_help.get(stat, "")), 11, MUTED, null, true)

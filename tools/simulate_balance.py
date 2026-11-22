@@ -4,7 +4,7 @@ from pathlib import Path
 from sim_combat import fight
 
 ROOT = Path(__file__).resolve().parents[1]
-OPPONENTS = json.loads((ROOT / "data/opponents.json").read_text())
+OPPONENTS = json.loads((ROOT / "data/opponents.json").read_text(encoding="utf-8"))
 PLAYER = {"power":53,"speed":51,"technique":53,"defense":50,"conditioning":51,"fatigue":0,"health":100,"modifiers":{}}
 
 def main(n=5000):

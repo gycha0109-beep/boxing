@@ -18,6 +18,7 @@ func _run() -> void:
     _test_low_base_and_zero_sum_styles()
     _test_personal_equipment_spends_money_and_adds_stats()
     _test_title_locked_upgrades()
+    _test_shop_exit_without_purchase()
     _test_gym_equipment_improves_training_over_time()
     _test_new_career_resets_equipment()
     _finish()
@@ -51,11 +52,23 @@ func _test_personal_equipment_spends_money_and_adds_stats() -> void:
     _check(int(game_state.state.boxer.power) == before_power + 1, "club gloves did not add direct power")
     _check(str(game_state.current_equipment("personal", "gloves").get("id", "")) == "club_gloves", "purchased gloves were not stored")
     _check(game_state.equipment_total_spent() == 60000, "equipment spending total was not tracked")
+    _check(game_state.state.phase == "equipment_shop", "purchase should keep the equipment shop open")
+    _check(str(game_state.state.last_camp_action) == "club_gloves", "equipment purchase did not consume the camp activity")
+    var next_shoes: Dictionary = game_state.next_equipment_upgrade("personal", "shoes")
+    var second_purchase: Dictionary = game_state.can_purchase_equipment("personal", str(next_shoes.get("id", "")))
+    _check(not bool(second_purchase.get("ok", false)) and str(second_purchase.get("reason", "")) == "activity_used", "a second equipment purchase was allowed in the same camp")
+    _check(game_state.leave_equipment_shop(), "leaving the purchased equipment shop failed")
+    _check(game_state.state.phase == "fight_offer", "leaving after a purchase should open fight offers")
+
+func _test_shop_exit_without_purchase() -> void:
+    game_state.new_career("No Purchase Boxer", "workhorse")
+    game_state.state.phase = "equipment_shop"
+    _check(game_state.leave_equipment_shop(), "leaving an unused equipment shop failed")
+    _check(game_state.state.phase == "camp", "leaving without a purchase should return to camp")
 
 func _test_title_locked_upgrades() -> void:
-    game_state.state.career.money = 999999
-    _check(game_state.state.phase == "fight_offer", "purchase consumes the activity")
     game_state.state.phase = "camp"
+    game_state.state.career.money = 999999
     var locked: Dictionary = game_state.can_purchase_equipment("personal", "pro_gloves")
     _check(not bool(locked.get("ok", false)) and str(locked.get("reason", "")) == "locked", "pro gear unlocked before regional title")
 
@@ -67,6 +80,8 @@ func _test_title_locked_upgrades() -> void:
     var bought: Dictionary = game_state.purchase_equipment("personal", "pro_gloves")
     _check(bool(bought.get("ok", false)), "pro gloves purchase failed after unlock")
     _check(int(game_state.current_equipment("personal", "gloves").get("tier", 0)) == 2, "personal equipment did not upgrade sequentially")
+    _check(game_state.state.phase == "equipment_shop", "upgraded equipment purchase should remain in the shop")
+    _check(game_state.leave_equipment_shop() and game_state.state.phase == "fight_offer", "upgraded equipment purchase did not advance to fight offers")
 
 func _test_gym_equipment_improves_training_over_time() -> void:
     game_state.new_career("Gym Boxer", "workhorse")
@@ -74,6 +89,8 @@ func _test_gym_equipment_improves_training_over_time() -> void:
     game_state.state.career.money = 999999
     var bought: Dictionary = game_state.purchase_equipment("gym", "club_mitts")
     _check(bool(bought.get("ok", false)), "club mitts purchase failed")
+    _check(game_state.state.phase == "equipment_shop", "gym equipment purchase should remain in the shop")
+    _check(game_state.leave_equipment_shop() and game_state.state.phase == "fight_offer", "gym equipment purchase did not advance to fight offers")
     _check(game_state.gym_training_percent("mitts") > 0.0, "purchased mitts provide no training effect")
 
     var mitts := _find_camp_action("mitts")
@@ -84,6 +101,7 @@ func _test_gym_equipment_improves_training_over_time() -> void:
     var received_bonus := false
     for index in range(3):
         game_state.state.phase = "camp"
+        game_state.state.last_camp_action = ""
         game_state.state.career.money = 999999
         var result: Dictionary = game_state.apply_camp_action(mitts)
         _check(bool(result.get("ok", false)), "mitt training failed during equipment carry test")
