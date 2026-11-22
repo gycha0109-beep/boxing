@@ -141,6 +141,8 @@ func _finish() -> void:
         impact.queue_free()
     if is_instance_valid(arena):
         arena.queue_free()
+    await process_frame
+    await create_timer(0.15).timeout
     if failures.is_empty():
         print("audio-music-smoke: PASS")
         quit(0)

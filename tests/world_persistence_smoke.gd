@@ -20,6 +20,7 @@ func _run() -> void:
     _test_world_advances_by_actual_career_duration()
     _test_champion_retirement_and_successor()
     _test_world_title_offer_uses_persisted_champion()
+    _test_world_title_loss_transfers_champion()
     _finish()
 
 func _test_initial_world_contract() -> void:
@@ -77,6 +78,8 @@ func _test_world_title_offer_uses_persisted_champion() -> void:
     game_state.state.career.fights = 16
     game_state.state.career.wins = 12
     game_state.state.career.career_points = 90
+    for stat: String in game_state.League.STATS:
+        game_state.state.boxer[stat] = 50
     game_state._sync_progression()
     var offers: Array = game_state.get_fight_offers(opponents)
     var found_world_title := false
@@ -89,6 +92,24 @@ func _test_world_title_offer_uses_persisted_champion() -> void:
         _check(int(opponent.get("age", 0)) >= 37, "persisted champion age missing from decorated offer")
         _check(str(opponent.get("world_age_profile", "")) == "veteran", "older champion did not receive veteran age profile")
     _check(found_world_title, "world-title-ready career did not receive a world title offer")
+
+func _test_world_title_loss_transfers_champion() -> void:
+    var current_champion: Dictionary = opponents.filter(func(o): return o.id == "diego_reyes")[0]
+    var challenger: Dictionary = opponents.filter(func(o): return o.id == "viktor_kozlov")[0]
+    game_state.state.career.finished = false
+    game_state.state.career.champion = false
+    game_state.state.career.ending = ""
+    game_state.state.career.fights = 0
+    game_state.state.career_state.erase("pending_world_title_win")
+    game_state.state.career_state.defenses = 0
+    game_state.state.phase = "fight"
+    game_state.apply_fight_result("WIN_KO", current_champion)
+    _check(str(game_state.state.career_state.get("pending_world_title_win", {}).get("id", "")) == "diego_reyes", "first world-title win must be remembered")
+    game_state.state.phase = "fight"
+    game_state.state.career.champion = true
+    game_state.apply_fight_result("LOSS_DEC", challenger)
+    _check(not game_state.state.career_state.has("pending_world_title_win"), "losing the world title must clear pending succession")
+    _check(str(game_state.state.world_state.get("champion_boxer_id", "")) == "viktor_kozlov", "title loss must transfer the belt to the winning challenger")
 
 func _select_first_legacy() -> void:
     var candidates: Array = game_state.retirement_legacy_candidates()

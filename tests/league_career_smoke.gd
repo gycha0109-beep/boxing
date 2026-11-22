@@ -41,6 +41,7 @@ func _run() -> void:
     root.add_child(view)
     await process_frame
     for bout in range(1, 14):
+        game.state.boxer.fatigue = 20
         check(game.management_visit() and not game.management_visit(), "one activity per bout")
         var offers: Array = game.get_fight_offers(roster)
         var opponent: Dictionary = offers[0]
@@ -79,11 +80,13 @@ func _run() -> void:
                 button.pressed.emit()
             check(game.state.career_state.contract == "challenge" and not game.sign_contract("steady"), "contract signed once")
         check(game.state.phase == "camp", "career continues")
+        await process_frame
     var world: Dictionary = roster.filter(func(o): return o.id == "viktor_kozlov")[0]
     for bout in range(4):
         # Exercise the result branches using a qualified contender fixture.
         game.state.phase = "fight_offer"
         game.state.boxer.health = 95
+        game.state.boxer.fatigue = 20
         game.state.boxer.weight_kg = 60.8
         game.select_opponent(world if bout == 0 else game.get_fight_offers(roster)[0])
         game.select_game_plan("balanced")
@@ -103,6 +106,7 @@ func _run() -> void:
             if game.state.phase == "season_review":
                 game.sign_contract("steady")
     check(game.state.career.finished and game.state.career_state.defenses == 3, "three defense limit")
+    check(str(game.state.career_state.get("pending_world_title_win", {}).get("id", "")) == "viktor_kozlov", "first world-title victory must remain the succession origin after later defenses")
     check(game.state.meta_state.legacy_capacity == 5 and game.state.world_state.title_history.size() == 4, "title history and earned slots")
     var candidates: Array = game.retirement_legacy_candidates()
     check(not candidates.is_empty() and game.select_retirement_legacy(candidates[0].id).ok, "retirement legacy")

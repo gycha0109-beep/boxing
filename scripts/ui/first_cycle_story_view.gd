@@ -16,6 +16,7 @@ const MUTED := Color("#c6ccd4")
 var mode := "welcome"
 var training_result: Dictionary = {}
 var boxer: Dictionary = {}
+var actions_seen: Array = []
 var font: Font
 
 
@@ -44,7 +45,7 @@ func _ready() -> void:
             _button("내 복서 만들기", func(): next_requested.emit())
             _skip_button()
         "training_result":
-            _label(self, "4/12 · 첫 훈련 결과", 16, GOLD)
+            _label(self, "4/10 · 첫 훈련 결과", 16, GOLD)
             _hero(TRAINING, "훈련 완료", "선수의 능력치가 실제로 변했습니다.", 180)
             var changes: Dictionary = training_result.get("changes", {})
             var names := {"power":"파워", "speed":"스피드", "technique":"테크닉", "defense":"수비", "conditioning":"지구력", "fatigue":"피로", "health":"건강", "weight":"체중"}
@@ -60,12 +61,23 @@ func _ready() -> void:
                 _info("부상", str(training_result["injury"]))
             _coach("잘했어. 이 변화는 실제 커리어에 남는다.\n이제 어떤 선수와 싸울지 정해보자.")
             _button("경기 제안 확인", func(): next_requested.emit())
+            _skip_button()
         "finished":
+            _label(self, "10/10 · 첫 경기 완료", 16, GOLD)
             _hero(BOXER, "FIRST BOUT COMPLETE", "첫 프로 경기를 마쳤습니다.", 185)
             _info("✓ 훈련", "선수를 성장시키고 피로를 관리할 수 있습니다.")
             _info("✓ 경기 준비", "상대의 약점에 맞는 게임플랜을 고를 수 있습니다.")
-            _info("✓ 실제 전투", "상대 움직임을 읽고 직접 행동을 선택할 수 있습니다.")
-            _coach("좋아, 기본은 충분하다.\n이제부터는 네가 직접 커리어를 이끌어간다.")
+            var controls := [
+                ["jab", "잽으로 거리 조절하기", "잽은 안전하게 공격을 시작하는 기본 기술입니다."],
+                ["guard", "가드로 방어하기", "가드는 상대 공격을 막고 피해를 줄입니다."],
+                ["counter", "상대의 빈틈에 카운터하기", "상대 공격 직후 반격하면 유리합니다."],
+            ]
+            var all_controls_seen := true
+            for control in controls:
+                var completed := str(control[0]) in actions_seen
+                all_controls_seen = all_controls_seen and completed
+                _info(("✓ " if completed else "○ ") + str(control[1]), str(control[2]))
+            _coach("좋아. 잽·가드·카운터를 모두 익혔다.\n이제부터는 네가 직접 커리어를 이끌어간다." if all_controls_seen else "첫 경기를 마쳤다.\n아직 써보지 않은 기술은 다음 경기에서 익히면 된다.")
             _button("자유 커리어 시작", func(): next_requested.emit())
 
 

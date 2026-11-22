@@ -43,6 +43,7 @@ func _ready() -> void:
     head.add_theme_constant_override("separation", 2)
     copy.add_child(head)
     var heading := _label(head, step_title, 12, GOLD)
+    heading.name = "TutorialStepTitle"
     heading.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     var skip := Button.new()
     skip.text = "건너뛰기"

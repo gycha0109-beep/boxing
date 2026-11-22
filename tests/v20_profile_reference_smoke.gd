@@ -42,6 +42,9 @@ func _run() -> void:
     view._v17_open_overlay("profile")
     await process_frame
     _require(view.find_child("ReferenceProfile", true, false) != null, "profile cannot reopen")
+    view.queue_free()
+    await process_frame
+    await create_timer(0.15).timeout
     if failures.is_empty():
         print("PASS: reference profile, data binding, and tab navigation")
         quit(0)

@@ -81,8 +81,7 @@ func _run() -> void:
     game_state.state.boxer.weight_kg = 61.0
     game_state.state.phase = "fight_offer"
     game_state.select_opponent(opponents[0])
-    _check(bool(game_state.select_tactical_preparation("counter_timing").get("ok", false)), "v1.1 fixture could not select tactical preparation")
-    _check(bool(game_state.select_condition_preparation("sharpness").get("ok", false)), "v1.1 fixture could not select condition preparation")
+    _check(str(game_state.state.phase) == "game_plan", "current opponent selection should proceed directly to game-plan preparation")
     var selected: Dictionary = game_state.select_game_plan("counter_trap")
     _check(bool(selected.get("ok", false)), "v1.1 fixture could not select game plan")
 
@@ -143,6 +142,9 @@ func _load_array(path: String) -> Array:
 func _finish() -> void:
     if is_instance_valid(main_view):
         main_view.queue_free()
+        await process_frame
+        main_view = null
+    await create_timer(0.15).timeout
     if failures.is_empty():
         print("v18-visual-identity-and-ui-smoke: PASS")
         quit(0)

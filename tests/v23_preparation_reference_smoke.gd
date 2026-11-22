@@ -42,7 +42,7 @@ func _run() -> void:
         check(game.state.phase == "fight" and game.state.selected_game_plan == "pressure", "selected plan and weigh-in")
         var restored := SaveService.load_game()
         check(restored.last_weigh_in.status == game.state.last_weigh_in.status and is_equal_approx(float(restored.last_weigh_in.over_kg), float(game.state.last_weigh_in.over_kg)), "weigh-in survives restart")
-    view.queue_free()
+    # Let SceneTree own teardown after the test instead of reentering UI destruction.
     await process_frame
     if failures.is_empty():
         print("PASS: direct scouting, old preparation saves, plan selection and weigh-in")

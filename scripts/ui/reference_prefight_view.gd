@@ -4,6 +4,7 @@ signal plan_chosen(id: String)
 signal back_requested()
 signal opponent_back_requested()
 signal fight_requested()
+signal tutorial_skipped()
 
 const UI := preload("res://scripts/ui/reference_ui.gd")
 const LIGHTS := preload("res://assets/visual/reference_v1/offer_lights.png")
@@ -54,7 +55,7 @@ func _scouting() -> void:
     _tendency_strip()
     _scouting_report()
     if tutorial_mode:
-        var tip := _label(_report_page, "8/12 · 강점은 경계할 공격, 약점은 노릴 틈, 버릇은 대응할 행동입니다. 정보를 확인한 뒤 게임플랜을 선택하세요.", 12, UI.GOLD_BRIGHT, bold_font)
+        var tip := _label(_report_page, "7/10 · 강점은 경계할 공격, 약점은 노릴 틈, 버릇은 대응할 행동입니다. 정보를 확인한 뒤 게임플랜을 선택하세요.", 12, UI.GOLD_BRIGHT, bold_font)
         tip.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
     _comparison()
 
@@ -63,6 +64,7 @@ func _scouting() -> void:
     var view_plans := _action(nav, "게임플랜 선택  ›", true, _show_plans.bind(true))
     view_plans.name = "ScoutingShowPlans"
     view_plans.size_flags_stretch_ratio = 1.65
+    _tutorial_skip_button(_report_page)
 
     _plan_page = _column(self, 7)
     _plan_page.name = "ScoutingPlans"
@@ -239,7 +241,7 @@ func _game_plans(parent: VBoxContainer) -> void:
     var heading := _label(parent, "게임플랜 선택", 23, PAPER, heading_font)
     heading.name = "GamePlanHeading"
     if tutorial_mode:
-        var lesson := _label(parent, "9/12 · 상대의 약점과 버릇에 맞는 플랜을 고르세요. 추천 표시는 참고이며 원하는 전술을 선택할 수 있습니다.", 12, UI.GOLD_BRIGHT, bold_font)
+        var lesson := _label(parent, "7/10 · 상대의 약점과 버릇에 맞는 플랜을 고르세요. 추천 표시는 참고이며 원하는 전술을 선택할 수 있습니다.", 12, UI.GOLD_BRIGHT, bold_font)
         lesson.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
     var grid := GridContainer.new()
     grid.columns = 1 if tutorial_mode else 2
@@ -264,6 +266,7 @@ func _game_plans(parent: VBoxContainer) -> void:
         button.name = "GamePlanSelect_" + id
     if tutorial_mode:
         _action(parent, "← 상대 분석으로 돌아가기", false, _show_plans.bind(false))
+        _tutorial_skip_button(parent)
     else:
         var nav := _row(parent, 7)
         _action(nav, "← 상대 분석", false, _show_plans.bind(false))
@@ -278,7 +281,7 @@ func _show_plans(show_plans: bool) -> void:
 func _weigh_in() -> void:
     var hero := _banner("공식 계체", "OFFICIAL WEIGH-IN")
     if tutorial_mode:
-        var instruction := _label(self, "10/12 · 공식 계체는 체중 제한을 확인하는 절차입니다. 통과 여부와 보상 변화를 보고 경기에 입장하세요.", 12, UI.GOLD_BRIGHT, bold_font)
+        var instruction := _label(self, "8/10 · 공식 계체는 체중 제한을 확인하는 절차입니다. 통과 여부와 보상 변화를 보고 경기에 입장하세요.", 12, UI.GOLD_BRIGHT, bold_font)
         instruction.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
     var matchup := _row(hero, 7)
     _weigh_fighter(matchup, player_photo, str(player["name"]), "내 선수", RED)
@@ -313,6 +316,18 @@ func _weigh_in() -> void:
     var enter := _action(nav, "FIGHT NIGHT 입장", true, func(): fight_requested.emit())
     enter.name = "WeighInEnterFight"
     enter.size_flags_stretch_ratio = 1.18
+    _tutorial_skip_button(self)
+
+func _tutorial_skip_button(parent: Control) -> void:
+    if not tutorial_mode:
+        return
+    var skip := Button.new()
+    skip.name = "TutorialSkip"
+    skip.text = "튜토리얼 건너뛰기"
+    skip.flat = true
+    skip.custom_minimum_size.y = 34
+    skip.pressed.connect(func(): tutorial_skipped.emit())
+    parent.add_child(skip)
 
 func _weigh_fighter(row: HBoxContainer, portrait: Texture2D, fighter_name: String, caption: String, color: Color) -> void:
     var col := _column(row, 0)

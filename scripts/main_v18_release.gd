@@ -216,6 +216,7 @@ func _render_reference_preparation(tactical: bool) -> void:
     if tactical:
         view.confirmed.connect(_choose_tactical_preparation)
         view.back_requested.connect(_return_from_tactical_to_offers)
+        view.tutorial_skipped.connect(_skip_first_bout_guide)
     else:
         var selected_id := str(GameState.state.get("selected_tactical_prep", ""))
         var selected := GameState.preparation_definition("tactical", selected_id)
@@ -225,6 +226,7 @@ func _render_reference_preparation(tactical: bool) -> void:
             _reset_reference_scroll()
         )
         view.back_requested.connect(_return_to_tactical_preparation)
+        view.tutorial_skipped.connect(_skip_first_bout_guide)
     body.add_child(view)
     _reset_reference_scroll()
 
@@ -266,6 +268,7 @@ func _render_game_plan() -> void:
         view.plans.append(entry)
     view.plan_chosen.connect(_choose_game_plan)
     view.opponent_back_requested.connect(_return_to_fight_offers)
+    view.tutorial_skipped.connect(_skip_first_bout_guide)
     body.add_child(view)
     _reset_reference_scroll()
 
@@ -286,6 +289,7 @@ func _render_weigh_in() -> void:
     view.allow_plan_back = not GameState.state.get("pre_game_plan_snapshot", {}).is_empty()
     view.back_requested.connect(_return_to_game_plan_selection)
     view.fight_requested.connect(_acknowledge_weigh_in)
+    view.tutorial_skipped.connect(_skip_first_bout_guide)
     body.add_child(view)
     _configure_mobile_scroll()
     _reset_reference_scroll()
@@ -385,9 +389,9 @@ func _render_fight(animated_exchange: Dictionary = {}) -> void:
         view.tutorial_target_action = _tutorial_next_action()
         if not view.tutorial_target_action.is_empty():
             var action_labels := {"jab": "잽", "guard": "가드", "body": "바디", "power": "파워", "counter": "카운터"}
-            view.tutorial_hint = "첫 경기 11/12 · %s 버튼을 시도하고, 상대의 반응과 체력을 확인하세요." % str(action_labels.get(view.tutorial_target_action, ""))
+            view.tutorial_hint = "첫 경기 9/10 · %s 버튼을 눌러보고 상대의 반응과 체력을 확인하세요." % str(action_labels.get(view.tutorial_target_action, ""))
         else:
-            view.tutorial_hint = "첫 경기 11/12 · 주요 기술을 확인했습니다. 이제 자유롭게 경기를 마치세요."
+            view.tutorial_hint = "첫 경기 9/10 · 잽·가드·카운터를 익혔습니다. 이제 자유롭게 경기를 마치세요."
     view.player_name = str(boxer.get("name", "무명 복서"))
     view.player_style = str(boxer.get("identity_name", "균형형"))
     view.player_trait = str(boxer.get("trait_name", ""))
@@ -543,6 +547,7 @@ func _render_random_talent_roll() -> void:
     view.bold_font = _v18_font(620)
     view.heading_font = REFERENCE_UI.heading_font(_v18_font(780))
     view.reveal_requested.connect(_complete_random_talent_roll)
+    view.tutorial_skipped.connect(_skip_first_bout_guide)
     body.add_child(view)
     _reset_reference_scroll()
 
@@ -1199,6 +1204,7 @@ func _render_offers() -> void:
             "purse": _v17_money(GameState.quoted_purse(opponent)),
         })
     view.opponent_chosen.connect(_accept_reference_offer)
+    view.tutorial_skipped.connect(_skip_first_bout_guide)
     body.add_child(view)
     var action_id := str(GameState.state.last_camp_action)
     if action_id == "media_visit":
@@ -1257,9 +1263,11 @@ func _tutorial_active() -> bool:
 
 func _tutorial_next_action() -> String:
     var tutorial: Dictionary = GameState.state.get("first_cycle_tutorial", {})
-    var sequence := ["jab", "guard", "body", "power", "counter"]
-    var step := int(tutorial.get("action_step", 0))
-    return str(sequence[step]) if step >= 0 and step < sequence.size() else ""
+    var seen: Array = tutorial.get("actions_seen", [])
+    for action in ["jab", "guard", "counter"]:
+        if not seen.has(action):
+            return action
+    return ""
 
 
 func _choose_fight_action(action: String) -> void:
@@ -1272,9 +1280,7 @@ func _choose_fight_action(action: String) -> void:
             if not seen.has(action):
                 seen.append(action)
             tutorial["actions_seen"] = seen
-            # A different valid button also completes this interaction step.
-            # Never leave an obsolete jab highlight over a new battle state.
-            tutorial["action_step"] = mini(5, int(tutorial.get("action_step", 0)) + 1)
+            # Keep the next required control highlighted until it is actually used.
             GameState.state["first_cycle_tutorial"] = tutorial
             SaveService.save_game(GameState.state)
     super._choose_fight_action(action)
@@ -1301,6 +1307,7 @@ func _render_tutorial_story() -> void:
     var tutorial: Dictionary = GameState.state.get("first_cycle_tutorial", {})
     var phase := str(GameState.state.get("phase", ""))
     var view := FIRST_CYCLE_STORY.new()
+    view.name = "FirstCycleStory"
     if phase == "tutorial_welcome":
         view.mode = "welcome"
     elif phase == "tutorial_overview":
@@ -1311,6 +1318,7 @@ func _render_tutorial_story() -> void:
     else:
         view.mode = "finished"
     view.font = _v18_font(620)
+    view.actions_seen = tutorial.get("actions_seen", []).duplicate()
     view.next_requested.connect(_tutorial_story_next)
     view.skip_requested.connect(_skip_first_bout_guide)
     body.add_child(view)
@@ -1354,29 +1362,29 @@ func _tutorial_attach() -> void:
     if phase in ["fight_offer", "tactical_prep", "condition_prep", "game_plan", "fight"]:
         return
     var info: Dictionary = {
-        "style_select": ["1/12 · 선수 스타일", "복싱 스타일을 비교한 뒤 원하는 카드를 선택하세요.", "BoxerStyle_balanced"],
-        "talent_reveal": ["2/12 · 타고난 재능", "재능은 무작위로 정해집니다. 추첨 연출을 보고 결과를 확인하세요.", "RandomTalentContinue"],
-        "camp": ["3/12 · 첫 훈련", "실제 훈련을 골라 능력치 변화를 확인하세요.", "TrainingSelect_sparring"],
-        "fight_offer": ["5/12 · 첫 상대", "상대의 난이도와 보상을 비교하고 계약하세요.", "FightOfferSelect_*"],
-        "tactical_prep": ["6/12 · 전술 준비", "상대의 습관에 맞춰 전술을 선택하세요.", "PreparationSelect_*"],
-        "condition_prep": ["7/12 · 몸 상태", "피로와 체중을 확인하고 컨디션을 결정하세요.", "PreparationSelect_*"],
-        "game_plan": ["8/12 · 경기 분석", "상대의 강점과 약점을 읽고 게임플랜으로 넘어가세요.", "ScoutingShowPlans"],
-        "result": ["12/12 · 경기 정산", "전적, 파이트머니, 건강과 피로 변화를 확인하세요.", "FightResultContinue"],
+        "style_select": ["1/10 · 선수 스타일", "복싱 스타일을 비교한 뒤 원하는 카드를 선택하세요.", "BoxerStyle_balanced"],
+        "talent_reveal": ["2/10 · 타고난 재능", "재능은 무작위로 정해집니다. 추첨 연출을 보고 결과를 확인하세요.", "RandomTalentContinue"],
+        "camp": ["3/10 · 첫 훈련", "실제 훈련을 골라 능력치 변화를 확인하세요.", "TrainingSelect_sparring"],
+        "fight_offer": ["5/10 · 첫 상대", "상대의 난이도와 보상을 비교하고 계약하세요.", "FightOfferSelect_*"],
+        "tactical_prep": ["6/10 · 전술 준비", "상대의 습관에 맞춰 전술을 선택하세요.", "PreparationSelect_*"],
+        "condition_prep": ["6/10 · 몸 상태", "피로와 체중을 확인하고 컨디션을 결정하세요.", "PreparationSelect_*"],
+        "game_plan": ["7/10 · 경기 분석", "상대의 강점과 약점을 읽고 게임플랜으로 넘어가세요.", "ScoutingShowPlans"],
+        "result": ["10/10 · 경기 정산", "전적, 파이트머니, 건강과 피로 변화를 확인하세요.", "FightResultContinue"],
     }
     if phase == "fight" and _needs_weigh_in_interstitial():
-        info["fight"] = ["10/12 · 공식 계체", "체중 판정을 확인하고 실제 경기에 입장하세요.", "WeighInEnterFight"]
+        info["fight"] = ["8/10 · 공식 계체", "체중 판정을 확인하고 실제 경기에 입장하세요.", "WeighInEnterFight"]
     elif phase == "fight":
         var action := _tutorial_next_action()
         if action.is_empty():
             return
-        info["fight"] = ["11/12 · 경기 실전", "%s 공격을 직접 시도해보세요. 결과는 실제 전투로 계산됩니다." % {"jab":"잽", "guard":"가드", "body":"바디", "power":"파워", "counter":"카운터"}.get(action, action), "FightAction_" + action]
+        info["fight"] = ["9/10 · 경기 실전", "%s 공격을 직접 시도해보세요. 결과는 실제 전투로 계산됩니다." % {"jab":"잽", "guard":"가드", "body":"바디", "power":"파워", "counter":"카운터"}.get(action, action), "FightAction_" + action]
     if not info.has(phase):
         return
     var entry: Array = info[phase]
     if phase == "talent_reveal" and bool(GameState.state.get("first_cycle_tutorial", {}).get("talent_roll_seen", false)):
-        entry = ["2/12 · 재능 확정", "선택한 재능과 능력치 보정을 확인하고 커리어를 시작하세요.", "BoxerBeginCareer"]
+        entry = ["2/10 · 재능 확정", "선택한 재능과 능력치 보정을 확인하고 커리어를 시작하세요.", "BoxerBeginCareer"]
     if phase == "fight" and _needs_weigh_in_interstitial():
-        entry = ["10/12 · 공식 계체", "체중 판정을 확인하고 실제 경기에 입장하세요.", "WeighInEnterFight"]
+        entry = ["8/10 · 공식 계체", "체중 판정을 확인하고 실제 경기에 입장하세요.", "WeighInEnterFight"]
     var target := body.find_child(str(entry[2]), true, false) as Control
     if target == null:
         return

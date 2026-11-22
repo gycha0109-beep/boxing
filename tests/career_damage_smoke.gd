@@ -37,6 +37,9 @@ func _test_brutal_ko_creates_chronic_damage() -> void:
     _check(int(game_state.state.boxer.power) == power_before - 1, "chronic hands did not apply permanent power loss")
     _check(int(game_state.state.boxer.technique) == technique_before - 1, "chronic hands did not apply permanent technique loss")
     _check(game_state.career_health_ceiling() == 97, "first chronic milestone did not reduce max health")
+    var damage_after_ko: int = game_state.career_damage_value()
+    game_state.apply_fight_result("LOSS_KO", opponents[0], {"player_hp": 0.0, "opponent_hp": 64.0})
+    _check(game_state.career_damage_value() == damage_after_ko, "duplicate result applied career damage twice")
     game_state.state.boxer.health = 100
     Risk.ensure_state(game_state.state)
     _check(int(game_state.state.boxer.health) == 97, "health ceiling is not enforced")
@@ -46,7 +49,7 @@ func _test_milestone_is_applied_only_once() -> void:
     var technique_after_first: int = int(game_state.state.boxer.technique)
     game_state.state.phase = "fight"
     game_state.state.boxer.fatigue = 0
-    game_state.apply_fight_result("WIN_DEC", opponents[0], {"player_hp": 100.0, "opponent_hp": 20.0})
+    game_state.apply_fight_result("DRAW", opponents[0], {"player_hp": 100.0, "opponent_hp": 20.0})
     _check(game_state.chronic_injuries().size() == 1, "same damage milestone created duplicate chronic injuries")
     _check(int(game_state.state.boxer.power) == power_after_first, "first milestone power penalty was applied twice")
     _check(int(game_state.state.boxer.technique) == technique_after_first, "first milestone technique penalty was applied twice")

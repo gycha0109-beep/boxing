@@ -2,6 +2,7 @@ extends VBoxContainer
 
 signal confirmed(preparation_id: String)
 signal back_requested()
+signal tutorial_skipped()
 
 const UI := preload("res://scripts/ui/reference_ui.gd")
 const LIGHTS := preload("res://assets/visual/reference_v1/offer_lights.png")
@@ -107,11 +108,19 @@ func _instruction() -> void:
     var caption := "영구 성장 없이 이번 경기에서 활용할 행동을 준비합니다." if is_tactical else "추가 영구 성장 없이 경기 당일 컨디션을 조정합니다."
     _label(info, caption, 11, PAPER)
     if tutorial_mode:
-        var lesson := "6/12 · 전술은 경기 중 공격·가드의 유불리를 바꿉니다. 네 가지 전술을 비교해 보세요." if is_tactical else "7/12 · 컨디션은 피로·건강·체중에 영향을 줍니다. 적절한 준비를 골라 보세요."
+        var lesson := "6/10 · 전술은 경기 중 공격·가드의 유불리를 바꿉니다. 네 가지 전술을 비교해 보세요." if is_tactical else "6/10 · 컨디션은 피로·건강·체중에 영향을 줍니다. 적절한 준비를 골라 보세요."
         _label(info, lesson, 12, UI.GOLD_BRIGHT, bold_font)
     if not guide_tip.is_empty():
         var tip := _label(info, guide_tip, 12, UI.GOLD_BRIGHT, bold_font)
         tip.name = "FirstBoutPreparationGuide"
+    if tutorial_mode:
+        var skip := Button.new()
+        skip.name = "TutorialSkip"
+        skip.text = "튜토리얼 건너뛰기"
+        skip.flat = true
+        skip.custom_minimum_size.y = 32
+        skip.pressed.connect(func(): tutorial_skipped.emit())
+        info.add_child(skip)
 
 func _option_card(option: Dictionary) -> void:
     var id := str(option["id"])

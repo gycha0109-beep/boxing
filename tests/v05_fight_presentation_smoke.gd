@@ -48,8 +48,7 @@ func _run() -> void:
         "counter": 0.0
     }
     game_state.select_opponent(opponent)
-    _check(bool(game_state.select_tactical_preparation("counter_timing").get("ok", false)), "v0.5 fixture could not select tactical preparation")
-    _check(bool(game_state.select_condition_preparation("sharpness").get("ok", false)), "v0.5 fixture could not select condition preparation")
+    _check(str(game_state.state.phase) == "game_plan", "current opponent selection should proceed directly to game-plan preparation")
     var selected: Dictionary = game_state.select_game_plan("counter_trap")
     _check(bool(selected.get("ok", false)), "v0.5 fixture could not select game plan")
     _check(str(game_state.state.phase) == "fight", "v0.5 fixture did not enter fight phase")
@@ -156,6 +155,9 @@ func _find_named(root: Node, target_name: String) -> Node:
 func _finish() -> void:
     if is_instance_valid(main_view):
         main_view.queue_free()
+        await process_frame
+        main_view = null
+    await create_timer(0.15).timeout
     _cleanup_save_files()
     if failures.is_empty():
         print("v05-fight-presentation-smoke: PASS")

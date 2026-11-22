@@ -46,6 +46,9 @@ func _run() -> void:
     check(int(game.state["career"]["wins"]) == 0 and int(game.state["career"]["money"]) == 120000, "factory reset did not clear saved progress")
     check(bool(game.state.get("first_cycle_tutorial", {}).get("active", false)), "factory reset did not re-enable first-install tutorial")
     check(SaveService.load_game().get("phase", "") == "tutorial_welcome", "factory reset not persisted")
+    main.queue_free()
+    await process_frame
+    await create_timer(0.15).timeout
     if errors.is_empty():
         print("PASS: first-install-only tutorial, new career no tutorial, dev factory reset works")
         quit(0)

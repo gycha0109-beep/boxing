@@ -92,6 +92,11 @@ func _check(condition: bool, issue: String) -> void:
         push_error(issue)
 
 func _finish() -> void:
+    if is_instance_valid(main_view):
+        main_view.queue_free()
+        await process_frame
+        main_view = null
+    await create_timer(0.15).timeout
     if failures.is_empty():
         print("PASS: v19 navigation never dead-ends in tested career phases")
         quit(0)

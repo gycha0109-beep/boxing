@@ -23,6 +23,7 @@ func _run() -> void:
     get_root().add_child(main_view)
     await process_frame
     main_view._onboarding_install.clear()
+    main_view._guide_settings.clear()
     main_view._return_to_reference_title()
     main_view._start_new_career_from_title()
     await process_frame
@@ -68,6 +69,8 @@ func _run() -> void:
     _check(icon_count == 28, "one or more roulette talent icons are missing")
     var assigned_id := str(game_state.state.get("boxer", {}).get("trait_id", ""))
     _check(not assigned_id.is_empty(), "random talent not assigned")
+    if strip != null and strip.get_child_count() == 28:
+        _check(str(strip.get_child(27).get_meta("talent_id", "")) == assigned_id, "roulette target does not match the assigned talent")
     _check(bool(roll.get_node("RandomTalentContinue").disabled), "roulette button must remain locked during spin")
     await create_timer(4.9).timeout
     _check(not bool(roll.get_node("RandomTalentContinue").disabled), "roulette did not finish and unlock result")
@@ -123,10 +126,26 @@ func _run() -> void:
     await process_frame
     var seen: Array = game_state.state.get("first_cycle_tutorial", {}).get("actions_seen", [])
     _check(seen.has("guard"), "real combat action was not recorded")
-    _check(main_view._tutorial_next_action() == "guard", "highlight did not advance after an alternative input")
+    _check(main_view._tutorial_next_action() == "jab", "guidance must keep the unused jab highlighted")
     var fight_view: Node = main_view.body.get_node_or_null("ReferenceBattle")
     if fight_view != null:
-        _check(str(fight_view.get("tutorial_target_action")) == "guard", "obsolete jab highlight remained on battle UI")
+        _check(str(fight_view.get("tutorial_target_action")) == "jab", "jab guidance disappeared before jab was used")
+    for i in range(60):
+        if not main_view.fight_input_locked:
+            break
+        await process_frame
+    main_view._choose_fight_action("jab")
+    await process_frame
+    _check(main_view._tutorial_next_action() == "counter", "guidance must advance to the unused counter")
+    for i in range(60):
+        if not main_view.fight_input_locked:
+            break
+        await process_frame
+    main_view._choose_fight_action("counter")
+    await process_frame
+    _check(main_view._tutorial_next_action().is_empty(), "jab, guard and counter should complete the action guide")
+    var actual_actions: Array = game_state.state.get("first_cycle_tutorial", {}).get("actions_seen", [])
+    _check(actual_actions.has("jab") and actual_actions.has("guard") and actual_actions.has("counter"), "all three real fight actions must be recorded")
     var saved := SaveService.load_game()
     var checkpoint: Dictionary = saved.active_fight
     _check(int(checkpoint.exchange_no) > 0 and not str(checkpoint.pending_opponent_action).is_empty(), "mid-fight checkpoint")
@@ -180,6 +199,11 @@ func _fail(message: String) -> void:
 
 
 func _finish() -> void:
+    if is_instance_valid(main_view):
+        main_view.queue_free()
+        await process_frame
+        main_view = null
+    await create_timer(0.15).timeout
     if failures.is_empty():
         print("PASS: first-cycle tutorial traverses creation, training, preparation, fight and settlement")
         quit(0)

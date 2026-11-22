@@ -1,6 +1,7 @@
 extends VBoxContainer
 
 signal reveal_requested()
+signal tutorial_skipped()
 
 const UI := preload("res://scripts/ui/reference_ui.gd")
 const GOLD := Color("#efbc68")
@@ -18,6 +19,7 @@ var chosen_id := ""
 var bold_font: Font
 var heading_font: Font
 var _cards: Array = []
+var _chosen_card: PanelContainer
 var _strip: HBoxContainer
 var _reel: Control
 var _focus: Panel
@@ -45,7 +47,8 @@ func _ready() -> void:
 
 func _build_view() -> void:
     var banner := _panel(self)
-    _label(banner, "NATURAL TALENT  ·  2 / 2", 13, GOLD, heading_font, HORIZONTAL_ALIGNMENT_CENTER)
+    var step := _label(banner, "NATURAL TALENT  ·  2 / 10", 13, GOLD, heading_font, HORIZONTAL_ALIGNMENT_CENTER)
+    step.name = "TutorialStepTitle"
     _label(banner, "타고난 재능 추첨", 25, WHITE, heading_font, HORIZONTAL_ALIGNMENT_CENTER)
     _label(banner, "복서에게 주어질 고유한 재능을 결정합니다.", 12, MUTED, bold_font, HORIZONTAL_ALIGNMENT_CENTER)
 
@@ -109,6 +112,14 @@ func _build_view() -> void:
     _button.pressed.connect(func(): reveal_requested.emit())
     add_child(_button)
 
+    var skip := Button.new()
+    skip.name = "TutorialSkip"
+    skip.text = "튜토리얼 건너뛰기"
+    skip.flat = true
+    skip.custom_minimum_size.y = 36
+    skip.pressed.connect(func(): tutorial_skipped.emit())
+    add_child(skip)
+
 
 func _prepare_reel() -> void:
     for item in talents:
@@ -133,8 +144,15 @@ func _prepare_reel() -> void:
         _add_talent_card(item)
     _add_talent_card(_chosen)
     _strip.size = Vector2(float(STOP_INDEX + 1) * CARD_W + float(STOP_INDEX) * CARD_GAP, CARD_H)
-    await get_tree().process_frame
+    var layout_frames := 0
+    while _reel.size.x <= 0.0 and layout_frames < 8:
+        await get_tree().process_frame
+        layout_frames += 1
     _layout_reel()
+    if _reel.size.x <= 0.0:
+        _status.text = "룰렛 화면을 준비하지 못했습니다."
+        _finish_roll()
+        return
     _layout_ready = true
     set_process(true)
 
@@ -167,6 +185,8 @@ func _add_talent_card(item: Dictionary) -> void:
     var hint := _label(content, _short_description(str(item.get("id", ""))), 9, MUTED, bold_font, HORIZONTAL_ALIGNMENT_CENTER)
     hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
     _cards.append(card)
+    if str(item.get("id", "")) == chosen_id:
+        _chosen_card = card
 
 
 func _process(delta: float) -> void:
@@ -184,15 +204,34 @@ func _process(delta: float) -> void:
         _status.text = "추첨 결과를 확정합니다…"
     else:
         _strip.position.x = _target_x
-        _ready_to_reveal = true
-        _result_icon.texture = _talent_icon(chosen_id)
-        _result_name.text = str(_chosen.get("name", "타고난 재능"))
-        _result_description.text = str(_chosen.get("description", ""))
-        _result_bonus.text = _format_bonus(_chosen.get("stat_bonus", {}))
-        _status.text = "추첨 완료  ·  실제 배정된 재능에 멈췄습니다"
-        _button.disabled = false
-        _button.text = "결과 확인  ›"
+        _finish_roll()
         set_process(false)
+
+
+func _finish_roll() -> void:
+    if _ready_to_reveal:
+        return
+    _ready_to_reveal = true
+    if is_instance_valid(_chosen_card):
+        var highlight := StyleBoxFlat.new()
+        highlight.bg_color = Color("#2b2418")
+        highlight.border_color = GOLD
+        highlight.set_border_width_all(3)
+        highlight.set_corner_radius_all(7)
+        highlight.shadow_color = Color(1.0, 0.62, 0.12, 0.58)
+        highlight.shadow_size = 16
+        _chosen_card.add_theme_stylebox_override("panel", highlight)
+        _chosen_card.pivot_offset = _chosen_card.size * 0.5
+        var reveal_tween := create_tween()
+        reveal_tween.tween_property(_chosen_card, "scale", Vector2(1.06, 1.06), 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+        reveal_tween.tween_property(_chosen_card, "scale", Vector2.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN_OUT)
+    _result_icon.texture = _talent_icon(chosen_id)
+    _result_name.text = str(_chosen.get("name", "타고난 재능"))
+    _result_description.text = str(_chosen.get("description", ""))
+    _result_bonus.text = _format_bonus(_chosen.get("stat_bonus", {}))
+    _status.text = "추첨 완료  ·  실제 배정된 재능에 멈췄습니다"
+    _button.disabled = false
+    _button.text = "결과 확인  ›"
 
 
 func _layout_reel() -> void:

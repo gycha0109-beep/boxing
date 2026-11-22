@@ -45,6 +45,9 @@ func _run() -> void:
 func _finish() -> void:
     if is_instance_valid(main_view):
         main_view.queue_free()
+        await process_frame
+        main_view = null
+    await create_timer(0.15).timeout
     if failures.is_empty():
         print("v10-release-font-smoke: PASS")
         quit(0)

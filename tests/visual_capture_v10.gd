@@ -189,8 +189,12 @@ func _run() -> void:
     stage.animation_progress = 0.0
     await _capture("18_fight_knockdown.png")
 
-    print("visual-capture-v19-redesign: PASS")
+    main_view.queue_free()
+    await process_frame
+    main_view = null
+    await create_timer(0.2).timeout
     _cleanup_save_files()
+    print("visual-capture-v19-redesign: PASS")
     quit(0)
 
 func _capture_dir() -> String:

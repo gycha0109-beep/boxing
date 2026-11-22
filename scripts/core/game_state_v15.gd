@@ -440,8 +440,6 @@ func start_next_generation() -> Dictionary:
     SaveService.begin_transition()
     var result := super.start_next_generation()
     if result.get("ok", false):
-        if str(state.world_state.champion_boxer_id).begins_with("player_"):
-            state.world_state.champion_boxer_id = "diego_reyes"
         if not state.meta_state.legacy_slots.is_empty():
             select_background("gym", str(state.boxer.name))
     SaveService.finish_transition(state)

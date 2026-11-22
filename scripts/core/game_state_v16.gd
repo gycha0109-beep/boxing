@@ -48,7 +48,10 @@ func apply_camp_action(action: Dictionary) -> Dictionary:
     return result
 
 func apply_fight_result(result: String, opponent: Dictionary, snapshot: Dictionary = {}) -> void:
+    if str(state.get("phase", "")) != "fight":
+        return
     var title_kind: String = str(opponent.get("title_kind", ""))
+    var was_world_champion: bool = bool(state.get("career", {}).get("champion", false))
     super.apply_fight_result(result, opponent, snapshot)
     var damage_report: Dictionary = CareerRisk.apply_fight_damage(state, result, snapshot)
     var summary: Dictionary = state.get("last_fight_summary", {}).duplicate(true)
@@ -56,9 +59,14 @@ func apply_fight_result(result: String, opponent: Dictionary, snapshot: Dictiona
     summary["career_damage_delta"] = int(damage_report.get("delta", 0))
     summary["new_chronic_injuries"] = damage_report.get("new_chronic_injuries", []).duplicate(true)
     state["last_fight_summary"] = summary
-    if title_kind == "world" and result.begins_with("WIN"):
+    if title_kind == "world" and result.begins_with("WIN") and not was_world_champion:
         var career_state: Dictionary = state.get("career_state", {}).duplicate(true)
-        career_state["pending_world_title_win"] = {"id":str(opponent.get("id", "")), "name":str(opponent.get("name", ""))}
+        if career_state.get("pending_world_title_win", {}).is_empty():
+            career_state["pending_world_title_win"] = {"id":str(opponent.get("id", "")), "name":str(opponent.get("name", ""))}
+            state["career_state"] = career_state
+    elif title_kind == "world" and was_world_champion and result.begins_with("LOSS"):
+        var career_state: Dictionary = state.get("career_state", {}).duplicate(true)
+        career_state.erase("pending_world_title_win")
         state["career_state"] = career_state
     _check_retirement()
     if bool(state.get("career", {}).get("finished", false)):
@@ -89,15 +97,13 @@ func start_next_generation() -> Dictionary:
     CareerRisk.ensure_state(state)
     World.ensure_world(state)
     var elapsed_months: int = World.elapsed_career_months(state)
-    var world_result: Dictionary = World.advance_world(state, elapsed_months)
     var career_state: Dictionary = state.get("career_state", {}).duplicate(true)
     var pending_title: Dictionary = career_state.get("pending_world_title_win", {}).duplicate(true)
     if not pending_title.is_empty():
         World.record_player_title_win(state, pending_title)
-        World.advance_world(state, 0)
-        career_state = state.get("career_state", {}).duplicate(true)
         career_state.erase("pending_world_title_win")
         state["career_state"] = career_state
+    var world_result: Dictionary = World.advance_world(state, elapsed_months)
     SaveService.save_game(state)
     var result: Dictionary = super.start_next_generation()
     if not bool(result.get("ok", false)):

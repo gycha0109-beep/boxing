@@ -70,7 +70,7 @@ static func advance_world(state: Dictionary, elapsed_months: int, all_opponents:
         snapshots[index] = snapshot
     world["opponents"] = snapshots
     var champion_id: String = str(world.get("champion_boxer_id", ""))
-    if champion_id.begins_with("player_generation_"):
+    if champion_id.begins_with("player_"):
         _append_world_event(world, "player_champion_retired", {"champion_id": champion_id})
         world["champion_boxer_id"] = ""
         _select_successor(world, champion_id)
@@ -103,19 +103,20 @@ static func advance_world(state: Dictionary, elapsed_months: int, all_opponents:
 static func record_player_title_win(state: Dictionary, defeated_opponent: Dictionary) -> void:
     ensure_world(state)
     var world: Dictionary = state.get("world_state", {}).duplicate(true)
-    var previous_id: String = str(world.get("champion_boxer_id", ""))
+    var previous_id: String = str(defeated_opponent.get("id", world.get("champion_boxer_id", "")))
     var previous_index: int = _snapshot_index(world.get("opponents", []), previous_id)
     if previous_index >= 0:
         var previous: Dictionary = world.opponents[previous_index].duplicate(true)
         previous["champion"] = false
+        var previous_record: Dictionary = previous.get("record", {}).duplicate(true)
+        previous_record["losses"] = int(previous_record.get("losses", 0)) + 1
+        previous["record"] = previous_record
+        previous["rank"] = max(3, int(previous.get("rank", 1)) + 2)
         world.opponents[previous_index] = previous
     var generation: int = int(state.get("meta_state", {}).get("generation", 1))
     var player_id: String = "player_generation_%d" % generation
     world["champion_boxer_id"] = player_id
     var event: Dictionary = {"type":"player_world_title","year":int(world.get("world_date", {}).get("year", DEFAULT_WORLD_YEAR)),"month":int(world.get("world_date", {}).get("month", 1)),"champion_id":player_id,"name":str(state.get("boxer", {}).get("name", "무명 복서")),"defeated_id":str(defeated_opponent.get("id", previous_id)),"generation":generation}
-    var title_history: Array = world.get("title_history", []).duplicate(true)
-    title_history.append(event.duplicate(true))
-    world["title_history"] = title_history
     var history: Array = world.get("world_history", []).duplicate(true)
     history.append(event)
     world["world_history"] = history
@@ -143,7 +144,7 @@ static func decorate_opponent(state: Dictionary, opponent: Dictionary) -> Dictio
 static func current_champion_definition(state: Dictionary, all_opponents: Array = []) -> Dictionary:
     ensure_world(state, all_opponents)
     var champion_id: String = str(state.get("world_state", {}).get("champion_boxer_id", ""))
-    if champion_id.is_empty() or champion_id.begins_with("player_generation_"):
+    if champion_id.is_empty() or champion_id.begins_with("player_"):
         return {}
     var catalog: Array = all_opponents if not all_opponents.is_empty() else _opponent_catalog()
     for value in catalog:
@@ -163,7 +164,7 @@ static func world_summary(state: Dictionary) -> Dictionary:
     var world: Dictionary = state.get("world_state", {})
     var champion_id: String = str(world.get("champion_boxer_id", ""))
     var summary: Dictionary = {"year":int(world.get("world_date", {}).get("year", DEFAULT_WORLD_YEAR)),"month":int(world.get("world_date", {}).get("month", 1)),"champion_boxer_id":champion_id,"champion_name":"타이틀 공석","champion_age":0,"champion_record":{},"title_defenses":0,"gym_id":""}
-    if champion_id.begins_with("player_generation_"):
+    if champion_id.begins_with("player_"):
         summary["champion_name"] = str(state.get("boxer", {}).get("name", "플레이어 챔피언"))
         summary["champion_age"] = int(state.get("career", {}).get("age_months", 0)) / 12
         summary["champion_record"] = {"wins":int(state.get("career", {}).get("wins", 0)),"losses":int(state.get("career", {}).get("losses", 0)),"draws":int(state.get("career", {}).get("draws", 0))}
@@ -250,9 +251,6 @@ static func _select_successor(world: Dictionary, excluded_id: String) -> void:
     world["opponents"] = snapshots
     world["champion_boxer_id"] = str(successor.get("id", ""))
     var event: Dictionary = {"type":"new_world_champion","year":int(world.get("world_date", {}).get("year", DEFAULT_WORLD_YEAR)),"month":int(world.get("world_date", {}).get("month", 1)),"champion_id":str(successor.get("id", "")),"name":str(successor.get("name", ""))}
-    var title_history: Array = world.get("title_history", []).duplicate(true)
-    title_history.append(event.duplicate(true))
-    world["title_history"] = title_history
     var history: Array = world.get("world_history", []).duplicate(true)
     history.append(event)
     world["world_history"] = history
