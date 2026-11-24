@@ -23,7 +23,7 @@ func _ready() -> void:
     dialogue.name = "CoachDialogue"
     dialogue.mouse_filter = Control.MOUSE_FILTER_PASS
     dialogue.add_theme_stylebox_override("panel", UI.beveled_panel_style(Color("#121d2bef"), GOLD, 7))
-    dialogue.custom_minimum_size = Vector2(280, 102)
+    dialogue.custom_minimum_size = Vector2(268, 88)
     add_child(dialogue)
     var row := HBoxContainer.new()
     row.add_theme_constant_override("separation", 7)
@@ -54,7 +54,7 @@ func _ready() -> void:
     head.add_child(skip)
     var guidance := _label(copy, instruction, 12, MUTED)
     guidance.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-    dialogue.set_deferred("size", Vector2(310, 100))
+    dialogue.set_deferred("size", Vector2(296, 92))
     call_deferred("_position_dialogue")
 
 
@@ -91,15 +91,14 @@ func _position_dialogue() -> void:
     if not is_instance_valid(dialogue):
         return
     var rect := _focus_rect()
-    var width := minf(310.0, size.x - 18.0)
+    var width := minf(296.0, size.x - 18.0)
     dialogue.size = Vector2(width, maxf(98.0, dialogue.get_combined_minimum_size().y))
     var height := dialogue.size.y
     var y := 76.0
     if rect.size.y > 5.0:
-        if rect.end.y + height + 20.0 < size.y - 60.0:
-            y = rect.end.y + 14.0
-        else:
-            y = rect.position.y - height - 14.0
+        # Anchor coaching to the opposite screen region from the selected control.
+        # The old placement immediately beside the card concealed neighbouring choices.
+        y = 76.0 if rect.get_center().y > size.y * 0.40 else size.y - height - 95.0
     y = clampf(y, 48.0, maxf(48.0, size.y - height - 70.0))
     var x := clampf(rect.get_center().x - width / 2.0, 9.0, size.x - width - 9.0) if rect.size.x > 5.0 else 9.0
     dialogue.position = Vector2(x, y)
@@ -111,7 +110,7 @@ func _draw() -> void:
     var rect := _focus_rect()
     if rect.size.x < 5 or rect.size.y < 5:
         return
-    var background := Color(0.015, 0.025, 0.045, 0.63)
+    var background := Color(0.015, 0.025, 0.045, 0.47)
     draw_rect(Rect2(0, 0, size.x, rect.position.y), background)
     draw_rect(Rect2(0, rect.end.y, size.x, size.y - rect.end.y), background)
     draw_rect(Rect2(0, rect.position.y, rect.position.x, rect.size.y), background)

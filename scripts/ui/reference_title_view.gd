@@ -2,11 +2,13 @@ extends VBoxContainer
 
 signal new_career_requested()
 signal continue_requested()
+signal settings_requested()
 
 const UI := preload("res://scripts/ui/reference_ui.gd")
 const Art := preload("res://scripts/ui/reference_result_art.gd")
 const TITLE_METAL := preload("res://scripts/ui/reference_title_type.gdshader")
-const RING := preload("res://assets/visual/reference_v1/title_ring.webp")
+const ARENA := preload("res://assets/visual/v0.7/arena/arena_title_night.png")
+const BOXER_LAYER := preload("res://assets/visual/reference_v1/title_boxer_layer.png")
 const BOXER := preload("res://assets/visual/reference_v1/title_boxer.webp")
 const TACTICS := preload("res://assets/visual/reference_v1/title_tactics.webp")
 const LEGACY := preload("res://assets/visual/reference_v1/title_legacy.webp")
@@ -19,18 +21,215 @@ var heading_font: Font
 var bold_font: Font
 var can_continue := false
 var save_caption := ""
+var settings_icon: Texture2D
 
 var _confirmation: ConfirmationDialog
 var _leaving := false
 
 func _ready() -> void:
     size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    add_theme_constant_override("separation", 8)
-    _hero()
-    _features()
-    _actions()
+    size_flags_vertical = Control.SIZE_EXPAND_FILL
+    add_theme_constant_override("separation", 0)
+    _cover_v2()
     if can_continue:
         _make_confirmation()
+
+func _cover_v2() -> void:
+    # The former flattened composition is not loaded. Each illustration is an
+    # independent texture and all readable copy/buttons remain live controls.
+    var cover := Control.new()
+    cover.name = "TitleCoverLayers"
+    cover.custom_minimum_size.y = 0
+    cover.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    cover.size_flags_vertical = Control.SIZE_EXPAND_FILL
+    cover.clip_contents = true
+    cover.mouse_filter = Control.MOUSE_FILTER_PASS
+    add_child(cover)
+
+    var ink := ColorRect.new()
+    ink.color = Color("#070b10")
+    ink.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+    ink.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    cover.add_child(ink)
+
+    _cover_texture(cover, "res://assets/visual/title_layers_v2/gold_header.png", "TitleGoldHeader", 0, 113)
+    var stadium := _cover_texture(cover, "res://assets/visual/title_layers_v2/arena_clean.png", "TitleArenaBackground", 170, 362)
+    stadium.stretch_mode = TextureRect.STRETCH_SCALE
+    var boxer := _cover_texture(cover, "res://assets/visual/title_layers_v2/boxer_foreground.png", "TitleBoxerForeground", 181, 333)
+    boxer.anchor_left = 0.17
+    boxer.anchor_right = 0.83
+    boxer.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+
+    # Conceal the cut-off at the fighter's shorts with a separate fade overlay.
+    var fade_gradient := Gradient.new()
+    fade_gradient.offsets = PackedFloat32Array([0.0, 0.50, 1.0])
+    fade_gradient.colors = PackedColorArray([
+        Color(0.027, 0.035, 0.052, 0.0),
+        Color(0.027, 0.035, 0.052, 0.48),
+        Color("#070b10")
+    ])
+    var fade_texture := GradientTexture2D.new()
+    fade_texture.gradient = fade_gradient
+    fade_texture.width = 4
+    fade_texture.height = 128
+    fade_texture.fill_to = Vector2(0, 1)
+    var fade_layer := TextureRect.new()
+    fade_layer.name = "TitleStageFade"
+    fade_layer.texture = fade_texture
+    fade_layer.anchor_right = 1
+    fade_layer.offset_top = 447
+    fade_layer.offset_bottom = 556
+    fade_layer.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+    fade_layer.stretch_mode = TextureRect.STRETCH_SCALE
+    fade_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    cover.add_child(fade_layer)
+
+    var shade := ColorRect.new()
+    shade.color = Color(0.01, 0.02, 0.04, 0.42)
+    shade.anchor_left = 0
+    shade.anchor_right = 1
+    shade.offset_top = 109
+    shade.offset_bottom = 184
+    shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    cover.add_child(shade)
+
+    var title_panel := ColorRect.new()
+    title_panel.name = "TitleMastheadPanel"
+    title_panel.color = Color(0.012, 0.018, 0.029, 0.95)
+    title_panel.anchor_right = 1.0
+    title_panel.offset_top = 107
+    title_panel.offset_bottom = 185
+    title_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    cover.add_child(title_panel)
+    for line_y in [107, 183]:
+        var accent := ColorRect.new()
+        accent.name = "TitleMastheadGoldRule"
+        accent.color = Color("#bc8e4d")
+        accent.anchor_right = 1
+        accent.offset_top = line_y
+        accent.offset_bottom = line_y + 2
+        accent.mouse_filter = Control.MOUSE_FILTER_IGNORE
+        cover.add_child(accent)
+
+    var title := _cover_label(cover, "TWELVE COUNT", 40, UI.GOLD_BRIGHT, 112, 52, UI.DISPLAY_FONT)
+    title.name = "TitleLiveLogo"
+    _outline(title, 3)
+    _cover_label(cover, "BOXING CAREER ROGUELITE", 11, PAPER, 162, 20, bold_font)
+    _cover_label(cover, "데뷔전부터 세계 타이틀전까지", 20, UI.GOLD_BRIGHT, 504, 32, heading_font)
+    _cover_label(cover, "복서를 만들고 커리어를 이어가라", 13, PAPER, 534, 25, bold_font)
+
+    _cover_texture(cover, "res://assets/visual/title_layers_v2/button_gold_plate.png", "TitleStartPlate", 570, 78)
+    var start := _cover_button(cover, "새 커리어 시작", "TitleNewCareer", 576, 65, 24, Color("#291809"), true)
+    start.pressed.connect(_request_new_career)
+
+    _cover_texture(cover, "res://assets/visual/title_layers_v2/button_dark_plate.png", "TitleResumePlate", 654, 59)
+    var resume := _cover_button(cover, "이어하기", "TitleContinue", 658, 52, 20, PAPER, false)
+    resume.disabled = not can_continue
+    resume.modulate.a = 1.0 if can_continue else 0.45
+    resume.pressed.connect(func():
+        if not _leaving and can_continue:
+            _leaving = true
+            continue_requested.emit()
+    )
+
+    var belt := _cover_texture(cover, "res://assets/visual/title_layers_v2/champion_belt_footer.png", "TitleLegacyBelt", 742, 190)
+    belt.stretch_mode = TextureRect.STRETCH_SCALE
+    if can_continue and not save_caption.is_empty():
+        _cover_label(cover, save_caption, 11, MUTED, 716, 23, bold_font).name = "TitleSaveCaption"
+    elif not can_continue:
+        _cover_label(cover, "저장된 커리어가 없습니다", 12, MUTED, 716, 23, bold_font).name = "TitleSaveCaption"
+
+    _cover_settings(cover)
+    cover.resized.connect(_scale_title_layout.bind(cover))
+    call_deferred("_scale_title_layout", cover)
+
+func _cover_settings(cover: Control) -> void:
+    var settings := Button.new()
+    settings.name = "TitleSettings"
+    settings.tooltip_text = "설정"
+    settings.icon = settings_icon
+    settings.expand_icon = true
+    settings.anchor_left = 1
+    settings.anchor_right = 1
+    settings.offset_left = -57
+    settings.offset_right = -12
+    settings.offset_top = 20
+    settings.offset_bottom = 65
+    settings.focus_mode = Control.FOCUS_ALL
+    var border := StyleBoxFlat.new()
+    border.bg_color = Color(0.018, 0.026, 0.040, 0.82)
+    border.border_color = UI.GOLD_BRIGHT
+    border.set_border_width_all(2)
+    border.set_corner_radius_all(12)
+    for state in ["normal", "hover", "pressed", "focus"]:
+        settings.add_theme_stylebox_override(state, border)
+    settings.pressed.connect(func(): settings_requested.emit())
+    cover.add_child(settings)
+
+func _scale_title_layout(cover: Control) -> void:
+    if not is_instance_valid(cover) or cover.size.y <= 0:
+        return
+    var ratio := cover.size.y / 932.0
+    for child in cover.get_children():
+        if not child is Control:
+            continue
+        var item := child as Control
+        if not item.has_meta("title_base_top"):
+            item.set_meta("title_base_top", item.offset_top)
+            item.set_meta("title_base_bottom", item.offset_bottom)
+        item.offset_top = float(item.get_meta("title_base_top")) * ratio
+        item.offset_bottom = float(item.get_meta("title_base_bottom")) * ratio
+
+func _cover_texture(parent: Control, path: String, node_name: String, y: float, height: float) -> TextureRect:
+    var graphic := TextureRect.new()
+    graphic.name = node_name
+    graphic.texture = load(path)
+    graphic.anchor_left = 0
+    graphic.anchor_right = 1
+    graphic.offset_left = 0
+    graphic.offset_right = 0
+    graphic.offset_top = y
+    graphic.offset_bottom = y + height
+    graphic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+    graphic.stretch_mode = TextureRect.STRETCH_SCALE
+    graphic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    parent.add_child(graphic)
+    return graphic
+
+func _cover_label(parent: Control, copy: String, font_size: int, tint: Color, y: float, height: float, font: Font) -> Label:
+    var label := Label.new()
+    label.text = copy
+    label.anchor_left = 0
+    label.anchor_right = 1
+    label.offset_top = y
+    label.offset_bottom = y + height
+    label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+    label.add_theme_font_override("font", font)
+    label.add_theme_font_size_override("font_size", font_size)
+    label.add_theme_color_override("font_color", tint)
+    label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    parent.add_child(label)
+    return label
+
+func _cover_button(parent: Control, copy: String, node_name: String, y: float, height: float, font_size: int, tint: Color, primary: bool) -> Button:
+    var button := Button.new()
+    button.name = node_name
+    button.text = copy
+    button.anchor_left = 0.12 if primary else 0.21
+    button.anchor_right = 0.88 if primary else 0.79
+    button.offset_top = y
+    button.offset_bottom = y + height
+    button.flat = true
+    button.focus_mode = Control.FOCUS_ALL
+    button.add_theme_font_override("font", bold_font)
+    button.add_theme_font_size_override("font_size", font_size)
+    for color_name in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_disabled_color"]:
+        button.add_theme_color_override(color_name, tint)
+    for state in ["normal", "hover", "pressed", "focus", "disabled"]:
+        button.add_theme_stylebox_override(state, StyleBoxEmpty.new())
+    parent.add_child(button)
+    return button
 
 func _hero() -> void:
     var frame := PanelContainer.new()
@@ -61,13 +260,35 @@ func _hero() -> void:
     subtitle.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
     _rule(content)
 
+    # Separate runtime layers: background, foreground fighter, typography and actions.
+    # The flattened title composite is reference-only and must not be loaded here.
     var scene := Control.new()
-    scene.custom_minimum_size.y = 249
+    scene.name = "TitleLayerStack"
+    scene.custom_minimum_size.y = 340
     scene.clip_contents = true
     scene.mouse_filter = Control.MOUSE_FILTER_IGNORE
     content.add_child(scene)
-    var photo := _texture(scene, RING)
-    photo.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+    var background := _texture(scene, ARENA)
+    background.name = "TitleArenaBackground"
+    background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+    background.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+    var arena_tint := ColorRect.new()
+    arena_tint.name = "TitleArenaTint"
+    arena_tint.color = Color(0.015, 0.027, 0.047, 0.26)
+    arena_tint.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+    arena_tint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    scene.add_child(arena_tint)
+    var boxer := _texture(scene, BOXER_LAYER)
+    boxer.name = "TitleBoxerForeground"
+    boxer.anchor_left = 0.5
+    boxer.anchor_right = 0.5
+    boxer.anchor_top = 0.0
+    boxer.anchor_bottom = 0.0
+    boxer.offset_left = -134
+    boxer.offset_right = 134
+    boxer.offset_top = 4
+    boxer.offset_bottom = 412
+    boxer.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
     _bottom_shadow(scene)
     Art.glow(scene, Vector2(0.5, 0.015), Vector2(295, 12), Color(1.0, 0.77, 0.40, 0.83))
 
@@ -92,7 +313,7 @@ func _features() -> void:
     row.add_theme_constant_override("separation", 6)
     add_child(row)
     _feature(row, BOXER, "한 명의 복서", "훈련하고 챔피언에 도전")
-    _feature(row, TACTICS, "상대 분석", "상대에 맞춰 전략 선택")
+    _feature(row, TACTICS, "전술 준비", "상대에 맞춰 전략 선택")
     _feature(row, LEGACY, "유산 계승", "다음 제자에게 노하우 전수")
 
 func _feature(row: HBoxContainer, art: Texture2D, title: String, caption: String) -> void:

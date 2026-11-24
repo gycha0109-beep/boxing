@@ -1,0 +1,427 @@
+{
+  "issues": [],
+  "method": "Godot live renderer, authentic game UI with scripted battle results; isolated user:// save",
+  "screenshots": [
+    {
+      "description": "실제 타이틀 첫 실행",
+      "fights": 0,
+      "file": "000_타이틀.png",
+      "height": 932,
+      "kind": "real",
+      "phase": "camp",
+      "title": "타이틀",
+      "width": 430
+    },
+    {
+      "description": "튜토리얼 첫 화면",
+      "fights": 0,
+      "file": "001_첫 실행 안내.png",
+      "height": 932,
+      "kind": "real",
+      "phase": "tutorial_welcome",
+      "title": "첫 실행 안내",
+      "width": 430
+    },
+    {
+      "description": "첫 이용 설명",
+      "fights": 0,
+      "file": "002_튜토리얼 개요.png",
+      "height": 932,
+      "kind": "real",
+      "phase": "tutorial_overview",
+      "title": "튜토리얼 개요",
+      "width": 430
+    },
+    {
+      "description": "선수 생성 스타일 선택",
+      "fights": 0,
+      "file": "003_복싱 스타일 선택.png",
+      "height": 932,
+      "kind": "real",
+      "phase": "style_select",
+      "title": "복싱 스타일 선택",
+      "width": 430
+    },
+    {
+      "description": "첫 재능 추첨 진행",
+      "fights": 0,
+      "file": "004_재능 추첨.png",
+      "height": 932,
+      "kind": "real",
+      "phase": "talent_reveal",
+      "title": "재능 추첨",
+      "width": 430
+    },
+    {
+      "description": "추첨 종료",
+      "fights": 0,
+      "file": "005_재능 추첨 결과.png",
+      "height": 932,
+      "kind": "real",
+      "phase": "talent_reveal",
+      "title": "재능 추첨 결과",
+      "width": 430
+    },
+    {
+      "description": "재능 확인",
+      "fights": 0,
+      "file": "006_선수 생성 확인.png",
+      "height": 932,
+      "kind": "real",
+      "phase": "talent_reveal",
+      "title": "선수 생성 확인",
+      "width": 430
+    },
+    {
+      "description": "첫 캠프 훈련",
+      "fights": 0,
+      "file": "007_훈련 캠프.png",
+      "height": 932,
+      "kind": "real",
+      "phase": "camp",
+      "title": "훈련 캠프",
+      "width": 430
+    },
+    {
+      "description": "같은 화면의 아래쪽 스크롤",
+      "fights": 0,
+      "file": "008_훈련 캠프 하단.png",
+      "height": 932,
+      "kind": "real",
+      "phase": "camp",
+      "title": "훈련 캠프 하단",
+      "width": 430
+    },
+    {
+      "description": "선수 상태와 능력치",
+      "fights": 0,
+      "file": "009_선수 프로필.png",
+      "height": 932,
+      "kind": "real",
+      "phase": "camp",
+      "title": "선수 프로필",
+      "width": 430
+    },
+    {
+      "description": "같은 화면의 아래쪽 스크롤",
+      "fights": 0,
+      "file": "010_선수 프로필 하단.png",
+      "height": 932,
+      "kind": "real",
+      "phase": "camp",
+      "title": "선수 프로필 하단",
+      "width": 430
+    },
+    {
+      "description": "커리어 관리",
+      "fights": 0,
+      "file": "011_커리어 기록.png",
+      "height": 932,
+      "kind": "real",
+      "phase": "camp",
+      "title": "커리어 기록",
+      "width": 430
+    },
+    {
+      "description": "장비와 투자",
+      "fights": 0,
+      "file": "012_장비 상점.png",
+      "height": 932,
+      "kind": "real",
+      "phase": "equipment_shop",
+      "title": "장비 상점",
+      "width": 430
+    },
+    {
+      "description": "같은 화면의 아래쪽 스크롤",
+      "fights": 0,
+      "file": "013_장비 상점 하단.png",
+      "height": 932,
+      "kind": "real",
+      "phase": "equipment_shop",
+      "title": "장비 상점 하단",
+      "width": 430
+    },
+    {
+      "description": "첫 튜토리얼 훈련 결과",
+      "fights": 0,
+      "file": "014_첫 훈련 결과.png",
+      "height": 932,
+      "kind": "real",
+      "phase": "fight_offer",
+      "title": "첫 훈련 결과",
+      "width": 430
+    },
+    {
+      "description": "경기 계약 제안",
+      "fights": 0,
+      "file": "015_상대 선택.png",
+      "height": 932,
+      "kind": "real",
+      "phase": "fight_offer",
+      "title": "상대 선택",
+      "width": 430
+    },
+    {
+      "description": "같은 화면의 아래쪽 스크롤",
+      "fights": 0,
+      "file": "016_상대 선택 하단.png",
+      "height": 932,
+      "kind": "real",
+      "phase": "fight_offer",
+      "title": "상대 선택 하단",
+      "width": 430
+    },
+    {
+      "description": "스카우팅과 전술 준비",
+      "fights": 0,
+      "file": "017_상대 분석.png",
+      "height": 932,
+      "kind": "real",
+      "phase": "game_plan",
+      "title": "상대 분석",
+      "width": 430
+    },
+    {
+      "description": "같은 화면의 아래쪽 스크롤",
+      "fights": 0,
+      "file": "018_상대 분석 하단.png",
+      "height": 932,
+      "kind": "real",
+      "phase": "game_plan",
+      "title": "상대 분석 하단",
+      "width": 430
+    },
+    {
+      "description": "경기 직전 계체",
+      "fights": 0,
+      "file": "019_계체 확인.png",
+      "height": 932,
+      "kind": "real",
+      "phase": "fight",
+      "title": "계체 확인",
+      "width": 430
+    },
+    {
+      "description": "실제 경기 HUD",
+      "fights": 0,
+      "file": "020_경기 시작.png",
+      "height": 932,
+      "kind": "real",
+      "phase": "fight",
+      "title": "경기 시작",
+      "width": 430
+    },
+    {
+      "description": "첫 타격 교환 후",
+      "fights": 0,
+      "file": "021_경기 중.png",
+      "height": 932,
+      "kind": "real",
+      "phase": "fight",
+      "title": "경기 중",
+      "width": 430
+    },
+    {
+      "description": "첫 경기 판정승 재현",
+      "fights": 1,
+      "file": "022_경기 결과.png",
+      "height": 932,
+      "kind": "simulated_result",
+      "phase": "result",
+      "title": "경기 결과",
+      "width": 430
+    },
+    {
+      "description": "첫 경기 이후 안내",
+      "fights": 1,
+      "file": "023_튜토리얼 완료.png",
+      "height": 932,
+      "kind": "real",
+      "phase": "event",
+      "title": "튜토리얼 완료",
+      "width": 430
+    },
+    {
+      "description": "경기 이후 이벤트",
+      "fights": 1,
+      "file": "024_커리어 이벤트.png",
+      "height": 932,
+      "kind": "real",
+      "phase": "event",
+      "title": "커리어 이벤트",
+      "width": 430
+    },
+    {
+      "description": "커리어 진행 화면",
+      "fights": 1,
+      "file": "025_첫 경기 이후.png",
+      "height": 932,
+      "kind": "real",
+      "phase": "camp",
+      "title": "첫 경기 이후",
+      "width": 430
+    },
+    {
+      "description": "반복 커리어 진입",
+      "fights": 1,
+      "file": "026_다음 경기 선택.png",
+      "height": 932,
+      "kind": "real",
+      "phase": "fight_offer",
+      "title": "다음 경기 선택",
+      "width": 430
+    },
+    {
+      "description": "두 번째 경기 전투 UI",
+      "fights": 1,
+      "file": "027_다음 경기 준비.png",
+      "height": 932,
+      "kind": "real",
+      "phase": "fight",
+      "title": "다음 경기 준비",
+      "width": 430
+    },
+    {
+      "description": "경기 결과 재현",
+      "fights": 2,
+      "file": "028_경기 2 결과.png",
+      "height": 932,
+      "kind": "simulated_result",
+      "phase": "result",
+      "title": "경기 2 결과",
+      "width": 430
+    },
+    {
+      "description": "경기 결과 재현",
+      "fights": 3,
+      "file": "029_경기 3 결과.png",
+      "height": 932,
+      "kind": "simulated_result",
+      "phase": "result",
+      "title": "경기 3 결과",
+      "width": 430
+    },
+    {
+      "description": "누적 3경기",
+      "fights": 3,
+      "file": "030_커리어 진행 3.png",
+      "height": 932,
+      "kind": "real",
+      "phase": "gym_fund_intro",
+      "title": "커리어 진행 3",
+      "width": 430
+    },
+    {
+      "description": "체육관 자산 도입",
+      "fights": 3,
+      "file": "031_체육관 투자 안내.png",
+      "height": 932,
+      "kind": "real",
+      "phase": "gym_fund_intro",
+      "title": "체육관 투자 안내",
+      "width": 430
+    },
+    {
+      "description": "커리어 이벤트",
+      "fights": 4,
+      "file": "032_이벤트 5.png",
+      "height": 932,
+      "kind": "real",
+      "phase": "event",
+      "title": "이벤트 5",
+      "width": 430
+    },
+    {
+      "description": "시즌 종료 계약 결정",
+      "fights": 4,
+      "file": "033_시즌 검토.png",
+      "height": 932,
+      "kind": "real",
+      "phase": "season_review",
+      "title": "시즌 검토",
+      "width": 430
+    },
+    {
+      "description": "커리어 이벤트",
+      "fights": 5,
+      "file": "034_이벤트 6.png",
+      "height": 932,
+      "kind": "real",
+      "phase": "event",
+      "title": "이벤트 6",
+      "width": 430
+    },
+    {
+      "description": "누적 6경기",
+      "fights": 6,
+      "file": "035_커리어 진행 6.png",
+      "height": 932,
+      "kind": "real",
+      "phase": "event",
+      "title": "커리어 진행 6",
+      "width": 430
+    },
+    {
+      "description": "커리어 이벤트",
+      "fights": 6,
+      "file": "036_이벤트 7.png",
+      "height": 932,
+      "kind": "real",
+      "phase": "event",
+      "title": "이벤트 7",
+      "width": 430
+    },
+    {
+      "description": "경기 결과 재현",
+      "fights": 7,
+      "file": "037_경기 7 결과.png",
+      "height": 932,
+      "kind": "simulated_result",
+      "phase": "career_summary",
+      "title": "경기 7 결과",
+      "width": 430
+    },
+    {
+      "description": "은퇴 또는 종료 정산",
+      "fights": 7,
+      "file": "038_커리어 종료.png",
+      "height": 932,
+      "kind": "real",
+      "phase": "career_summary",
+      "title": "커리어 종료",
+      "width": 430
+    },
+    {
+      "description": "같은 화면의 아래쪽 스크롤",
+      "fights": 7,
+      "file": "039_커리어 종료 하단.png",
+      "height": 932,
+      "kind": "real",
+      "phase": "career_summary",
+      "title": "커리어 종료 하단",
+      "width": 430
+    },
+    {
+      "description": "다음 세대를 위한 유산",
+      "fights": 7,
+      "file": "040_유산 선택 후.png",
+      "height": 932,
+      "kind": "real",
+      "phase": "career_summary",
+      "title": "유산 선택 후",
+      "width": 430
+    },
+    {
+      "description": "한 커리어 종료 후 후계 시작",
+      "fights": 0,
+      "file": "041_다음 세대 시작.png",
+      "height": 932,
+      "kind": "real",
+      "phase": "style_select",
+      "title": "다음 세대 시작",
+      "width": 430
+    }
+  ],
+  "simulated_fights": 7
+}

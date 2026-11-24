@@ -92,7 +92,7 @@ func _hero() -> void:
     _center(label)
 
 func _record() -> void:
-    var row := _row(self, 6)
+    var row := _row(self, 9)
     var record := _metric(row, "통산 전적", "%d승 %d패 %d무" % [
         int(career.get("wins", 0)), int(career.get("losses", 0)), int(career.get("draws", 0)),
     ], "%d전" % int(career.get("fights", 0)))
@@ -104,9 +104,9 @@ func _best(key: String, pattern: String) -> String:
     return pattern % int(career_state[key]) if career_state.has(key) else "최고 기록 없음"
 
 func _metric(row: HBoxContainer, caption: String, value: String, detail: String) -> PanelContainer:
-    var panel := _panel(row, 6)
+    var panel := _panel(row, 9)
     panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    var content := _column(panel, 1)
+    var content := _column(panel, 4)
     _center(_label(content, caption, 11, UI.GOLD_BRIGHT, bold_font, true))
     _center(_label(content, value, 19, PAPER, heading_font, true))
     _center(_label(content, detail, 10, MUTED, bold_font, true))
@@ -116,9 +116,9 @@ func _title_progress() -> void:
     var box := _column(_panel(self, 8), 5)
     _section(box, &"career", "타이틀 진행")
     var grid := GridContainer.new()
-    grid.columns = 3
-    grid.add_theme_constant_override("h_separation", 4)
-    grid.add_theme_constant_override("v_separation", 4)
+    grid.columns = 2
+    grid.add_theme_constant_override("h_separation", 8)
+    grid.add_theme_constant_override("v_separation", 8)
     box.add_child(grid)
     var done := bool(career.get("finished", false))
     var champion := bool(career.get("champion", false))
@@ -128,7 +128,7 @@ func _title_progress() -> void:
         var tile := _panel(grid, 4, UI.GOLD if earned or next else Color("#536171"))
         tile.size_flags_horizontal = Control.SIZE_EXPAND_FILL
         var lines := _column(tile, 0)
-        _center(_label(lines, TITLES[key], 12, UI.GOLD_BRIGHT if earned or next else MUTED, bold_font, true))
+        _center(_label(lines, TITLES[key], 13, UI.GOLD_BRIGHT if earned or next else MUTED, bold_font, true))
         var status := ("통과" if key == "world_eliminator" else "획득") if earned else ("다음 도전" if next else "미획득")
         _center(_label(lines, status, 10, GREEN if earned else (PAPER if next else MUTED), bold_font))
     if champion:

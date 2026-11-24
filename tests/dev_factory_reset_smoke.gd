@@ -42,10 +42,15 @@ func _run() -> void:
     check(main.body.find_child("DevFactoryResetButton", true, false) != null, "dev reset button missing in Settings")
     main._confirm_dev_factory_reset()
     await process_frame
-    check(str(game.state.get("phase", "")) == "tutorial_welcome", "developer reset did not restart tutorial")
+    check(main.launch_gate_active and main.get_node_or_null("ReferenceTitle") != null, "developer reset must return to main title")
+    check(main.find_child("TitleContinue", true, false).disabled, "reset must not allow continuing a placeholder career")
     check(int(game.state["career"]["wins"]) == 0 and int(game.state["career"]["money"]) == 120000, "factory reset did not clear saved progress")
-    check(bool(game.state.get("first_cycle_tutorial", {}).get("active", false)), "factory reset did not re-enable first-install tutorial")
-    check(SaveService.load_game().get("phase", "") == "tutorial_welcome", "factory reset not persisted")
+    check(not bool(game.state.get("first_cycle_tutorial", {}).get("active", false)), "reset must not start tutorial before player action")
+    check(not bool(main._onboarding_install.get_value("install", "tutorial_started", false)), "reset must clear onboarding usage marker")
+    check(SaveService.load_game().get("phase", "") != "tutorial_welcome", "reset must not save tutorial as the startup phase")
+    main._start_new_career_from_title()
+    await process_frame
+    check(str(game.state.get("phase", "")) == "tutorial_welcome", "new career after a full reset must start the first-use tutorial")
     main.queue_free()
     await process_frame
     await create_timer(0.15).timeout

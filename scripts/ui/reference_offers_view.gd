@@ -78,18 +78,18 @@ func _card(entry: Dictionary) -> void:
     var recommended := id == recommended_opponent_id
     var card := _panel(self, NAVY, UI.GOLD_BRIGHT if is_title or recommended else UI.GOLD_DARK, 5)
     card.name = "OpponentCard_" + id
-    var content := _column(card, 5)
+    var content := _column(card, 9)
     var row := _row(content, 8)
 
     var portrait_frame := _panel(row, INK, Color("#263746"), 1)
     portrait_frame.size_flags_horizontal = Control.SIZE_FILL
-    portrait_frame.custom_minimum_size.x = 111
+    portrait_frame.custom_minimum_size.x = 104
     var portrait := _texture(entry["portrait"])
     portrait.name = "FightOfferPortrait_" + id
     portrait.clip_contents = true
     portrait_frame.add_child(portrait)
 
-    var info := _column(row, 2)
+    var info := _column(row, 5)
     var title_row := _row(info, 5)
     var title := _label(title_row, str(opponent["name"]), 18, PAPER, true)
     title.add_theme_font_override("font", heading_font)
@@ -119,7 +119,7 @@ func _card(entry: Dictionary) -> void:
     brief.max_lines_visible = 2
     brief.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 
-    var rewards := _row(_panel(info, INK, Color("#5c4b35"), 4), 4)
+    var rewards := _row(_panel(info, Color("#101b28"), UI.GOLD_DARK, 8), 8)
     rewards.name = "FightOfferRewards_" + id
     _reward(rewards, "파이트머니", "%s원" % entry["purse"])
     _reward(rewards, "승리 평판", "%+d" % int(opponent.get("reputation_reward", 0)))
@@ -131,12 +131,14 @@ func _card(entry: Dictionary) -> void:
     ], 10, MUTED, true)
     draw_preview.name = "FightOfferBusinessPreview_" + id
 
-    var buttons := _row(info, 6)
+    var buttons := _row(info, 8)
     var inspect := UI.action_button("분석", bold_font)
     inspect.name = "FightOfferAnalyze_" + id
+    inspect.custom_minimum_size.y = 52
     buttons.add_child(inspect)
     var accept := UI.action_button("선택  ›", bold_font, true)
     accept.name = "FightOfferSelect_" + id
+    accept.custom_minimum_size.y = 52
     if show_first_bout_guide:
         accept.disabled = true
         accept.text = "분석 후 선택"

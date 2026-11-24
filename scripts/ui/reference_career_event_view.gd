@@ -87,7 +87,7 @@ func _hero() -> void:
     story.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 
 func _effects() -> void:
-    var panel := _column(_panel(self), 4)
+    var panel := _column(_panel(self), 9)
     _label(panel, "이벤트 적용 후", 16, UI.GOLD_BRIGHT, heading_font)
     var effects: Dictionary = event.get("effects", {})
     _add_effect(panel, effects, "money", "career", "보유금", &"money")
@@ -116,7 +116,7 @@ func _add_effect(parent: VBoxContainer, effects: Dictionary, key: String, model:
     var delta := "변동 없음" if change == 0 else (("+" if change > 0 else "") + _formatted(key, change))
     var badge := _label(row, delta, 13, color, bold_font)
     badge.name = "CareerEventDelta_" + key
-    badge.custom_minimum_size.x = 66
+    badge.custom_minimum_size.x = 72
     badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 
 func _formatted(key: String, amount: int) -> String:
@@ -130,9 +130,10 @@ func _effect_row(parent: VBoxContainer, caption: String, icon: StringName) -> HB
     divider.custom_minimum_size.y = 1
     divider.mouse_filter = Control.MOUSE_FILTER_IGNORE
     parent.add_child(divider)
-    var row := _row(parent, 6)
+    var row := _row(parent, 8)
+    row.custom_minimum_size.y = 36
     Art.result_icon(row, icon)
-    var text := _label(row, caption, 12, UI.GOLD_BRIGHT, bold_font)
+    var text := _label(row, caption, 13, UI.GOLD_BRIGHT, bold_font)
     text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     return row
 

@@ -3,7 +3,7 @@ extends RefCounted
 const DIFFICULTY := {"safe": "낮음", "peer": "보통", "stretch": "높음"}
 const GOLD := Color("#efc46f")
 const GOLD_BRIGHT := Color("#ffe2a0")
-const GOLD_DARK := Color("#9f753c")
+const GOLD_DARK := Color("#ae8246")
 const DISPLAY_FONT := preload("res://assets/fonts/BarlowCondensed-BlackItalic.ttf")
 
 static var _gold_style: StyleBoxTexture
@@ -13,20 +13,27 @@ static func gold_button_style() -> StyleBoxTexture:
     if _gold_style != null:
         return _gold_style
 
-    var image := Image.create_empty(64, 43, false, Image.FORMAT_RGBA8)
-    for y in range(43):
-        var cut := int(absf(y - 21.0) * 0.65)
-        for x in range(cut, 64 - cut):
-            var tone := absf(float(y - 13)) / 30.0
-            var color := Color("#ffe298").lerp(Color("#b77b32"), tone)
-            if y < 2 or y >= 41 or x - cut < 2 or 63 - cut - x < 2:
-                color = GOLD_BRIGHT if y < 22 else GOLD_DARK
-            image.set_pixel(x, y, color)
+    # Metallic bevel: brighter crown edge, broad warm face and dark lower lip.
+    var image := Image.create_empty(96, 48, false, Image.FORMAT_RGBA8)
+    for y in range(48):
+        var cut := int(absf(y - 23.5) * 0.56)
+        for x in range(cut, 96 - cut):
+            var t := float(y) / 47.0
+            var tone := Color("#b87a2c").lerp(Color("#f8d789"), clampf(1.0 - absf(t - 0.32) * 1.65, 0.0, 1.0))
+            if t > 0.62:
+                tone = tone.lerp(Color("#a46b2c"), (t - 0.62) / 0.38 * 0.60)
+            if y <= 1 or y == 46 or x - cut < 2 or 95 - cut - x < 2:
+                tone = Color("#fff1b6") if y <= 1 else Color("#925c26")
+            elif y <= 4:
+                tone = tone.lerp(Color("#ffe8a4"), 0.75)
+            elif y >= 44:
+                tone = tone.lerp(Color("#75491d"), 0.58)
+            image.set_pixel(x, y, tone)
 
     _gold_style = StyleBoxTexture.new()
     _gold_style.texture = ImageTexture.create_from_image(image)
-    _gold_style.set_texture_margin(SIDE_LEFT, 16)
-    _gold_style.set_texture_margin(SIDE_RIGHT, 16)
+    _gold_style.set_texture_margin(SIDE_LEFT, 22)
+    _gold_style.set_texture_margin(SIDE_RIGHT, 22)
     _gold_style.set_expand_margin(SIDE_TOP, -7)
     _gold_style.set_expand_margin(SIDE_BOTTOM, -7)
     return _gold_style
@@ -40,7 +47,7 @@ static func panel_style(background: Color, edge: Color, padding: int) -> StyleBo
     style.bg_color = background
     style.border_color = edge
     style.set_border_width_all(1)
-    style.set_corner_radius_all(5)
+    style.set_corner_radius_all(7)
     style.set_content_margin_all(padding)
     return style
 
@@ -50,8 +57,8 @@ static func action_button(text: String, font: Font, primary: bool = false) -> Bu
     button.custom_minimum_size.y = 56
     button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     button.add_theme_font_override("font", font)
-    button.add_theme_font_size_override("font_size", 14)
-    var ink := Color("#0a1420")
+    button.add_theme_font_size_override("font_size", 15)
+    var ink := Color("#111a26")
     var text_color := ink if primary else Color("#f7f4ec")
     for state in ["font_color", "font_hover_color", "font_focus_color", "font_pressed_color"]:
         button.add_theme_color_override(state, text_color)

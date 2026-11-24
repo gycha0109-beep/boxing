@@ -244,20 +244,20 @@ func _game_plans(parent: VBoxContainer) -> void:
         var lesson := _label(parent, "7/10 · 상대의 약점과 버릇에 맞는 플랜을 고르세요. 추천 표시는 참고이며 원하는 전술을 선택할 수 있습니다.", 12, UI.GOLD_BRIGHT, bold_font)
         lesson.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
     var grid := GridContainer.new()
-    grid.columns = 1 if tutorial_mode else 2
+    grid.columns = 1
     grid.add_theme_constant_override("h_separation", 7)
     grid.add_theme_constant_override("v_separation", 7)
     parent.add_child(grid)
     for plan in plans:
         var id := str(plan["id"])
         var is_recommended := bool(plan["recommended"])
-        var card := _column(_panel(grid, NAVY, UI.GOLD_BRIGHT if is_recommended else UI.GOLD_DARK, 7), 3)
+        var card := _column(_panel(grid, NAVY, UI.GOLD_BRIGHT if is_recommended else UI.GOLD_DARK, 12), 8)
         _label(card, str(plan["name"]), 17, PAPER, heading_font)
         var tags := "위험도 %s" % str(plan["risk"])
         if is_recommended:
             tags = "추천  ·  " + tags
         _label(card, tags, 11, UI.GOLD_BRIGHT if is_recommended else MUTED, bold_font)
-        var description := _label(card, str(plan.get("description", "")), 12, PAPER)
+        var description := _label(card, str(plan.get("description", "")), 13, PAPER)
         description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
         var impact := _label(card, "주요 효과 · " + str(plan["effect"]), 11, MUTED)
         impact.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART

@@ -120,6 +120,10 @@ func _open_game() -> void:
     ui = scene.instantiate()
     root.add_child(ui)
     await _settle()
+    ui.launch_gate_active = false
+    ui.v17_overlay = ""
+    ui._render_phase()
+    await _settle()
 
 func _close_game() -> void:
     ui.queue_free()

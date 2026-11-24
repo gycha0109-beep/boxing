@@ -47,9 +47,9 @@ func _run() -> void:
     await _close()
     game.state = Save.load_game()
     await _open()
-    _check(ui.find_child("ReferenceTitle", true, false) == null, "relaunch automatically opens existing career")
+    _check(ui.find_child("ReferenceTitle", true, false) != null, "relaunch must open the title even with an existing saved career")
+    _check(_button("TitleContinue") != null and not _button("TitleContinue").disabled, "saved career must be available through Continue")
 
-    await _open_title_from_menu()
     _check(_press("TitleNewCareer"), "new game button on a save must open a confirmation")
     await _settle()
     var warning := ui.find_child("TitleConfirmOverwrite", true, false) as ConfirmationDialog

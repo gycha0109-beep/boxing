@@ -35,6 +35,7 @@ func _ready() -> void:
     size_flags_horizontal = Control.SIZE_EXPAND_FILL
     add_theme_constant_override("separation", 6)
     _hero()
+    _outcome_summary()
     _settlement()
     _career_update()
     _match_commentary()
@@ -185,8 +186,26 @@ func _image(parent: Control, texture: Texture2D, start: float, end: float, top: 
     art.offset_top = top
     return art
 
+func _outcome_summary() -> void:
+    var before: Dictionary = summary.get("previous", {})
+    var net := int(summary.get("purse", 0)) + int(summary.get("business_income", 0)) - int(summary.get("cycle_cost", 0))
+    var rank := int(career.get("rank", 0))
+    var change := int(before.get("rank", rank)) - rank
+    var band := _row(self, 8)
+    band.name = "ResultKeyMetrics"
+    _key_metric(band, "순수익", _signed_money(net) + "원", GREEN if net >= 0 else RED)
+    _key_metric(band, "랭킹", "#%d  (%+d)" % [rank, change], UI.GOLD_BRIGHT if change >= 0 else RED)
+
+func _key_metric(parent: HBoxContainer, caption: String, data: String, tint: Color) -> void:
+    var frame := _frame(parent, Color("#16212d"), Color("#675637"), 9)
+    frame.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    var body := _column(frame, 3)
+    _label(body, caption, 11, MUTED, bold_font)
+    var amount := _label(body, data, 18, tint, heading_font)
+    amount.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+
 func _settlement() -> void:
-    var table := _column(_frame(self, STEEL, UI.GOLD_DARK, 6), 1)
+    var table := _column(_frame(self, STEEL, UI.GOLD_DARK, 9), 4)
     _stat_row(table, &"opponent", "상대", opponent_name + "  /  " + weight_class)
     _stat_row(table, &"plan", "게임플랜", plan_name)
     if summary.has("purse"):
@@ -249,7 +268,7 @@ func _stat_row(parent: VBoxContainer, icon: StringName, caption: String, value: 
     if parent.get_child_count() > 0:
         _rule(parent, Color("#81643855"))
     var row := _row(parent, 7)
-    row.custom_minimum_size.y = 23
+    row.custom_minimum_size.y = 29
     Art.result_icon(row, icon)
     var label := _label(row, caption, 11, UI.GOLD_BRIGHT, bold_font)
     label.custom_minimum_size.x = 78

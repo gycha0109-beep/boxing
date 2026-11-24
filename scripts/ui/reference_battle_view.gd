@@ -168,7 +168,7 @@ func _bar(parent: HBoxContainer, value: float, tint: Color, height: float) -> Pr
 
 func _tactical_read() -> void:
     var edge := UI.GOLD_BRIGHT if show_first_exchange_guide else UI.GOLD_DARK
-    var panel := _panel(self, INK, edge, 5)
+    var panel := _panel(self, INK, edge, 8)
     panel.name = "V19TacticalRead"
     var row := _row(panel, 8)
     var read := _column(row, 2)
@@ -179,13 +179,13 @@ func _tactical_read() -> void:
     var trust := _label(confidence, "%d%%" % amount, 10, UI.GOLD_BRIGHT, bold_font)
     trust.name = "FightReadConfidence"
     _bar(confidence, amount, UI.GOLD, 4)
-    var detail := _column(row, 1)
+    var detail := _column(row, 4)
     detail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     _label(detail, str(telegraph.get("copy", CombatPresentation.telegraph_title(telegraph))), 10, PAPER, null, true)
     _label(detail, "코너 조언 · " + advice, 10, MUTED, null, true)
 
 func _prediction() -> void:
-    var panel := _panel(self, Color("#220f13"), Color("#cc6452"), 5)
+    var panel := _panel(self, Color("#220f13"), Color("#cc6452"), 8)
     var content := _column(panel, 1)
     var row := _row(content, 8)
     var caption := _label(row, "상대 행동 예측", 10, Color("#f0b4a4"), bold_font)
@@ -229,7 +229,7 @@ func _finish_feedback() -> void:
     caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
 func _action_row() -> void:
-    var row := _row(self, 4)
+    var row := _row(self, 5)
     row.name = "V19FightActions"
     for index in range(actions.size()):
         var action := actions[index]

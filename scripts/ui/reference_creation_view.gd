@@ -134,16 +134,17 @@ func _style_card(style: Dictionary) -> void:
     var card := _panel(self)
     card.name = "BoxerStyleCard_" + id
     _style_cards[id] = card
-    var content := _column(card, 4)
+    var content := _column(card, 8)
     var row := _row(content, 7)
     var thumbnail := _picture(row, _style_art(id))
-    thumbnail.custom_minimum_size = Vector2(76, 74)
+    thumbnail.custom_minimum_size = Vector2(84, 88)
 
-    var info := _column(row, 1)
+    var info := _column(row, 4)
     info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     _label(info, str(style.get("name", "")), 19, PAPER, heading_font)
     _label(info, str(style.get("signature", "")), 11, MUTED, null, true)
-    var description := _label(info, str(style.get("description", "")), 11, PAPER, null, true)
+    var description := _label(info, str(style.get("description", "")), 12, MUTED, null, true)
+    description.max_lines_visible = 3
     description.name = "BoxerStyleDescription_" + id
     description.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     var effect_title := _label(info, "시작 능력치 보정", 10, UI.GOLD_BRIGHT, bold_font)

@@ -118,17 +118,18 @@ func _item(data: Dictionary) -> void:
     var slot := str(data["slot"])
     var card := _panel(self, 7, UI.GOLD if receipt.get("slot") == slot else UI.GOLD_DARK)
     card.name = "EquipmentSlot_" + slot
-    var body := _column(card, 4)
+    var body := _column(card, 8)
     var item := upgrade if not upgrade.is_empty() else current
     var top := _row(body, 7)
     var picture := _picture(top, _item_art(slot))
-    picture.custom_minimum_size = Vector2(63, 50)
-    var names := _column(top, 1)
+    picture.custom_minimum_size = Vector2(75, 65)
+    var names := _column(top, 4)
     names.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     _label(names, "%s  ·  보유 %s" % [str(data["label"]), str(current.get("name", "기본 장비"))], 11, MUTED, bold_font, true)
     _label(names, str(item.get("name", "")), 17, PAPER, heading_font, true)
     if not upgrade.is_empty():
-        _label(top, _money(int(upgrade["price"])), 15, UI.GOLD_BRIGHT, bold_font).vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+        var price := _label(names, "구매가  " + _money(int(upgrade["price"])), 14, UI.GOLD_BRIGHT, bold_font)
+        price.name = "EquipmentPrice_" + slot
 
     if str(receipt.get("slot", "")) == slot:
         _purchase_receipt(body)
@@ -136,7 +137,7 @@ func _item(data: Dictionary) -> void:
         _label(body, "최대 단계", 12, UI.GOLD_BRIGHT, bold_font)
         return
 
-    var effect := _column(_panel(body, 4), 1)
+    var effect := _column(_panel(body, 7), 5)
     if section == "personal":
         _stats(effect, data.get("stat_changes", {}))
     else:
@@ -145,7 +146,7 @@ func _item(data: Dictionary) -> void:
         _label(effect, "%s 성장 효율  +%d%%  →  +%d%%" % [str(data.get("training_names", "해당 훈련")), from, to], 12, GREEN, bold_font, true)
 
     var eligibility: Dictionary = data["eligibility"]
-    var actions := _row(body, 7)
+    var actions := _row(body, 10)
     var buy := UI.action_button("구매", heading_font, true)
     buy.disabled = not bool(eligibility.get("ok", false))
     var reason := ""
@@ -168,7 +169,7 @@ func _item(data: Dictionary) -> void:
     note.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     note.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
     buy.name = "BuyEquipment_" + str(upgrade["id"])
-    buy.custom_minimum_size = Vector2(105, 47)
+    buy.custom_minimum_size = Vector2(120, 49)
     buy.size_flags_horizontal = Control.SIZE_SHRINK_END
     buy.pressed.connect(func():
         if not _submitted and not buy.disabled:

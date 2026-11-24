@@ -144,18 +144,20 @@ func _choices() -> void:
     if candidates.is_empty():
         _copy(_card(self), "이 은퇴 기록에서 선택할 수 있는 유산이 없습니다.", 12, MUTED, true)
     else:
-        var row := _row(self, 5)
+        var row := VBoxContainer.new()
+        row.add_theme_constant_override("separation", 10)
+        add_child(row)
         for definition: Dictionary in candidates:
-            var card := _card(row, 4, GOLD_EDGE)
-            _picture(card, _card_art(str(definition.get("category", ""))), 66)
+            var card := _card(row, 10, GOLD_EDGE)
+            _picture(card, _card_art(str(definition.get("category", ""))), 102)
             var name_label := _title(card, str(definition.get("name", "유산")), 14, UI.GOLD_BRIGHT)
             name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-            name_label.custom_minimum_size.y = 33
+            name_label.custom_minimum_size.y = 25
             name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-            var description := _copy(card, str(definition.get("description", "")), 10, PAPER, true)
+            var description := _copy(card, str(definition.get("description", "")), 13, PAPER, true)
             description.size_flags_vertical = Control.SIZE_EXPAND_FILL
             var effects := _card(card, 3, UI.GOLD_DARK)
-            effects.custom_minimum_size.y = 39
+            effects.custom_minimum_size.y = 45
             effects.alignment = BoxContainer.ALIGNMENT_CENTER
             _effect(effects, definition)
             var button := _action(card, "선택", func(): legacy_chosen.emit(str(definition.get("id", ""))), true)

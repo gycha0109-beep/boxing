@@ -97,7 +97,7 @@ func _hero(boxer: Dictionary, career: Dictionary) -> void:
     add_child(row)
 
     var portrait_panel := PanelContainer.new()
-    portrait_panel.custom_minimum_size = Vector2(153, 256)
+    portrait_panel.custom_minimum_size = Vector2(132, 222)
     portrait_panel.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
     portrait_panel.add_theme_stylebox_override("panel", _style(Color("#091420"), GOLD_DARK, 1))
     row.add_child(portrait_panel)
@@ -106,11 +106,11 @@ func _hero(boxer: Dictionary, career: Dictionary) -> void:
     portrait.texture = HERO_ASSET
     portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
     portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-    portrait.custom_minimum_size = Vector2(148, 250)
+    portrait.custom_minimum_size = Vector2(128, 218)
     portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
     portrait_panel.add_child(portrait)
 
-    var content := _panel(row, PANEL, GOLD, 7)
+    var content := _panel(row, PANEL, GOLD, 10)
     content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     _label(content, "▶  내 선수", 11, GOLD, HORIZONTAL_ALIGNMENT_LEFT, true)
     _label(content, str(boxer.get("name", "무명 복서")), 22, WHITE, HORIZONTAL_ALIGNMENT_LEFT, true)
@@ -127,10 +127,10 @@ func _hero(boxer: Dictionary, career: Dictionary) -> void:
 
 func _pair(parent: Container, key: String, val: String) -> void:
     var row := HBoxContainer.new()
-    row.add_theme_constant_override("separation", 4)
+    row.add_theme_constant_override("separation", 7)
     parent.add_child(row)
     var k := _label(row, key, 11, MUTED)
-    k.custom_minimum_size.x = 61
+    k.custom_minimum_size.x = 56
     var v := _label(row, val, 12, WHITE, HORIZONTAL_ALIGNMENT_RIGHT, true)
     v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
@@ -169,7 +169,7 @@ func _stats(boxer: Dictionary) -> void:
         var id: String = str(k[0])
         var val: int = clampi(int(boxer.get(id, 0)), 0, 100)
         var line := HBoxContainer.new()
-        line.custom_minimum_size.y = 24
+        line.custom_minimum_size.y = 30
         line.add_theme_constant_override("separation", 5)
         main.add_child(line)
         if id == "speed":
@@ -203,7 +203,7 @@ func _stats(boxer: Dictionary) -> void:
         var indent := Control.new()
         indent.custom_minimum_size.x = 86
         effect_row.add_child(indent)
-        var effect := _label(effect_row, str(STAT_EFFECT_SUMMARY.get(id, "")), 9, MUTED)
+        var effect := _label(effect_row, str(STAT_EFFECT_SUMMARY.get(id, "")), 11, MUTED)
         effect.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
 func _goal(career: Dictionary) -> void:

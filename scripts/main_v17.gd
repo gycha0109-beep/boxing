@@ -1,14 +1,14 @@
 extends "res://scripts/main_v16.gd"
 
-const V17_BG := Color(0.015, 0.023, 0.034, 1.0)
-const V17_PANEL := Color(0.025, 0.045, 0.067, 0.985)
-const V17_PANEL_2 := Color(0.035, 0.060, 0.086, 0.985)
-const V17_PANEL_SOFT := Color(0.045, 0.075, 0.105, 0.94)
-const V17_BORDER := Color(0.17, 0.25, 0.34, 1.0)
-const V17_GOLD := Color(0.94, 0.69, 0.28, 1.0)
-const V17_GOLD_SOFT := Color(0.67, 0.48, 0.20, 1.0)
+const V17_BG := Color("#0a1018")
+const V17_PANEL := Color("#141e29")
+const V17_PANEL_2 := Color("#1a2632")
+const V17_PANEL_SOFT := Color("#1b2732")
+const V17_BORDER := Color("#43505c")
+const V17_GOLD := Color("#e2b966")
+const V17_GOLD_SOFT := Color("#a78652")
 const V17_TEXT := Color(0.94, 0.95, 0.97, 1.0)
-const V17_MUTED := Color(0.62, 0.67, 0.73, 1.0)
+const V17_MUTED := Color("#b7bdc6")
 const V17_DANGER := Color(0.93, 0.31, 0.31, 1.0)
 const V17_SUCCESS := Color(0.29, 0.78, 0.58, 1.0)
 const V17_BLUE := Color(0.25, 0.63, 0.96, 1.0)
@@ -690,7 +690,7 @@ func _v17_title(parent: Container, text_value: String, size: int) -> Label:
 func _v17_eyebrow(parent: Container, text_value: String) -> Label:
     var label := Label.new(); label.text = text_value; label.add_theme_font_size_override("font_size", 11); label.add_theme_color_override("font_color", V17_GOLD); parent.add_child(label); return label
 func _v17_copy(parent: Container, text_value: String, muted: bool) -> Label:
-    var label := Label.new(); label.text = text_value; label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART; label.size_flags_horizontal = Control.SIZE_EXPAND_FILL; label.add_theme_font_size_override("font_size", 12); label.add_theme_color_override("font_color", V17_MUTED if muted else V17_TEXT); parent.add_child(label); return label
+    var label := Label.new(); label.text = text_value; label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART; label.size_flags_horizontal = Control.SIZE_EXPAND_FILL; label.add_theme_font_size_override("font_size", 13); label.add_theme_color_override("font_color", V17_MUTED if muted else V17_TEXT); parent.add_child(label); return label
 func _v17_chip(parent: Container, text_value: String, color: Color) -> Label:
     var panel := PanelContainer.new(); panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL; panel.add_theme_stylebox_override("panel", _v17_box_style(Color(0.035, 0.065, 0.093, 1.0), Color(color.r, color.g, color.b, 0.55), 7, 4)); parent.add_child(panel); var label := Label.new(); label.text = text_value; label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; label.add_theme_font_size_override("font_size", 10); label.add_theme_color_override("font_color", color); panel.add_child(label); return label
 func _v17_gold_button(text_value: String) -> Button:
@@ -700,7 +700,7 @@ func _v17_dark_button(text_value: String) -> Button:
 func _v17_secondary_button(text_value: String) -> Button:
     var button := _v17_dark_button(text_value); button.custom_minimum_size.y = 56; button.add_theme_color_override("font_color", V17_MUTED); return button
 func _v17_box_style(bg: Color, border: Color, radius: int, margin_value: int) -> StyleBoxFlat:
-    var style := StyleBoxFlat.new(); style.bg_color = bg; style.border_color = border; style.set_border_width_all(1); style.set_corner_radius_all(radius); style.content_margin_left = margin_value; style.content_margin_right = margin_value; style.content_margin_top = margin_value; style.content_margin_bottom = margin_value; style.shadow_color = Color(0, 0, 0, 0.24); style.shadow_size = 3; return style
+    var style := StyleBoxFlat.new(); style.bg_color = bg; style.border_color = border; style.set_border_width_all(1); style.set_corner_radius_all(radius); style.content_margin_left = margin_value; style.content_margin_right = margin_value; style.content_margin_top = margin_value; style.content_margin_bottom = margin_value; style.shadow_color = Color(0, 0, 0, 0.28); style.shadow_size = 2; return style
 func _v17_circle_style(bg: Color, border: Color) -> StyleBoxFlat:
     var style := _v17_box_style(bg, border, 14, 2); style.set_border_width_all(1); return style
 func _v17_nav_style(selected: bool) -> StyleBoxFlat:

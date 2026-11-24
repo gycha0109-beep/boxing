@@ -49,6 +49,10 @@ func _enter_scene() -> void:
     main = scene.instantiate()
     root.add_child(main)
     await _settle()
+    main.launch_gate_active = false
+    main.v17_overlay = ""
+    main._render_phase()
+    await _settle()
 
 func _close_scene() -> void:
     main.queue_free()
@@ -72,7 +76,9 @@ func _check_action(action: Dictionary) -> void:
         return
 
     var grid := training.find_child("TrainingPrimaryGrid", true, false) as GridContainer
-    _require(grid != null and grid.columns == 2 and grid.get_child_count() == 5, "five training choices in one grid")
+    _require(grid != null and grid.columns == 2 and grid.get_child_count() == 4, "four core training choices in the main grid")
+    _require(training.find_child("TrainingCard_sparring", true, false) != null, "sparring remains available in the separate practical-training section")
+    _require(training.find_child("TrainingExecute", true, false) != null, "single training execution button")
     _require(training.find_child("TrainingHeroPhoto", true, false) != null, "hero photo")
     for meter in ["Health", "Fatigue"]:
         var bar := training.find_child("Training%sMeter" % meter, true, false) as ProgressBar
@@ -90,8 +96,11 @@ func _check_action(action: Dictionary) -> void:
 
     var before: Dictionary = state_node.state["boxer"].duplicate(true)
     var money := int(state_node.state["career"]["money"])
+    var execute := training.find_child("TrainingExecute", true, false) as Button
     choose.pressed.emit()
-    choose.pressed.emit()
+    _require(not execute.disabled, id + " enables the single execute action")
+    execute.pressed.emit()
+    execute.pressed.emit()
     await _settle()
     _require(str(state_node.state["phase"]) == "fight_offer", id + " advances to fight offers")
     _require(main.find_child("ReferenceTraining", true, false) == null, id + " removes old choices")
@@ -146,6 +155,7 @@ func _check_eligibility() -> void:
     _require(main.find_child("ReferenceTraining", true, false) != null, "eligible camp reopens after viewing profile")
     _require(state_node.state == before, "tab switching preserves the career")
     (main.find_child("TrainingSelect_full_rest", true, false) as Button).pressed.emit()
+    (main.find_child("TrainingExecute", true, false) as Button).pressed.emit()
     await _settle()
     _require(int(state_node.state["career"]["money"]) == 5000, "free rest preserves money")
     await _close_scene()

@@ -12,10 +12,13 @@ const REFERENCE_BATTLE := preload("res://scripts/ui/reference_battle_view.gd")
 const REFERENCE_RESULT := preload("res://scripts/ui/reference_result_view.gd")
 const REFERENCE_LEGACY := preload("res://scripts/ui/reference_legacy_view.gd")
 const REFERENCE_TITLE := preload("res://scripts/ui/reference_title_view.gd")
+const TWELVE_DESIGN := preload("res://scripts/ui/twelve_design_system.gd")
 const REFERENCE_CREATION := preload("res://scripts/ui/reference_creation_view.gd")
 const REFERENCE_EVENT := preload("res://scripts/ui/reference_career_event_view.gd")
 const REFERENCE_EQUIPMENT := preload("res://scripts/ui/reference_equipment_shop.gd")
 const REFERENCE_CAREER := preload("res://scripts/ui/reference_career_record.gd")
+const REFERENCE_HOME := preload("res://scripts/ui/reference_home_view.gd")
+const REFERENCE_MATCHUP := preload("res://scripts/ui/reference_matchup_view.gd")
 const FIRST_BOUT_GUIDE_SETTINGS := "user://first_bout_guide.cfg"
 const INSTALL_ONBOARDING_SETTINGS := "user://onboarding_install.cfg"
 # Disabled unless explicitly enabled in project.godot for internal preview builds.
@@ -35,8 +38,11 @@ var v19_previous_overlay: String = ""
 var _equipment_section := "personal"
 var _equipment_receipt: Dictionary
 var _guide_settings := ConfigFile.new()
+var _dev_live_refresh_button: Button
+var _dev_ui_refresh_count := 0
 
 func _ready() -> void:
+    theme = TWELVE_DESIGN.theme_for_game()
     _guide_settings.load(FIRST_BOUT_GUIDE_SETTINGS)
     _onboarding_install.load(INSTALL_ONBOARDING_SETTINGS)
     # An existing career is an existing installation even if this marker was
@@ -49,6 +55,78 @@ func _ready() -> void:
     super._ready()
     _v19_apply_phase_chrome()
     _install_dev_reset_confirmation()
+    _install_dev_live_refresh_button()
+
+func _install_dev_live_refresh_button() -> void:
+    if not _dev_reset_enabled() or is_instance_valid(_dev_live_refresh_button):
+        return
+    _dev_live_refresh_button = Button.new()
+    _dev_live_refresh_button.name = "DevLiveUIRefreshButton"
+    _dev_live_refresh_button.text = "UI 갱신"
+    _dev_live_refresh_button.tooltip_text = "현재 게임 상태를 유지하고 화면만 다시 구성합니다."
+    _dev_live_refresh_button.position = Vector2(8, 8)
+    _dev_live_refresh_button.size = Vector2(104, 34)
+    _dev_live_refresh_button.z_index = 1000
+    _dev_live_refresh_button.focus_mode = Control.FOCUS_NONE
+    var refresh_style := StyleBoxFlat.new()
+    refresh_style.bg_color = Color("#172331")
+    refresh_style.border_color = Color("#d5a94d")
+    refresh_style.set_border_width_all(1)
+    refresh_style.set_corner_radius_all(5)
+    _dev_live_refresh_button.add_theme_stylebox_override("normal", refresh_style)
+    _dev_live_refresh_button.add_theme_stylebox_override("hover", refresh_style)
+    _dev_live_refresh_button.add_theme_color_override("font_color", Color("#f4d58a"))
+    _dev_live_refresh_button.pressed.connect(_dev_refresh_button_pressed)
+    add_child(_dev_live_refresh_button)
+
+func _dev_refresh_button_pressed() -> void:
+    if is_instance_valid(_dev_live_refresh_button):
+        _dev_live_refresh_button.text = "갱신 중..."
+    _dev_refresh_current_ui()
+
+# Editor-only live UI workflow:
+# Godot Debug > Synchronize Script Changes reloads externally edited GDScripts.
+# Press F8 afterward to rebuild the current screen from the unchanged GameState.
+var _dev_ui_refresh_pending := false
+var _dev_ui_restore_scroll := 0
+
+func _unhandled_key_input(event: InputEvent) -> void:
+    if not _dev_reset_enabled():
+        return
+    if not event is InputEventKey:
+        return
+    var key := event as InputEventKey
+    if not key.pressed or key.echo or key.keycode != KEY_F8:
+        return
+    # F8 is Godot's Stop shortcut; require Ctrl+Shift to avoid editor interception.
+    if not key.ctrl_pressed or not key.shift_pressed:
+        return
+    get_viewport().set_input_as_handled()
+    if _dev_ui_refresh_pending:
+        return
+    call_deferred("_dev_refresh_current_ui")
+
+func _dev_refresh_current_ui() -> void:
+    if not _dev_reset_enabled() or not is_inside_tree() or _dev_ui_refresh_pending:
+        return
+    _dev_ui_refresh_pending = true
+    var scroll := find_child("V17ContentScroll", true, false) as ScrollContainer
+    _dev_ui_restore_scroll = scroll.scroll_vertical if scroll != null else 0
+    # Rebuild only the visible UI. GameState, save data, opponent selection,
+    # combat state, currency, and career progress are deliberately untouched.
+    _render_phase()
+    call_deferred("_dev_restore_ui_scroll")
+
+func _dev_restore_ui_scroll() -> void:
+    await get_tree().process_frame
+    var scroll := find_child("V17ContentScroll", true, false) as ScrollContainer
+    if scroll != null:
+        scroll.scroll_vertical = mini(_dev_ui_restore_scroll, int(scroll.get_v_scroll_bar().max_value))
+    _dev_ui_refresh_pending = false
+    _dev_ui_refresh_count += 1
+    if is_instance_valid(_dev_live_refresh_button):
+        _dev_live_refresh_button.text = "갱신 완료 #%d" % _dev_ui_refresh_count
+    print("[LIVE UI] Current screen rebuilt from existing game state. Count=%d" % _dev_ui_refresh_count)
 
 func _v19_disable_legacy_bitmap_fx() -> void:
     # The v0.7 impact PNGs contain baked rectangular backplates on-device.
@@ -68,7 +146,8 @@ func _v17_top_bar() -> Control:
     menu.name = "V19MenuButton"
     menu.icon = _v18_line_icon("menu")
     menu.flat = true
-    menu.custom_minimum_size = Vector2(56, 56)
+    menu.custom_minimum_size = Vector2.ZERO
+    menu.visible = false
     menu.tooltip_text = "내 선수"
     menu.pressed.connect(_v19_open_menu)
     bar.add_child(menu)
@@ -108,29 +187,64 @@ func _v17_top_bar() -> Control:
     return bar
 
 func _v17_bottom_nav() -> Control:
-    var nav := super._v17_bottom_nav()
+    var nav := PanelContainer.new()
     nav.name = "V19BottomNav"
+    nav.custom_minimum_size = Vector2(0, 74)
+    var style := StyleBoxFlat.new()
+    style.bg_color = Color("#07121e")
+    style.border_color = Color("#8d6c3c")
+    style.border_width_top = 1
+    style.content_margin_top = 3
+    style.content_margin_left = 2
+    style.content_margin_right = 2
+    nav.add_theme_stylebox_override("panel", style)
+    var row := HBoxContainer.new()
+    row.add_theme_constant_override("separation", 2)
+    nav.add_child(row)
+    v17_nav_buttons.clear()
+    _v17_nav_button(row, "home", "⌂\n홈", Callable(self, "_v19_open_home"))
+    _v17_nav_button(row, "profile", "♟\n복서", Callable(self, "_v17_open_overlay").bind("profile"))
+    _v17_nav_button(row, "training", "▤\n훈련 계획", Callable(self, "_v17_open_training"))
+    _v17_nav_button(row, "schedule", "▦\n일정", Callable(self, "_v19_open_schedule"))
+    _v17_nav_button(row, "ranking", "♜\n랭킹", Callable(self, "_v17_open_overlay").bind("career"))
+    _v17_nav_button(row, "management", "▣\n매니지먼트", Callable(self, "_v17_open_shop"))
     v19_bottom_nav = nav
     return nav
 
 func _v17_sync_nav() -> void:
-    super._v17_sync_nav()
-    var active := ""
-    if v17_overlay == "match_blocked":
-        active = "match"
+    call_deferred("_apply_twelve_design_finish")
+    var active := "schedule"
+    if v17_overlay == "home":
+        active = "home"
+    elif v17_overlay == "profile":
+        active = "profile"
+    elif v17_overlay == "career":
+        active = "ranking"
+    elif v17_overlay == "shop" or str(GameState.state.get("phase", "")) == "equipment_shop":
+        active = "management"
     elif v17_overlay == "training_blocked":
         active = "training"
-    elif v17_overlay.is_empty() and str(GameState.state.get("phase", "")) == "equipment_shop":
-        active = "shop"
-    if not active.is_empty():
-        for key in v17_nav_buttons.keys():
-            var button: Button = v17_nav_buttons[key]
-            var selected := str(key) == active
-            button.add_theme_color_override("font_color", V17_GOLD if selected else V17_MUTED)
-            button.add_theme_stylebox_override("normal", _v17_nav_style(selected))
-            button.add_theme_stylebox_override("pressed", _v17_nav_style(true))
-            button.add_theme_stylebox_override("hover", _v17_nav_style(selected))
+    elif v17_overlay == "match_blocked" or v17_overlay == "schedule":
+        active = "schedule"
+    elif v17_overlay.is_empty():
+        var phase := str(GameState.state.get("phase", ""))
+        if phase in ["camp", "style_select", "talent_reveal", "gym_fund_intro"]:
+            active = "training"
+        elif phase in ["fight_offer", "tactical_prep", "condition_prep", "game_plan", "fight", "result", "season_review", "champion_choice", "sponsor_offer"]:
+            active = "schedule"
+    for key in v17_nav_buttons.keys():
+        var button: Button = v17_nav_buttons[key]
+        var selected := str(key) == active
+        button.add_theme_color_override("font_color", V17_GOLD if selected else V17_MUTED)
+        button.add_theme_stylebox_override("normal", _v17_nav_style(selected))
+        button.add_theme_stylebox_override("pressed", _v17_nav_style(true))
+        button.add_theme_stylebox_override("hover", _v17_nav_style(selected))
     _v19_apply_phase_chrome()
+
+func _apply_twelve_design_finish() -> void:
+    if not is_inside_tree() or launch_gate_active:
+        return
+    TWELVE_DESIGN.polish_tree(self)
 
 func _v19_apply_phase_chrome() -> void:
     if GameState.state.is_empty():
@@ -141,14 +255,45 @@ func _v19_apply_phase_chrome() -> void:
     if is_instance_valid(v19_bottom_nav):
         v19_bottom_nav.visible = not in_fight and not launch_gate_active and not in_story and not guided
     if is_instance_valid(v19_top_bar):
-        v19_top_bar.visible = not in_story or _dev_reset_enabled()
+        v19_top_bar.visible = not launch_gate_active and (not in_story or _dev_reset_enabled())
         v19_top_bar.custom_minimum_size.y = 46 if in_fight else 62
     if is_instance_valid(v19_menu_button):
-        v19_menu_button.visible = not in_fight and not launch_gate_active and not guided
+        v19_menu_button.visible = false
     if is_instance_valid(v19_money_box):
         v19_money_box.visible = not in_fight and not guided
     if is_instance_valid(v19_settings_button):
         v19_settings_button.visible = not in_fight or _dev_reset_enabled()
+
+func _render_game_plan() -> void:
+    _sync_current_opponent()
+    if current_opponent.is_empty():
+        super._render_game_plan()
+        return
+    var view := REFERENCE_MATCHUP.new()
+    var player_data: Dictionary = GameState.state.get("boxer", {}).duplicate(true)
+    var career: Dictionary = GameState.state.get("career", {})
+    player_data["rank"] = int(career.get("rank", 0))
+    view.player = player_data
+    view.career = career
+    view.opponent = current_opponent.duplicate(true)
+    view.plans = GameState.game_plans
+    view.suggested_plans = current_opponent.get("scouting", {}).get("suggested_plans", [])
+    view.plan_effects = {}
+    for plan_value in GameState.game_plans:
+        var plan: Dictionary = plan_value
+        view.plan_effects[str(plan.get("id", ""))] = _plan_effect_text(plan)
+    var current_plan: Dictionary = GameState.get_selected_game_plan()
+    view.selected_plan_id = str(current_plan.get("id", ""))
+    view.player_texture = VisualAssetCatalog.identity_portrait_texture(true)
+    view.opponent_texture = _v17_opponent_texture(current_opponent)
+    view.heading_font = REFERENCE_UI.heading_font(_v18_font(780))
+    view.bold_font = _v18_font(620)
+    view.money_text = Callable(self, "_v17_money")
+    view.plan_confirmed.connect(_choose_game_plan, CONNECT_DEFERRED)
+    view.offers_requested.connect(_return_to_fight_offers, CONNECT_DEFERRED)
+    view.condition_requested.connect(_return_to_condition_preparation, CONNECT_DEFERRED)
+    body.add_child(view)
+    _reset_reference_scroll()
 
 func _render_tactical_preparation() -> void:
     _render_reference_preparation(true)
@@ -238,7 +383,7 @@ func _reference_tactical_effect(preparation: Dictionary) -> String:
         lines.append("%s · %s" % [_action_label(action), " / ".join(effects)])
     return "\n".join(lines)
 
-func _render_game_plan() -> void:
+func _render_game_plan_legacy() -> void:
     _sync_current_opponent()
     if current_opponent.is_empty():
         super._render_game_plan()
@@ -626,12 +771,15 @@ func _confirm_talent() -> void:
 
 
 func _render_launch_title() -> void:
-    var previous := body.get_node_or_null("ReferenceTitle")
     _clear_body()
+    _set_title_shell_visible(false)
+    var previous := get_node_or_null("ReferenceTitle")
     if previous != null:
-        body.remove_child(previous)
+        remove_child(previous)
+        previous.queue_free()
     var view := REFERENCE_TITLE.new()
     view.name = "ReferenceTitle"
+    view.settings_icon = _v18_line_icon("settings")
     view.heading_font = REFERENCE_UI.heading_font(_v18_font(780))
     view.bold_font = _v18_font(580)
     view.can_continue = _has_career_to_continue()
@@ -645,7 +793,9 @@ func _render_launch_title() -> void:
         ]
     view.new_career_requested.connect(_start_new_career_from_title)
     view.continue_requested.connect(_continue_from_reference_title)
-    body.add_child(view)
+    view.settings_requested.connect(_open_title_settings)
+    add_child(view)
+    view.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
     _render_status()
     _configure_mobile_scroll()
     var scroll := find_child("V17ContentScroll", true, false) as ScrollContainer
@@ -657,8 +807,29 @@ func _render_launch_title() -> void:
     _sync_music_for_phase()
     call_deferred("_wire_ui_sounds")
 
+func _set_title_shell_visible(visible: bool) -> void:
+    for child in get_children():
+        if child is MarginContainer:
+            child.visible = visible
+
+func _leave_title_overlay() -> void:
+    var title := get_node_or_null("ReferenceTitle")
+    if title != null:
+        remove_child(title)
+        title.queue_free()
+    _set_title_shell_visible(true)
+
+func _open_title_settings() -> void:
+    _leave_title_overlay()
+    _v19_open_settings()
+
+func _should_show_launch_title() -> bool:
+    # Every app launch starts at the title; do not consume or overwrite saved career progress.
+    return true
+
 func _has_career_to_continue() -> bool:
-    return not GameState.state.is_empty() and not _should_show_launch_title()
+    # Preserve the original fresh-install placeholder check for the Continue button.
+    return not GameState.state.is_empty() and not super._should_show_launch_title()
 
 func _return_to_reference_title() -> void:
     v17_overlay = ""
@@ -670,6 +841,7 @@ func _continue_from_reference_title() -> void:
     if not launch_gate_active or not _has_career_to_continue():
         return
     launch_gate_active = false
+    v17_overlay = "home"
     _render_phase()
     _reset_reference_scroll()
 
@@ -684,6 +856,9 @@ func _start_new_career_from_title() -> void:
     GameState.state["first_cycle_tutorial"] = {"active": guided, "complete": false, "talent_roll_seen": false, "actions_seen": []}
     if guided:
         GameState.state["phase"] = "tutorial_welcome"
+        v17_overlay = ""
+    else:
+        v17_overlay = "home"
     SaveService.save_game(GameState.state)
     _render_phase()
     _reset_reference_scroll()
@@ -747,12 +922,21 @@ func _confirm_dev_factory_reset() -> void:
     v19_previous_overlay = ""
     current_opponent = {}
     combat = null
+    # Factory reset returns to the title without entering a career.
+    # A tutorial starts only when the player explicitly begins a new career
+    # with no previous onboarding/usage record.
+    GameState.new_career("무명 복서")
+    GameState.state.erase("first_launch_acknowledged")
+    GameState.state.erase("first_cycle_tutorial")
+    SaveService.save_game(GameState.state)
     launch_gate_active = true
-    _start_new_career_from_title()
+    _render_phase()
 
 
 # Keep real career state distinct from navigation-only panels.
 func _render_phase() -> void:
+    if not launch_gate_active:
+        _leave_title_overlay()
     if launch_gate_active:
         _render_launch_title()
         return
@@ -779,22 +963,46 @@ func _render_phase() -> void:
         _configure_mobile_scroll()
         _v17_sync_nav()
         return
+    if v17_overlay in ["home", "schedule"]:
+        _clear_body()
+        _render_status()
+        if v17_overlay == "home":
+            _v19_render_home()
+        else:
+            _v19_render_schedule()
+        _configure_mobile_scroll()
+        _v17_sync_nav()
+        _sync_music_for_phase()
+        call_deferred("_wire_ui_sounds")
+        return
     super._render_phase()
     call_deferred("_tutorial_attach")
 
 func _render_gym_fund_intro() -> void:
-    _v17_section_heading("3경기 완주! 체육관 공동 모금", "동료들이 선수의 성장을 응원하며 모아준 특별 지원금입니다.")
-    var panel := _v17_panel(body, true)
-    _v17_title(panel, "+25,000원", 30)
-    _v17_copy(panel, "세 번째 경기를 마쳤습니다. 받은 지원금으로 글러브와 훈련 장비를 살펴보세요. 장비는 훈련과 경기에 영향을 주며, 구매는 선택입니다.", false)
-    var shop_button := _v17_gold_button("상점 둘러보기 · 장비 사용법 알아보기")
+    _v17_section_heading("3경기 달성 · 체육관 공동 모금", "선수 육성에 투자할 새로운 선택지가 열렸습니다.")
+    var highlight := _v17_panel(body, true)
+    highlight.add_theme_constant_override("separation", 10)
+    var eyebrow := _v17_eyebrow(highlight, "NEW CAREER MILESTONE")
+    eyebrow.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    var amount := _v17_title(highlight, "+25,000원", 33)
+    amount.add_theme_color_override("font_color", V17_GOLD)
+    amount.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    var summary := _v17_copy(highlight, "3경기를 마친 선수를 위해 체육관 공동 모금이 도착했습니다.", false)
+    summary.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    var detail := _v17_panel(body, false)
+    _v17_title(detail, "새롭게 열린 기능", 18)
+    _v17_copy(detail, "장비 구매와 체육관 시설 투자를 통해 앞으로의 훈련 효율을 개선할 수 있습니다.", false)
+    _v17_copy(detail, "지금 살펴볼 수도 있고, 이후 상점에서 다시 확인할 수도 있습니다.", true)
+    var shop_button := _v17_gold_button("체육관 투자 살펴보기")
+    shop_button.name = "GymFundOpenShop"
+    shop_button.custom_minimum_size.y = 54
     shop_button.pressed.connect(_open_gym_fund_shop)
     body.add_child(shop_button)
-    shop_button.name = "GymFundOpenShop"
-    var skip_button := _v17_dark_button("지금은 넘어가기")
+    var skip_button := _v17_dark_button("나중에 확인하기")
+    skip_button.name = "GymFundSkipShop"
+    skip_button.custom_minimum_size.y = 48
     skip_button.pressed.connect(_skip_gym_fund_shop)
     body.add_child(skip_button)
-    skip_button.name = "GymFundSkipShop"
 
 func _open_gym_fund_shop() -> void:
     if GameState.open_gym_fund_shop():
@@ -994,8 +1202,13 @@ func _v19_open_settings() -> void:
     _v17_section_heading("설정", "게임 실행 옵션")
     var panel := _v17_panel(body, false)
     var mute := CheckButton.new()
+    mute.name = "SettingsMuteAudio"
     mute.text = "모든 게임 소리 끄기"
     mute.button_pressed = AudioServer.is_bus_mute(0)
+    mute.custom_minimum_size.y = 54
+    mute.add_theme_font_override("font", _v18_font(620))
+    mute.add_theme_color_override("font_color", V17_TEXT)
+    mute.add_theme_color_override("font_hover_color", V17_GOLD)
     mute.toggled.connect(func(value: bool): AudioServer.set_bus_mute(0, value))
     panel.add_child(mute)
     if _dev_reset_enabled():
@@ -1079,6 +1292,14 @@ func _v19_menu_button(parent: Node, label_text: String, action: Callable) -> voi
     btn.text = label_text
     btn.custom_minimum_size = Vector2(0, 54)
     btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    btn.add_theme_font_override("font", _v18_font(650))
+    btn.add_theme_font_size_override("font_size", 15)
+    btn.add_theme_color_override("font_color", V17_TEXT)
+    btn.add_theme_color_override("font_hover_color", V17_GOLD)
+    btn.add_theme_color_override("font_pressed_color", V17_GOLD)
+    btn.add_theme_stylebox_override("normal", REFERENCE_UI.beveled_panel_style(Color("#111e2b"), V17_BORDER, 8))
+    btn.add_theme_stylebox_override("hover", REFERENCE_UI.beveled_panel_style(Color("#1b2b3b"), V17_GOLD, 8))
+    btn.add_theme_stylebox_override("pressed", REFERENCE_UI.beveled_panel_style(Color("#241d12"), V17_GOLD, 8))
     btn.pressed.connect(action)
     parent.add_child(btn)
 
@@ -1138,6 +1359,150 @@ func _career_legacy_name(id: String) -> String:
     var definition: Dictionary = GameState.legacy_definition(id)
     return str(definition.get("name", ""))
 
+
+func _v19_open_home() -> void:
+    v17_overlay = "home"
+    _render_phase()
+
+func _v19_open_schedule() -> void:
+    v17_overlay = "schedule"
+    _render_phase()
+
+func _v19_continue_from_home() -> void:
+    v17_overlay = ""
+    _render_phase()
+
+func _v19_render_home() -> void:
+    var view := REFERENCE_HOME.new()
+    view.heading_font = REFERENCE_UI.heading_font(_v18_font(780))
+    view.bold_font = _v18_font(620)
+    view.training_requested.connect(_v17_open_training, CONNECT_DEFERRED)
+    view.match_requested.connect(_v17_open_match, CONNECT_DEFERRED)
+    view.profile_requested.connect(Callable(self, "_v17_open_overlay").bind("profile"), CONNECT_DEFERRED)
+    view.ranking_requested.connect(Callable(self, "_v17_open_overlay").bind("career"), CONNECT_DEFERRED)
+    view.management_requested.connect(_v17_open_shop, CONNECT_DEFERRED)
+    view.continue_requested.connect(_v19_continue_from_home, CONNECT_DEFERRED)
+    body.add_child(view)
+    _reset_reference_scroll()
+
+func _v19_render_schedule() -> void:
+    var career: Dictionary = GameState.state.get("career", {})
+    var phase := str(GameState.state.get("phase", "camp"))
+    var phase_labels := {
+        "camp":"훈련 캠프",
+        "equipment_shop":"장비 및 체육관 관리",
+        "fight_offer":"상대 선택",
+        "tactical_prep":"전술 준비",
+        "condition_prep":"컨디션 준비",
+        "game_plan":"경기 전략 설정",
+        "fight":"경기 진행",
+        "result":"경기 결과 확인",
+        "season_review":"시즌 검토",
+        "champion_choice":"챔피언 도전",
+        "sponsor_offer":"스폰서 계약",
+        "gym_fund_intro":"체육관 투자 안내",
+        "career_summary":"커리어 마무리"
+    }
+    var fights := int(career.get("fights", 0))
+    var season := 1 + fights / 4
+    var season_fights := fights % 4
+    var step_index := 0
+    if phase in ["equipment_shop", "fight_offer"]:
+        step_index = 1
+    elif phase in ["tactical_prep", "condition_prep", "game_plan"]:
+        step_index = 2
+    elif phase == "fight":
+        step_index = 3
+    elif phase in ["result", "season_review", "champion_choice", "sponsor_offer", "gym_fund_intro", "career_summary"]:
+        step_index = 4
+
+    _v17_section_heading("일정", "시즌 진행 상황과 다음 경기까지의 준비 단계를 확인하세요.")
+
+    var season_panel := _v17_panel(body, true)
+    _v17_eyebrow(season_panel, "SEASON SCHEDULE")
+    _v17_title(season_panel, "시즌 %d · %d번째 경기" % [season, fights + 1], 24)
+    _v17_copy(season_panel, "현재 단계 · %s" % str(phase_labels.get(phase, "커리어 진행")), false)
+    var world: Dictionary = GameState.state.get("world_state", {})
+    var date: Dictionary = world.get("world_date", {})
+    if not date.is_empty():
+        _v17_copy(season_panel, "리그 일정 · %04d년 %02d월" % [int(date.get("year", 0)), int(date.get("month", 1))], true)
+
+    var progress_row := HBoxContainer.new()
+    progress_row.add_theme_constant_override("separation", 6)
+    season_panel.add_child(progress_row)
+    _v19_schedule_metric(progress_row, "이번 시즌", "%d / 4경기" % season_fights)
+    _v19_schedule_metric(progress_row, "누적 전적", "%d승 %d패 %d무" % [
+        int(career.get("wins", 0)), int(career.get("losses", 0)), int(career.get("draws", 0))
+    ])
+    _v19_schedule_metric(progress_row, "현재 랭킹", "#%d" % int(career.get("rank", 0)))
+
+    var progress := ProgressBar.new()
+    progress.name = "ScheduleSeasonProgress"
+    progress.min_value = 0
+    progress.max_value = 4
+    progress.value = season_fights
+    progress.show_percentage = false
+    progress.custom_minimum_size.y = 9
+    progress.add_theme_stylebox_override("background", _v17_box_style(Color("#263542"), Color("#263542"), 3, 0))
+    progress.add_theme_stylebox_override("fill", _v17_box_style(V17_GOLD, V17_GOLD, 3, 0))
+    progress.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    season_panel.add_child(progress)
+
+    var timeline := _v17_panel(body, false)
+    _v17_eyebrow(timeline, "ROAD TO THE NEXT BOUT")
+    _v17_title(timeline, "다음 경기까지의 진행 순서", 18)
+    var steps := GridContainer.new()
+    steps.name = "ScheduleTimeline"
+    steps.columns = 4
+    steps.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    steps.add_theme_constant_override("h_separation", 5)
+    timeline.add_child(steps)
+    var step_labels := ["훈련", "상대", "준비", "경기"]
+    for index in range(step_labels.size()):
+        _v19_schedule_step(steps, index, step_labels[index], index == step_index, index < step_index)
+
+    var next_panel := _v17_panel(body, true)
+    _v17_eyebrow(next_panel, "NEXT MATCH")
+    if not current_opponent.is_empty():
+        _v17_title(next_panel, _v17_opponent_name(current_opponent), 21)
+        _v17_copy(next_panel, "상대 랭킹 #%d · %s" % [
+            int(current_opponent.get("rank", 0)),
+            _style_label(str(current_opponent.get("style", "")))
+        ], false)
+        _v17_copy(next_panel, "현재 진행 단계에서 상대 분석과 경기 준비를 이어갈 수 있습니다.", true)
+    elif phase == "camp":
+        _v17_title(next_panel, "다음 상대 선택 대기", 20)
+        _v17_copy(next_panel, "이번 캠프의 훈련을 마치면 다음 경기 제안을 확인할 수 있습니다.", true)
+    else:
+        _v17_title(next_panel, "다음 경기 준비", 20)
+        _v17_copy(next_panel, "현재 단계 · %s" % str(phase_labels.get(phase, "커리어 진행")), true)
+
+    var action := _v17_gold_button("현재 단계 이어가기  ›")
+    action.name = "ScheduleContinue"
+    action.custom_minimum_size.y = 56
+    action.pressed.connect(_v19_continue_from_home)
+    body.add_child(action)
+    _reset_reference_scroll()
+
+func _v19_schedule_metric(parent: HBoxContainer, title: String, value: String) -> void:
+    var metric := VBoxContainer.new()
+    metric.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    metric.add_theme_constant_override("separation", 2)
+    parent.add_child(metric)
+    _v17_eyebrow(metric, title)
+    var label := _v17_title(metric, value, 15)
+    label.add_theme_color_override("font_color", V17_TEXT)
+
+func _v19_schedule_step(parent: GridContainer, index: int, title: String, active: bool, completed: bool) -> void:
+    var card := _v17_panel(parent, active)
+    card.name = "ScheduleStep_%d" % index
+    card.add_theme_constant_override("separation", 3)
+    var number := _v17_title(card, "0%d" % (index + 1), 19)
+    number.add_theme_color_override("font_color", V17_GOLD if active or completed else V17_MUTED)
+    var name := _v17_copy(card, title, false)
+    name.add_theme_font_size_override("font_size", 11)
+    var status := "완료" if completed else ("진행 중" if active else "대기")
+    _v17_copy(card, status, true)
 
 # Reference-accurate boxer profile; other tabs keep their validated flow.
 func _v17_render_profile_home() -> void:
@@ -1479,7 +1844,9 @@ func _render_sponsorship_decision() -> void:
     for offer: Dictionary in offers.slice(0, 2):
         var id := str(offer.get("id", ""))
         var section := _v17_panel(body, false)
-        _v17_title(section, str(offer.get("name", "스폰서")), 20)
+        section.add_theme_constant_override("separation", 9)
+        var sponsor_title := _v17_title(section, str(offer.get("name", "스폰서")), 20)
+        sponsor_title.add_theme_color_override("font_color", V17_GOLD)
         for contract_style: String in ["steady", "performance"]:
             var lost: Dictionary = GameState.Business.payment_for_style(offer, contract_style, "LOSS_DEC")
             var won: Dictionary = GameState.Business.payment_for_style(offer, contract_style, "WIN_DEC")
@@ -1498,7 +1865,7 @@ func _render_sponsorship_decision() -> void:
         _v17_copy(body, "상위 스폰서: %s 타이틀 · 인지도 %d 필요 (현재 %d)" % [
             str(next_tier.get("title_label", "")), int(next_tier.get("minimum_reputation", 0)),
             int(GameState.state.career.reputation)], true)
-    var decline := _v17_gold_button("이번에는 계약하지 않기")
+    var decline := _v17_dark_button("이번에는 계약하지 않기")
     decline.name = "Sponsor_decline"
     decline.pressed.connect(_decline_sponsor)
     body.add_child(decline)
@@ -1534,14 +1901,28 @@ func _render_career_decision() -> void:
         _v17_section_heading("진행 중 스폰서", "%s · %d경기 남음" % [str(active.get("name", "")), int(active.get("remaining_fights", 0))])
     _v17_section_heading("다음 네 경기 계약", "랭킹을 반영한 파이트머니입니다. 계체 결과와 경기 비용은 정산 때 반영됩니다.")
     var choices := VBoxContainer.new()
+    choices.name = "SeasonContractChoices"
+    choices.add_theme_constant_override("separation", 10)
     body.add_child(choices)
     for id: String in GameState.League.CONTRACTS:
         var contract: Dictionary = GameState.League.CONTRACTS[id]
         var rate := roundi(GameState.League.contract_rate(GameState.state, id) * 100)
-        var button := _v17_gold_button("%s · %d%%\n%s" % [contract.name, rate, contract.detail])
+        var panel := _v17_panel(choices, false)
+        panel.add_theme_constant_override("separation", 7)
+        var headline := VBoxContainer.new()
+        headline.add_theme_constant_override("separation", 2)
+        panel.add_child(headline)
+        var name_label := _v17_title(headline, str(contract.name), 19)
+        name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+        var multiplier := _v17_title(headline, "파이트머니 배율 %d%%" % rate, 18)
+        multiplier.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+        multiplier.add_theme_color_override("font_color", V17_GOLD)
+        _v17_copy(panel, str(contract.detail), true)
+        var button := _v17_gold_button("이 계약 선택")
         button.name = "Contract_" + id
+        button.custom_minimum_size.y = 48
         button.pressed.connect(func():
             if GameState.sign_contract(id):
                 _render_phase()
         )
-        choices.add_child(button)
+        panel.add_child(button)

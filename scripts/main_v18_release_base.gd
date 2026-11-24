@@ -279,18 +279,13 @@ func _v17_gold_button(text_value: String) -> Button:
     var button := super._v17_gold_button(text_value)
     button.custom_minimum_size.y = 44
     button.add_theme_font_override("font", _v18_font(700))
-    var svg := '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="56"><defs><linearGradient id="gold" x2="0" y2="1"><stop stop-color="#f2c875"/><stop offset="1" stop-color="#a57632"/></linearGradient></defs><rect x="1" y="1" width="62" height="54" rx="9" fill="url(#gold)" stroke="#edc77e"/></svg>'
-    var image := Image.new()
-    image.load_svg_from_string(svg)
-    var style := StyleBoxTexture.new()
-    style.texture = ImageTexture.create_from_image(image)
-    for side in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
-        style.set_texture_margin(side, 12)
-    style.content_margin_left = 8
-    style.content_margin_right = 8
-    style.content_margin_top = 8
-    style.content_margin_bottom = 8
-    button.add_theme_stylebox_override("normal", style)
+    var gold_style := preload("res://scripts/ui/reference_ui.gd").gold_button_style()
+    button.add_theme_stylebox_override("normal", gold_style)
+    button.add_theme_stylebox_override("hover", gold_style)
+    button.add_theme_stylebox_override("pressed", _v17_box_style(Color("#a67338"), Color("#ffdf98"), 8, 8))
+    button.add_theme_stylebox_override("focus", _v17_box_style(Color.TRANSPARENT, Color("#ffe2a0"), 8, 0))
+    button.add_theme_color_override("font_hover_color", Color("#12171d"))
+    button.add_theme_color_override("font_pressed_color", Color("#12171d"))
     return button
 
 func _v17_dark_button(text_value: String) -> Button:
@@ -317,7 +312,11 @@ func _v18_line_icon(key: String) -> Texture2D:
         "match": '<path d="M8 23L5 16Q4 5 15 4q12 0 12 10l-5 9-5 6zM8 23l9 6"/>',
         "training": '<path d="M3 10v12m5-16v20m16-20v20m5-16v12M8 16h16"/>',
         "career": '<path d="M9 3h14v11a7 7 0 0 1-14 0zM9 6H3v6q0 7 8 7m12-13h6v6q0 7-8 7M16 21v8m-7 0h14"/>',
-        "shop": '<path d="M5 13v16h22V13M3 13l3-9h20l3 9zM12 29V19h8v10"/>'
+        "shop": '<path d="M5 13v16h22V13M3 13l3-9h20l3 9zM12 29V19h8v10"/>',
+        "home": '<path d="M3 14L16 3l13 11v15H19V19H13v10H3z"/>',
+        "schedule": '<rect x="4" y="6" width="24" height="22" rx="2"/><path d="M10 3v6m12-6v6M4 13h24M10 18h4m4 0h4m-12 5h4m4 0h4"/>',
+        "ranking": '<path d="M16 3l3.5 7.1 7.8 1.1-5.6 5.5 1.3 7.8-7-3.7-7 3.7 1.3-7.8-5.6-5.5 7.8-1.1z"/>',
+        "management": '<rect x="3" y="10" width="26" height="18" rx="2"/><path d="M11 10V6h10v4M3 17h26M13 17v3h6v-3"/>'
     }
     var svg := '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 32 32"><g fill="none" stroke="#e7bd70" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">%s</g></svg>' % str(paths.get(key, paths.menu))
     var image := Image.new()
