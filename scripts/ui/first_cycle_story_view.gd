@@ -24,12 +24,12 @@ func _ready() -> void:
     name = "FirstCycleStory"
     add_theme_constant_override("separation", 10)
     size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    if mode == "welcome":
+        size_flags_vertical = Control.SIZE_EXPAND_FILL
+        alignment = BoxContainer.ALIGNMENT_CENTER
     match mode:
         "welcome":
-            _hero(RING, "TWELVE COUNT", "한 명의 복서를 키워 첫 경기에 도전하세요.", 225)
-            _coach("처음부터 함께하지.\n선수를 만들고, 훈련하고, 링 위에서 직접 싸워보자.")
-            _button("튜토리얼 시작", func(): next_requested.emit())
-            _skip_button()
+            _welcome_prompt()
         "overview":
             _heading("복서의 첫 번째 도전", "한 경기를 준비하는 과정")
             var cards := [
@@ -41,12 +41,12 @@ func _ready() -> void:
             ]
             for card in cards:
                 _info(str(card[0]), str(card[1]))
-            _coach("하나씩 해보면 어렵지 않아.\n이제 네 선수부터 만들어보자.")
+            _coach("하나씩 직접 해보자.\n먼저 네 복싱 스타일을 정해.")
             _button("내 복서 만들기", func(): next_requested.emit())
             _skip_button()
         "training_result":
             _label(self, "4/10 · 첫 훈련 결과", 16, GOLD)
-            _hero(TRAINING, "훈련 완료", "선수의 능력치가 실제로 변했습니다.", 180)
+            _hero(TRAINING, "훈련 완료", "네 능력치가 실제로 변했어.", 180)
             var changes: Dictionary = training_result.get("changes", {})
             var names := {"power":"파워", "speed":"스피드", "technique":"테크닉", "defense":"수비", "conditioning":"지구력", "fatigue":"피로", "health":"건강", "weight":"체중"}
             var any_effect := false
@@ -59,14 +59,14 @@ func _ready() -> void:
                 _info("훈련 결과", "능력치 변화가 없거나 상한에 도달했습니다.")
             if not str(training_result.get("injury", "")).is_empty():
                 _info("부상", str(training_result["injury"]))
-            _coach("잘했어. 이 변화는 실제 커리어에 남는다.\n이제 어떤 선수와 싸울지 정해보자.")
+            _coach("좋아. 방금 훈련한 결과는 네 능력치에 반영됐어.\n이제 첫 상대를 직접 골라보자.")
             _button("경기 제안 확인", func(): next_requested.emit())
             _skip_button()
         "finished":
             _label(self, "10/10 · 첫 경기 완료", 16, GOLD)
-            _hero(BOXER, "FIRST BOUT COMPLETE", "첫 프로 경기를 마쳤습니다.", 185)
-            _info("✓ 훈련", "선수를 성장시키고 피로를 관리할 수 있습니다.")
-            _info("✓ 경기 준비", "상대의 약점에 맞는 게임플랜을 고를 수 있습니다.")
+            _hero(BOXER, "FIRST BOUT COMPLETE", "네 첫 프로 경기가 끝났어.", 185)
+            _info("✓ 훈련", "훈련으로 네 능력치를 키우고 피로를 관리할 수 있어.")
+            _info("✓ 경기 준비", "상대의 약점에 맞춰 네 게임플랜을 고를 수 있어.")
             var controls := [
                 ["jab", "잽으로 거리 조절하기", "잽은 안전하게 공격을 시작하는 기본 기술입니다."],
                 ["guard", "가드로 방어하기", "가드는 상대 공격을 막고 피해를 줄입니다."],
@@ -77,7 +77,7 @@ func _ready() -> void:
                 var completed := str(control[0]) in actions_seen
                 all_controls_seen = all_controls_seen and completed
                 _info(("✓ " if completed else "○ ") + str(control[1]), str(control[2]))
-            _coach("좋아. 잽·가드·카운터를 모두 익혔다.\n이제부터는 네가 직접 커리어를 이끌어간다." if all_controls_seen else "첫 경기를 마쳤다.\n아직 써보지 않은 기술은 다음 경기에서 익히면 된다.")
+            _coach("좋아. 잽·가드·카운터를 익혔어.\n이제부터 네 커리어는 네가 직접 이끌어." if all_controls_seen else "첫 경기를 마쳤어.\n아직 익히지 못한 기술은 다음 경기에서 직접 써보자.")
             _button("자유 커리어 시작", func(): next_requested.emit())
 
 
@@ -97,6 +97,67 @@ func _hero(image: Texture2D, title: String, subtitle: String, height: int) -> vo
     heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
     var text := _label(content, subtitle, 14, WHITE)
     text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+
+
+func _welcome_prompt() -> void:
+    var shell := PanelContainer.new()
+    shell.name = "TutorialConsentDialog"
+    shell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    shell.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+    var style := StyleBoxFlat.new()
+    style.bg_color = Color("#0b1420")
+    style.border_color = Color("#a77b3c")
+    style.set_border_width_all(1)
+    style.set_corner_radius_all(10)
+    style.shadow_color = Color(0.0, 0.0, 0.0, 0.55)
+    style.shadow_size = 16
+    style.content_margin_left = 20
+    style.content_margin_right = 20
+    style.content_margin_top = 22
+    style.content_margin_bottom = 20
+    shell.add_theme_stylebox_override("panel", style)
+    add_child(shell)
+
+    var content := VBoxContainer.new()
+    content.add_theme_constant_override("separation", 14)
+    shell.add_child(content)
+
+    var eyebrow := _label(content, "TWELVE COUNT  /  FIRST CAREER", 10, GOLD)
+    eyebrow.add_theme_font_override("font", UI.DISPLAY_FONT)
+    eyebrow.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+
+    var rule := ColorRect.new()
+    rule.custom_minimum_size = Vector2(0, 1)
+    rule.color = Color("#6f542f")
+    content.add_child(rule)
+
+    var title := _label(content, "첫 커리어를 시작합니다", 23, WHITE)
+    title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    title.add_theme_font_override("font", UI.DISPLAY_FONT)
+
+    var question := _label(content, "기본 조작과 첫 경기를 관장에게 안내받으시겠습니까?", 14, MUTED)
+    question.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    question.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+
+    var actions := VBoxContainer.new()
+    actions.add_theme_constant_override("separation", 8)
+    content.add_child(actions)
+
+    var yes := UI.action_button("예, 안내받겠습니다", font, true)
+    yes.name = "TutorialAccept"
+    yes.custom_minimum_size.y = 54
+    yes.pressed.connect(func(): next_requested.emit())
+    actions.add_child(yes)
+
+    var no := Button.new()
+    no.name = "TutorialDecline"
+    no.text = "아니요, 바로 시작하겠습니다"
+    no.custom_minimum_size.y = 44
+    no.flat = true
+    no.add_theme_font_size_override("font_size", 13)
+    no.add_theme_color_override("font_color", MUTED)
+    no.pressed.connect(func(): skip_requested.emit())
+    actions.add_child(no)
 
 
 func _heading(title: String, subtitle: String) -> void:

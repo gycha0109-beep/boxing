@@ -54,23 +54,91 @@ var execute_button: Button
 func _ready() -> void:
     name = "ReferenceTraining"
     size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    add_theme_constant_override("separation", 8)
-    _hero()
-    _condition_panel()
-    _camp_notice()
+    add_theme_constant_override("separation", 12)
+
+    if show_first_bout_guide:
+        _coach_banner()
+    _training_header()
+    _condition_summary()
     _training_programs()
-    _sparring_section()
     _body_care()
-    _resources()
     _execute_footer()
-    var shop := _button("체육관 장비 투자  ›")
-    shop.name = "TrainingUpgradeShop"
-    shop.pressed.connect(func(): shop_requested.emit())
-    add_child(shop)
-    var media := _button("지역 팬 미팅 · 인기 +2")
-    media.name = "ManagementMedia"
-    media.pressed.connect(func(): media_requested.emit())
-    add_child(media)
+
+    if not show_first_bout_guide:
+        var shop := _button("체육관 장비 투자  ›")
+        shop.name = "TrainingUpgradeShop"
+        shop.pressed.connect(func(): shop_requested.emit())
+        add_child(shop)
+        var media := _button("지역 팬 미팅 · 인기 +2")
+        media.name = "ManagementMedia"
+        media.pressed.connect(func(): media_requested.emit())
+        add_child(media)
+
+
+func _coach_banner() -> void:
+    var frame := _panel(self, Color("#0b1724"), GOLD, 10)
+    frame.name = "TrainingCoachBanner"
+    var row := _row(frame, 10)
+    var portrait := TextureRect.new()
+    portrait.name = "TrainingCoachPortrait"
+    portrait.texture = preload("res://assets/visual/reference_v1/legacy_mentor.webp")
+    portrait.custom_minimum_size = Vector2(54, 54)
+    portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+    portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+    portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    row.add_child(portrait)
+    var copy := _column(row, 4)
+    copy.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    var identity_row := _row(copy, 6)
+    var identity := _label(identity_row, "관장  /  COACHING", 9, GOLD_BRIGHT, bold_font)
+    identity.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    var skip := Button.new()
+    skip.name = "FirstBoutGuideSkip"
+    skip.text = "건너뛰기"
+    skip.flat = true
+    skip.focus_mode = Control.FOCUS_NONE
+    skip.add_theme_font_size_override("font_size", 10)
+    skip.add_theme_color_override("font_color", MUTED)
+    skip.pressed.connect(func(): guide_skipped.emit())
+    identity_row.add_child(skip)
+    var instruction := _label(copy, "첫 훈련이다. 네 몸 상태를 보고 훈련 하나를 골라봐.", 13, WHITE, bold_font)
+    instruction.name = "TrainingCoachInstruction"
+    instruction.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+
+
+func _training_header() -> void:
+    var header := _row(self, 8)
+    header.name = "TrainingHeader"
+    var copy := _column(header, 3)
+    copy.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    _label(copy, "CAMP  /  FIRST SESSION" if show_first_bout_guide else "CAMP  /  DEVELOPMENT", 9, GOLD_BRIGHT, bold_font)
+    var title := _label(copy, "첫 훈련" if show_first_bout_guide else "훈련과 성장", 27, WHITE, heading_font)
+    title.name = "TrainingPageTitle"
+    _label(copy, "훈련 하나를 선택하세요." if show_first_bout_guide else "다음 경기를 위해 몸과 기술을 준비하세요.", 11, MUTED)
+    var money := _panel(header, Color("#172536"), GOLD_DARK, 8)
+    money.name = "TrainingMoneyBadge"
+    var money_copy := _column(money, 2)
+    _label(money_copy, "보유 파이트머니", 9, MUTED, bold_font)
+    _label(money_copy, _money(int(GameState.state.get("career", {}).get("money", 0))) + "원", 15, GOLD_BRIGHT, heading_font)
+
+
+func _condition_summary() -> void:
+    var boxer: Dictionary = GameState.state.get("boxer", {})
+    var frame := _panel(self, Color("#0d1824"), Color("#34475b"), 8)
+    frame.name = "TrainingConditionSummary"
+    var row := _row(frame, 12)
+    _condition_metric(row, "건강", "%d" % int(boxer.get("health", 100)), GREEN)
+    _condition_metric(row, "피로", "%d" % int(boxer.get("fatigue", 0)), CYAN)
+    _condition_metric(row, "체중", "%.1fkg" % float(boxer.get("weight_kg", 0.0)), WHITE)
+    var injury: Dictionary = boxer.get("injury", {})
+    _condition_metric(row, "부상", "없음" if injury.is_empty() else str(injury.get("name", "부상")), GREEN if injury.is_empty() else RED)
+
+
+func _condition_metric(parent: HBoxContainer, caption: String, value: String, color: Color) -> void:
+    var metric := _column(parent, 2)
+    metric.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    _label(metric, caption, 9, MUTED, bold_font)
+    _label(metric, value, 13, color, heading_font)
 
 static func action_title(action: Dictionary) -> String:
     match str(action.get("id", "")):
@@ -321,27 +389,30 @@ func _grid(node_name: String) -> GridContainer:
     return grid
 
 func _training_programs() -> void:
-    var heading := _row(self, 4)
-    var title := _label(heading, "훈련 프로그램 선택", 18, GOLD_BRIGHT, heading_font)
-    title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    _label(heading, "MAIN TRAINING", 9, MUTED, bold_font)
-    var grid := _grid("TrainingPrimaryGrid")
-    for id: String in PRIMARY_IDS:
+    _section_heading("기술 · 체력 훈련", "TRAINING")
+    var list := _list("TrainingPrimaryList")
+    var ordered_ids := ["sparring"] + PRIMARY_IDS
+    for id: String in ordered_ids:
         for action: Dictionary in actions:
             if str(action.get("id", "")) == id:
-                _card(grid, action)
+                _card(list, action, true)
                 break
 
-func _sparring_section() -> void:
-    _label(self, "실전 감각", 16, GOLD_BRIGHT, heading_font)
-    var row := HBoxContainer.new()
-    row.add_theme_constant_override("separation", 7)
-    add_child(row)
-    for id: String in SPARRING_IDS:
-        for action: Dictionary in actions:
-            if str(action.get("id", "")) == id:
-                _card(row, action, true)
-                break
+
+func _section_heading(title_text: String, eyebrow: String) -> void:
+    var heading := _row(self, 4)
+    var title := _label(heading, title_text, 18, GOLD_BRIGHT, heading_font)
+    title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    _label(heading, eyebrow, 9, MUTED, bold_font)
+
+
+func _list(node_name: String) -> VBoxContainer:
+    var list := VBoxContainer.new()
+    list.name = node_name
+    list.add_theme_constant_override("separation", 10)
+    list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    add_child(list)
+    return list
 
 func _resources() -> void:
     var panel := _panel(self, Color("#0d1824"), GOLD_DARK, 8)
@@ -365,13 +436,34 @@ func _resource_metric(parent: HBoxContainer, caption: String, value: String) -> 
     _label(metric, value, 13, WHITE, heading_font)
 
 func _execute_footer() -> void:
-    execute_button = _button("훈련 실행하기  ▶", true)
+    # Keep the action reachable while the long training list scrolls.
+    var clearance := Control.new()
+    clearance.name = "TrainingBottomClearance"
+    clearance.custom_minimum_size.y = 178
+    add_child(clearance)
+
+    var layer := CanvasLayer.new()
+    layer.name = "TrainingActionLayer"
+    layer.layer = 20
+    add_child(layer)
+
+    var dock := PanelContainer.new()
+    dock.name = "TrainingActionDock"
+    dock.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+    dock.offset_left = 12
+    dock.offset_right = -12
+    dock.offset_top = -158
+    dock.offset_bottom = -86
+    dock.add_theme_stylebox_override("panel", REFERENCE_UI.beveled_panel_style(Color("#0a1420f5"), GOLD_DARK, 8))
+    layer.add_child(dock)
+
+    execute_button = _button("훈련을 선택하세요", true)
     execute_button.name = "TrainingExecute"
-    execute_button.custom_minimum_size.y = 66
-    execute_button.add_theme_font_size_override("font_size", 20)
+    execute_button.custom_minimum_size.y = 56
+    execute_button.add_theme_font_size_override("font_size", 18)
     execute_button.disabled = true
     execute_button.pressed.connect(_execute_selected)
-    add_child(execute_button)
+    dock.add_child(execute_button)
 
 func _execute_selected() -> void:
     if selected_action.is_empty() or not is_instance_valid(execute_button) or execute_button.disabled:
@@ -383,14 +475,14 @@ func _execute_selected() -> void:
     action_chosen.emit(selected_action)
 
 func _body_care() -> void:
-    _label(self, "몸 관리", 17, GOLD_BRIGHT, heading_font)
-    var help := _label(self, "휴식은 무료, 재활 치료는 유료입니다. 체중 감량은 계체 준비를 위한 선택입니다.", 11, MUTED)
+    _section_heading("회복 · 체중 관리", "RECOVERY")
+    var help := _label(self, "컨디션과 계체 상황에 맞춰 필요한 관리를 선택하세요.", 11, MUTED)
     help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-    var grid := _grid("TrainingBodyCareGrid")
+    var list := _list("TrainingBodyCareList")
     for id: String in RECOVERY_IDS + WEIGHT_IDS:
         for action: Dictionary in actions:
             if str(action.get("id", "")) == id:
-                _card(grid, action)
+                _card(list, action, true)
                 break
 
 func _photo_for(id: String) -> Texture2D:
@@ -400,72 +492,79 @@ func _photo_for(id: String) -> Texture2D:
         "mitts", "heavy_bag": return BAG
         _: return REST
 
-func _card(parent: Control, action: Dictionary, wide: bool = false) -> void:
+func _card(parent: Control, action: Dictionary, wide: bool = true) -> void:
     var id := str(action.get("id", ""))
     var cost := int(action.get("cost", 0))
-    var affordable := int(GameState.state["career"].get("money", 0)) >= cost
-    var frame := _panel(parent, PANEL, GOLD_DARK, 5)
+    var affordable := int(GameState.state.get("career", {}).get("money", 0)) >= cost
+    var frame := _panel(parent, Color("#101d2b"), GOLD_DARK, 7)
     frame.name = "TrainingCard_" + id
-    frame.custom_minimum_size.y = 184 if not wide else 126
+    frame.custom_minimum_size = Vector2(0, 154)
     card_frames[id] = frame
 
-    var content: VBoxContainer
-    if wide:
-        var horizontal := HBoxContainer.new()
-        horizontal.add_theme_constant_override("separation", 8)
-        frame.add_child(horizontal)
-        var photo := TextureRect.new()
-        photo.texture = _photo_for(id)
-        photo.custom_minimum_size = Vector2(112, 112)
-        photo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-        photo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-        photo.mouse_filter = Control.MOUSE_FILTER_IGNORE
-        horizontal.add_child(photo)
-        content = _column(horizontal, 4)
-    else:
-        content = _column(frame, 4)
-        var photo := TextureRect.new()
-        photo.texture = _photo_for(id)
-        photo.custom_minimum_size.y = 76
-        photo.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-        photo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-        photo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-        photo.mouse_filter = Control.MOUSE_FILTER_IGNORE
-        content.add_child(photo)
+    var horizontal := HBoxContainer.new()
+    horizontal.add_theme_constant_override("separation", 11)
+    frame.add_child(horizontal)
 
-    var heading := _row(content, 3)
+    var photo_frame := PanelContainer.new()
+    photo_frame.custom_minimum_size = Vector2(108, 138)
+    photo_frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
+    photo_frame.add_theme_stylebox_override("panel", _style(Color("#080f18"), Color("#566273"), 1))
+    horizontal.add_child(photo_frame)
+    var photo := TextureRect.new()
+    photo.texture = _photo_for(id)
+    photo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+    photo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+    photo.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    photo.size_flags_vertical = Control.SIZE_EXPAND_FILL
+    photo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    photo_frame.add_child(photo)
+
+    var content := _column(horizontal, 5)
+    content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    content.size_flags_vertical = Control.SIZE_EXPAND_FILL
+
+    var heading := _row(content, 4)
     var name := _label(heading, action_title(action), 16, WHITE, heading_font)
     name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    _label(heading, "무료" if cost == 0 else _money(cost) + "원", 9, GOLD_BRIGHT, bold_font)
-    var description := _label(content, str(CARD_COPY.get(id, "")), 10, MUTED)
+    name.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+    var price := _label(heading, "무료" if cost == 0 else _money(cost) + "원", 10, GOLD_BRIGHT, bold_font)
+    price.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+
+    var description := _label(content, str(CARD_COPY.get(id, "")), 11, MUTED)
     description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
     description.max_lines_visible = 2
     description.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 
-    var effects: Dictionary = action.get("effects", {}).duplicate()
+    var effects: Dictionary = action.get("effects", {}).duplicate(true)
     var tradeoffs := {}
     for key in ["fatigue", "weight", "injury_camps"]:
         if effects.has(key):
             tradeoffs[key] = effects[key]
             effects.erase(key)
-    var effect_box := _column(_panel(content, Color("#0b1621"), Color("#596575"), 5), 2)
-    var summary_text := " · ".join(effect_parts(effects))
-    var summary := _label(effect_box, summary_text if not summary_text.is_empty() else "기본 효과", 9, GREEN, bold_font)
+    var effect_box := _column(_panel(content, Color("#0b1621"), Color("#45576a"), 5), 2)
+    var summary_text := "   ·   ".join(effect_parts(effects))
+    var summary := _label(effect_box, summary_text if not summary_text.is_empty() else "기본 효과", 10, GREEN, bold_font)
     summary.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-    var tradeoff_text := " · ".join(effect_parts(tradeoffs))
+    var tradeoff_text := "   ·   ".join(effect_parts(tradeoffs))
     if not tradeoff_text.is_empty():
-        var tradeoff := _label(effect_box, tradeoff_text, 9, RED if float(tradeoffs.get("fatigue", 0)) > 0 else CYAN, bold_font)
+        var tradeoff_color := RED if float(tradeoffs.get("fatigue", 0)) > 0 else CYAN
+        var tradeoff := _label(effect_box, tradeoff_text, 10, tradeoff_color, bold_font)
         tradeoff.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+
+    var footer := _row(content, 6)
+    var efficiency_text := ""
     if str(action.get("kind", "")) == "training":
         var efficiency := int(round(GameState.gym_training_percent(id)))
-        _label(content, "성장 효율 +%d%%" % efficiency if efficiency > 0 else "기본 훈련 효율", 9, GOLD_BRIGHT, bold_font)
-
+        efficiency_text = "성장 효율 +%d%%" % efficiency if efficiency > 0 else "기본 훈련 효율"
+    var efficiency_label := _label(footer, efficiency_text, 9, GOLD_BRIGHT, bold_font)
+    efficiency_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     var choose := _button("선택" if affordable else "잔액 부족", false)
     choose.name = "TrainingSelect_" + id
-    choose.custom_minimum_size.y = 38
+    choose.custom_minimum_size = Vector2(92, 34)
+    choose.size_flags_horizontal = Control.SIZE_SHRINK_END
     choose.disabled = not affordable
     choose.pressed.connect(_select_action.bind(action, choose))
-    content.add_child(choose)
+    footer.add_child(choose)
     card_buttons[id] = choose
 
 func _select_action(action: Dictionary, button: Button) -> void:
@@ -478,7 +577,16 @@ func _select_action(action: Dictionary, button: Button) -> void:
         var selected := str(key) == selected_id
         frame.add_theme_stylebox_override("panel", REFERENCE_UI.beveled_panel_style(Color("#162535") if selected else PANEL, GOLD if selected else GOLD_DARK, 5))
         var card_button: Button = card_buttons[key]
-        card_button.text = "선택됨" if selected else "선택"
+        card_button.text = "선택됨" if selected else ("잔액 부족" if card_button.disabled else "선택")
+        if selected:
+            var selected_style := REFERENCE_UI.gold_button_style()
+            card_button.add_theme_stylebox_override("normal", selected_style)
+            card_button.add_theme_stylebox_override("hover", selected_style)
+            card_button.add_theme_color_override("font_color", Color("#111a26"))
+        else:
+            card_button.add_theme_stylebox_override("normal", _style(PANEL, GOLD_DARK, 6))
+            card_button.add_theme_stylebox_override("hover", _style(Color("#243243"), GOLD, 6))
+            card_button.add_theme_color_override("font_color", GOLD_BRIGHT)
     if is_instance_valid(execute_button):
         execute_button.disabled = false
         execute_button.text = "%s 실행하기  ▶" % action_title(selected_action)

@@ -25,17 +25,12 @@ func _run() -> void:
     main_view._onboarding_install.clear()
     main_view._guide_settings.clear()
     main_view._return_to_reference_title()
-    main_view._start_new_career_from_title()
+    main_view._start_new_career_from_title(true)
     await process_frame
-    _check(str(game_state.state.get("phase", "")) == "tutorial_welcome", "welcome screen missing")
-    _check(main_view.body.get_node_or_null("FirstCycleStory") != null, "welcome presentation missing")
-    main_view._tutorial_story_next()
-    await process_frame
-    _check(str(game_state.state.get("phase", "")) == "tutorial_overview", "overview missing")
-    main_view._tutorial_story_next()
-    await process_frame
-    await process_frame
+    _check(str(game_state.state.get("phase", "")) == "style_select", "tutorial must start inside boxer creation")
     _check(bool(game_state.state.get("first_cycle_tutorial", {}).get("active", false)), "new career did not activate tutorial")
+    _check(main_view.body.get_node_or_null("FirstCycleStory") == null, "separate tutorial welcome screen must not interrupt creation")
+    _check(main_view.body.get_node_or_null("ReferenceBoxerCreation") != null, "boxer creation must be the first career screen")
     _coach("style_select")
     var creation: Node = main_view.body.get_node_or_null("ReferenceBoxerCreation")
     _check(creation != null, "creation view missing")
@@ -55,7 +50,7 @@ func _run() -> void:
     var reel: Node = roll.find_child("TalentRouletteViewport", true, false) if roll != null else null
     var strip: Node = roll.find_child("TalentRouletteStrip", true, false) if roll != null else null
     _check(reel != null, "visible roulette reel missing")
-    _check(strip != null and strip.get_child_count() == 28, "roulette cards missing")
+    _check(strip != null and strip.get_child_count() == 36, "roulette cards or trailing continuation cards missing")
     var shown_talents: Dictionary = {}
     var icon_count := 0
     if strip != null:
@@ -66,11 +61,12 @@ func _run() -> void:
             if icon != null and icon.texture != null:
                 icon_count += 1
     _check(shown_talents.size() == game_state.talent_options().size(), "roulette does not show every talent type")
-    _check(icon_count == 28, "one or more roulette talent icons are missing")
+    _check(icon_count == 36, "one or more roulette talent icons are missing")
     var assigned_id := str(game_state.state.get("boxer", {}).get("trait_id", ""))
     _check(not assigned_id.is_empty(), "random talent not assigned")
-    if strip != null and strip.get_child_count() == 28:
+    if strip != null and strip.get_child_count() == 36:
         _check(str(strip.get_child(27).get_meta("talent_id", "")) == assigned_id, "roulette target does not match the assigned talent")
+        _check(str(strip.get_child(35).get_meta("talent_id", "")) != assigned_id, "roulette tail must continue beyond the winning card")
     _check(bool(roll.get_node("RandomTalentContinue").disabled), "roulette button must remain locked during spin")
     await create_timer(4.9).timeout
     _check(not bool(roll.get_node("RandomTalentContinue").disabled), "roulette did not finish and unlock result")
@@ -184,6 +180,10 @@ func _coach(expected_phase: String) -> void:
     _check(str(game_state.state.get("phase", "")) == expected_phase, "wrong phase, expected " + expected_phase)
     if expected_phase == "talent_reveal":
         _check(main_view.body.get_node_or_null("FirstCycleTalentRoll") != null, "missing dedicated talent roulette")
+        return
+    if expected_phase == "camp":
+        _check(main_view.body.find_child("TrainingCoachBanner", true, false) != null, "camp must show the inline coach banner")
+        _check(main_view.get_node_or_null("FirstCycleSpotlight") == null, "camp must not dim the training screen")
         return
     _check(main_view.get_node_or_null("FirstCycleSpotlight") != null or expected_phase in ["fight_offer", "tactical_prep", "condition_prep", "game_plan"], "missing phase-specific coaching in " + expected_phase)
 

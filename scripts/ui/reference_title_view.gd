@@ -7,6 +7,9 @@ signal settings_requested()
 const UI := preload("res://scripts/ui/reference_ui.gd")
 const Art := preload("res://scripts/ui/reference_result_art.gd")
 const TITLE_METAL := preload("res://scripts/ui/reference_title_type.gdshader")
+const ARENA_LIGHTING := preload("res://scripts/ui/title_arena_lighting.gdshader")
+const BOXER_RIM := preload("res://scripts/ui/title_boxer_rim.gdshader")
+const BELT_METAL := preload("res://scripts/ui/title_belt_metal.gdshader")
 const ARENA := preload("res://assets/visual/v0.7/arena/arena_title_night.png")
 const BOXER_LAYER := preload("res://assets/visual/reference_v1/title_boxer_layer.png")
 const BOXER := preload("res://assets/visual/reference_v1/title_boxer.webp")
@@ -25,6 +28,35 @@ var settings_icon: Texture2D
 
 var _confirmation: ConfirmationDialog
 var _leaving := false
+static var _full_intro_seen := false
+var _intro_running := false
+var _title_cover: Control
+var _title_arena: TextureRect
+var _title_boxer: TextureRect
+var _title_header: TextureRect
+var _title_logo: Label
+var _title_subtitle: Label
+var _title_tagline: Label
+var _title_tagline_subtitle: Label
+var _title_start_plate: TextureRect
+var _title_start_button: Button
+var _title_resume_plate: TextureRect
+var _title_resume_button: Button
+var _title_belt: TextureRect
+var _title_save_caption: Label
+var _title_settings: Button
+var _title_dust: CPUParticles2D
+var _arena_light_material: ShaderMaterial
+var _boxer_rim_material: ShaderMaterial
+var _belt_metal_material: ShaderMaterial
+var _intro_black_overlay: ColorRect
+var _intro_skip_button: Button
+var _intro_tweens: Array[Tween] = []
+
+func reset_new_career_request() -> void:
+    # The parent may dismiss the tutorial-choice dialog with the window X.
+    # Re-enable the title action so the player can open the choice again.
+    _leaving = false
 
 func _ready() -> void:
     size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -33,6 +65,7 @@ func _ready() -> void:
     _cover_v2()
     if can_continue:
         _make_confirmation()
+    call_deferred("_play_title_intro")
 
 func _cover_v2() -> void:
     # The former flattened composition is not loaded. Each illustration is an
@@ -45,6 +78,7 @@ func _cover_v2() -> void:
     cover.clip_contents = true
     cover.mouse_filter = Control.MOUSE_FILTER_PASS
     add_child(cover)
+    _title_cover = cover
 
     var ink := ColorRect.new()
     ink.color = Color("#070b10")
@@ -52,10 +86,26 @@ func _cover_v2() -> void:
     ink.mouse_filter = Control.MOUSE_FILTER_IGNORE
     cover.add_child(ink)
 
-    _cover_texture(cover, "res://assets/visual/title_layers_v2/gold_header.png", "TitleGoldHeader", 0, 113)
+    _title_header = _cover_texture(cover, "res://assets/visual/title_layers_v2/gold_header.png", "TitleGoldHeader", 0, 113)
+    _title_header.modulate = Color(0.22, 0.25, 0.30, 1.0)
     var stadium := _cover_texture(cover, "res://assets/visual/title_layers_v2/arena_clean.png", "TitleArenaBackground", 170, 362)
+    _title_arena = stadium
+    stadium.modulate = Color(0.12, 0.16, 0.22, 1.0)
     stadium.stretch_mode = TextureRect.STRETCH_SCALE
+    _arena_light_material = ShaderMaterial.new()
+    _arena_light_material.shader = ARENA_LIGHTING
+    _arena_light_material.set_shader_parameter("light_intensity", 0.0)
+    stadium.material = _arena_light_material
+    _title_dust = _make_title_dust(cover)
     var boxer := _cover_texture(cover, "res://assets/visual/title_layers_v2/boxer_foreground.png", "TitleBoxerForeground", 181, 333)
+    _title_boxer = boxer
+    boxer.modulate.a = 0.0
+    _boxer_rim_material = ShaderMaterial.new()
+    _boxer_rim_material.shader = BOXER_RIM
+    _boxer_rim_material.set_shader_parameter("rim_strength", 0.0)
+    boxer.material = _boxer_rim_material
+    boxer.pivot_offset = Vector2(134, 166)
+    boxer.scale = Vector2(1.035, 1.035)
     boxer.anchor_left = 0.17
     boxer.anchor_right = 0.83
     boxer.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -111,21 +161,35 @@ func _cover_v2() -> void:
         accent.mouse_filter = Control.MOUSE_FILTER_IGNORE
         cover.add_child(accent)
 
-    var title := _cover_label(cover, "TWELVE COUNT", 40, UI.GOLD_BRIGHT, 112, 52, UI.DISPLAY_FONT)
-    title.name = "TitleLiveLogo"
-    _outline(title, 3)
-    _cover_label(cover, "BOXING CAREER ROGUELITE", 11, PAPER, 162, 20, bold_font)
-    _cover_label(cover, "데뷔전부터 세계 타이틀전까지", 20, UI.GOLD_BRIGHT, 504, 32, heading_font)
-    _cover_label(cover, "복서를 만들고 커리어를 이어가라", 13, PAPER, 534, 25, bold_font)
+    _title_logo = _cover_label(cover, "TWELVE COUNT", 40, UI.GOLD_BRIGHT, 112, 52, UI.DISPLAY_FONT)
+    _title_logo.name = "TitleLiveLogo"
+    _title_logo.modulate.a = 0.0
+    _outline(_title_logo, 3)
+    var logo_material := ShaderMaterial.new()
+    logo_material.shader = TITLE_METAL
+    logo_material.set_shader_parameter("label_height", 52.0)
+    _title_logo.material = logo_material
+    _title_subtitle = _cover_label(cover, "BOXING CAREER ROGUELITE", 11, PAPER, 162, 20, bold_font)
+    _title_subtitle.modulate.a = 0.0
+    _title_tagline = _cover_label(cover, "데뷔전부터 세계 타이틀전까지", 20, UI.GOLD_BRIGHT, 504, 32, heading_font)
+    _title_tagline.modulate.a = 0.0
+    _title_tagline_subtitle = _cover_label(cover, "복서를 만들고 커리어를 이어가라", 13, PAPER, 534, 25, bold_font)
+    _title_tagline_subtitle.modulate.a = 0.0
 
-    _cover_texture(cover, "res://assets/visual/title_layers_v2/button_gold_plate.png", "TitleStartPlate", 570, 78)
+    _title_start_plate = _cover_texture(cover, "res://assets/visual/title_layers_v2/button_gold_plate.png", "TitleStartPlate", 570, 78)
+    _title_start_plate.modulate.a = 0.0
     var start := _cover_button(cover, "새 커리어 시작", "TitleNewCareer", 576, 65, 24, Color("#291809"), true)
+    _title_start_button = start
+    start.modulate.a = 0.0
+    start.disabled = true
     start.pressed.connect(_request_new_career)
 
-    _cover_texture(cover, "res://assets/visual/title_layers_v2/button_dark_plate.png", "TitleResumePlate", 654, 59)
+    _title_resume_plate = _cover_texture(cover, "res://assets/visual/title_layers_v2/button_dark_plate.png", "TitleResumePlate", 654, 59)
+    _title_resume_plate.modulate.a = 0.0
     var resume := _cover_button(cover, "이어하기", "TitleContinue", 658, 52, 20, PAPER, false)
-    resume.disabled = not can_continue
-    resume.modulate.a = 1.0 if can_continue else 0.45
+    _title_resume_button = resume
+    resume.disabled = true
+    resume.modulate.a = 0.0
     resume.pressed.connect(func():
         if not _leaving and can_continue:
             _leaving = true
@@ -133,15 +197,207 @@ func _cover_v2() -> void:
     )
 
     var belt := _cover_texture(cover, "res://assets/visual/title_layers_v2/champion_belt_footer.png", "TitleLegacyBelt", 742, 190)
+    _title_belt = belt
+    belt.modulate.a = 0.0
     belt.stretch_mode = TextureRect.STRETCH_SCALE
+    _belt_metal_material = ShaderMaterial.new()
+    _belt_metal_material.shader = BELT_METAL
+    _belt_metal_material.set_shader_parameter("shine_intensity", 0.0)
+    belt.material = _belt_metal_material
     if can_continue and not save_caption.is_empty():
-        _cover_label(cover, save_caption, 11, MUTED, 716, 23, bold_font).name = "TitleSaveCaption"
+        _title_save_caption = _cover_label(cover, save_caption, 11, MUTED, 716, 23, bold_font)
+        _title_save_caption.name = "TitleSaveCaption"
     elif not can_continue:
-        _cover_label(cover, "저장된 커리어가 없습니다", 12, MUTED, 716, 23, bold_font).name = "TitleSaveCaption"
+        _title_save_caption = _cover_label(cover, "저장된 커리어가 없습니다", 12, MUTED, 716, 23, bold_font)
+        _title_save_caption.name = "TitleSaveCaption"
+    if is_instance_valid(_title_save_caption):
+        _title_save_caption.modulate.a = 0.0
 
     _cover_settings(cover)
+    _title_settings = cover.get_node_or_null("TitleSettings") as Button
+    if is_instance_valid(_title_settings):
+        _title_settings.modulate.a = 0.0
+        _title_settings.disabled = true
+    _intro_black_overlay = ColorRect.new()
+    _intro_black_overlay.name = "TitleIntroBlackOverlay"
+    _intro_black_overlay.color = Color(0.0, 0.0, 0.0, 1.0)
+    _intro_black_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+    _intro_black_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    _intro_black_overlay.z_index = 100
+    cover.add_child(_intro_black_overlay)
+    _intro_skip_button = Button.new()
+    _intro_skip_button.name = "TitleIntroSkip"
+    _intro_skip_button.text = "건너뛰기 ›"
+    _intro_skip_button.position = Vector2(12, 12)
+    _intro_skip_button.size = Vector2(88, 30)
+    _intro_skip_button.focus_mode = Control.FOCUS_NONE
+    _intro_skip_button.flat = true
+    _intro_skip_button.add_theme_font_override("font", bold_font)
+    _intro_skip_button.add_theme_font_size_override("font_size", 11)
+    _intro_skip_button.add_theme_color_override("font_color", UI.GOLD_BRIGHT)
+    _intro_skip_button.pressed.connect(_skip_title_intro)
+    _intro_black_overlay.add_child(_intro_skip_button)
     cover.resized.connect(_scale_title_layout.bind(cover))
     call_deferred("_scale_title_layout", cover)
+
+func _make_title_dust(parent: Control) -> CPUParticles2D:
+    var image := Image.create(16, 16, false, Image.FORMAT_RGBA8)
+    for y in range(16):
+        for x in range(16):
+            var radius := Vector2(x - 7.5, y - 7.5).length() / 7.5
+            var alpha := pow(max(1.0 - radius, 0.0), 2.2)
+            image.set_pixel(x, y, Color(1.0, 1.0, 1.0, alpha))
+    var particle_texture := ImageTexture.create_from_image(image)
+    var dust := CPUParticles2D.new()
+    dust.name = "TitleArenaDust"
+    dust.texture = particle_texture
+    dust.amount = 28
+    dust.lifetime = 7.5
+    dust.preprocess = 7.5
+    dust.speed_scale = 0.68
+    dust.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+    dust.emission_rect_extents = Vector2(205, 150)
+    dust.direction = Vector2(0.0, -1.0)
+    dust.spread = 42.0
+    dust.gravity = Vector2(-0.7, -4.5)
+    dust.initial_velocity_min = 2.0
+    dust.initial_velocity_max = 8.0
+    dust.damping_min = 0.4
+    dust.damping_max = 1.5
+    dust.angular_velocity_min = -8.0
+    dust.angular_velocity_max = 8.0
+    dust.scale_amount_min = 0.28
+    dust.scale_amount_max = 0.82
+    dust.color = Color(1.0, 0.78, 0.47, 0.24)
+    dust.position = Vector2(215, 430)
+    dust.z_index = 0
+    var additive := CanvasItemMaterial.new()
+    additive.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+    dust.material = additive
+    dust.emitting = true
+    parent.add_child(dust)
+    return dust
+
+func _play_title_intro() -> void:
+    if not is_inside_tree():
+        return
+    _intro_running = true
+    var full_intro := not _full_intro_seen
+    _full_intro_seen = true
+    if not full_intro:
+        _intro_black_overlay.color.a = 0.28
+    var duration := 1.25 if full_intro else 0.42
+    _intro_tweens.clear()
+    var arena_tween := create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+    _intro_tweens.append(arena_tween)
+    arena_tween.tween_property(_intro_black_overlay, "color:a", 0.0, duration)
+    arena_tween.parallel().tween_property(_title_arena, "modulate", Color.WHITE, duration + 0.25)
+    arena_tween.parallel().tween_property(_title_header, "modulate", Color.WHITE, duration)
+    arena_tween.parallel().tween_property(_arena_light_material, "shader_parameter/light_intensity", 1.0, duration + 0.2)
+    if full_intro:
+        var boxer_tween := create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+        _intro_tweens.append(boxer_tween)
+        boxer_tween.tween_interval(0.55)
+        boxer_tween.tween_property(_title_boxer, "modulate:a", 1.0, 1.0)
+        boxer_tween.parallel().tween_property(_title_boxer, "scale", Vector2.ONE, 1.45)
+        boxer_tween.parallel().tween_property(_boxer_rim_material, "shader_parameter/rim_strength", 0.92, 1.2)
+        var logo_tween := create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+        _intro_tweens.append(logo_tween)
+        logo_tween.tween_interval(1.25)
+        logo_tween.tween_property(_title_logo, "modulate:a", 1.0, 0.65)
+        logo_tween.parallel().tween_property(_title_subtitle, "modulate:a", 1.0, 0.8)
+        logo_tween.tween_interval(0.35)
+        logo_tween.tween_property(_title_tagline, "modulate:a", 1.0, 0.55)
+        logo_tween.parallel().tween_property(_title_tagline_subtitle, "modulate:a", 1.0, 0.55)
+        var reveal_tween := create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+        _intro_tweens.append(reveal_tween)
+        reveal_tween.tween_interval(2.35)
+        reveal_tween.tween_property(_title_belt, "modulate:a", 1.0, 0.8)
+        reveal_tween.parallel().tween_property(_belt_metal_material, "shader_parameter/shine_intensity", 0.88, 1.0)
+        if is_instance_valid(_title_save_caption):
+            reveal_tween.parallel().tween_property(_title_save_caption, "modulate:a", 1.0, 0.55)
+        if is_instance_valid(_title_settings):
+            reveal_tween.parallel().tween_property(_title_settings, "modulate:a", 1.0, 0.55)
+        reveal_tween.tween_interval(0.2)
+        reveal_tween.tween_property(_title_start_plate, "modulate:a", 1.0, 0.45)
+        reveal_tween.parallel().tween_property(_title_start_button, "modulate:a", 1.0, 0.45)
+        reveal_tween.parallel().tween_property(_title_resume_plate, "modulate:a", 1.0, 0.45)
+        reveal_tween.parallel().tween_property(_title_resume_button, "modulate:a", 0.45 if not can_continue else 1.0, 0.45)
+        await reveal_tween.finished
+    else:
+        var short_tween := create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+        _intro_tweens.append(short_tween)
+        short_tween.tween_property(_title_boxer, "modulate:a", 1.0, 0.3)
+        short_tween.parallel().tween_property(_boxer_rim_material, "shader_parameter/rim_strength", 0.92, 0.3)
+        short_tween.parallel().tween_property(_arena_light_material, "shader_parameter/light_intensity", 1.0, 0.3)
+        short_tween.parallel().tween_property(_belt_metal_material, "shader_parameter/shine_intensity", 0.88, 0.3)
+        short_tween.parallel().tween_property(_title_logo, "modulate:a", 1.0, 0.3)
+        short_tween.parallel().tween_property(_title_subtitle, "modulate:a", 1.0, 0.3)
+        short_tween.parallel().tween_property(_title_tagline, "modulate:a", 1.0, 0.3)
+        short_tween.parallel().tween_property(_title_tagline_subtitle, "modulate:a", 1.0, 0.3)
+        short_tween.parallel().tween_property(_title_belt, "modulate:a", 1.0, 0.3)
+        short_tween.parallel().tween_property(_title_start_plate, "modulate:a", 1.0, 0.3)
+        short_tween.parallel().tween_property(_title_start_button, "modulate:a", 1.0, 0.3)
+        short_tween.parallel().tween_property(_title_resume_plate, "modulate:a", 1.0, 0.3)
+        short_tween.parallel().tween_property(_title_resume_button, "modulate:a", 0.45 if not can_continue else 1.0, 0.3)
+        if is_instance_valid(_title_save_caption):
+            short_tween.parallel().tween_property(_title_save_caption, "modulate:a", 1.0, 0.3)
+        if is_instance_valid(_title_settings):
+            short_tween.parallel().tween_property(_title_settings, "modulate:a", 1.0, 0.3)
+        await short_tween.finished
+    if is_instance_valid(_intro_black_overlay):
+        _intro_black_overlay.queue_free()
+    _title_start_button.disabled = false
+    _title_resume_button.disabled = not can_continue
+    if is_instance_valid(_title_settings):
+        _title_settings.disabled = false
+    _intro_running = false
+    _start_title_idle_effects()
+
+func _skip_title_intro() -> void:
+    if not _intro_running:
+        return
+    for tween in _intro_tweens:
+        if is_instance_valid(tween) and tween.is_running():
+            tween.kill()
+    _intro_tweens.clear()
+    _title_arena.modulate = Color.WHITE
+    _title_header.modulate = Color.WHITE
+    _arena_light_material.set_shader_parameter("light_intensity", 1.0)
+    _boxer_rim_material.set_shader_parameter("rim_strength", 0.92)
+    _belt_metal_material.set_shader_parameter("shine_intensity", 0.88)
+    _title_boxer.modulate.a = 1.0
+    _title_boxer.scale = Vector2.ONE
+    _title_logo.modulate.a = 1.0
+    _title_subtitle.modulate.a = 1.0
+    _title_tagline.modulate.a = 1.0
+    _title_tagline_subtitle.modulate.a = 1.0
+    _title_belt.modulate.a = 1.0
+    _title_start_plate.modulate.a = 1.0
+    _title_start_button.modulate.a = 1.0
+    _title_resume_plate.modulate.a = 1.0
+    _title_resume_button.modulate.a = 0.45 if not can_continue else 1.0
+    if is_instance_valid(_title_save_caption):
+        _title_save_caption.modulate.a = 1.0
+    if is_instance_valid(_title_settings):
+        _title_settings.modulate.a = 1.0
+        _title_settings.disabled = false
+    _title_start_button.disabled = false
+    _title_resume_button.disabled = not can_continue
+    if is_instance_valid(_intro_black_overlay):
+        _intro_black_overlay.queue_free()
+    _intro_running = false
+    _start_title_idle_effects()
+
+func _start_title_idle_effects() -> void:
+    if not is_inside_tree():
+        return
+    var boxer_idle := create_tween().set_loops().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+    boxer_idle.tween_property(_title_boxer, "scale", Vector2(1.012, 1.012), 3.2)
+    boxer_idle.tween_property(_title_boxer, "scale", Vector2.ONE, 3.2)
+    _arena_light_material.set_shader_parameter("light_intensity", 1.0)
+    _boxer_rim_material.set_shader_parameter("rim_strength", 0.92)
+    _belt_metal_material.set_shader_parameter("shine_intensity", 0.88)
 
 func _cover_settings(cover: Control) -> void:
     var settings := Button.new()
@@ -179,6 +435,9 @@ func _scale_title_layout(cover: Control) -> void:
             item.set_meta("title_base_bottom", item.offset_bottom)
         item.offset_top = float(item.get_meta("title_base_top")) * ratio
         item.offset_bottom = float(item.get_meta("title_base_bottom")) * ratio
+    if is_instance_valid(_title_dust):
+        _title_dust.position = Vector2(cover.size.x * 0.5, cover.size.y * 0.46)
+        _title_dust.emission_rect_extents = Vector2(cover.size.x * 0.47, cover.size.y * 0.16)
 
 func _cover_texture(parent: Control, path: String, node_name: String, y: float, height: float) -> TextureRect:
     var graphic := TextureRect.new()

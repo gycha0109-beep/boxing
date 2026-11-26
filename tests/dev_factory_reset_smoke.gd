@@ -20,19 +20,20 @@ func _run() -> void:
     main._onboarding_install.clear()
     main._guide_settings.set_value("tutorial", "enabled", true)
     main._return_to_reference_title()
-    main._start_new_career_from_title()
+    main._start_new_career_from_title(true)
     await process_frame
-    check(str(game.state.get("phase", "")) == "tutorial_welcome", "fresh install must show first tutorial")
-    check(bool(main._onboarding_install.get_value("install", "tutorial_started", false)), "first-install marker not stored")
-    check(main.body.get_node_or_null("FirstCycleStory") != null, "welcome screen missing")
+    check(str(game.state.get("phase", "")) == "style_select", "tutorial must begin inside boxer creation")
+    check(bool(main._onboarding_install.get_value("install", "tutorial_started", false)), "tutorial choice marker not stored")
+    check(bool(game.state.get("first_cycle_tutorial", {}).get("active", false)), "first career tutorial must be active")
+    check(main.body.get_node_or_null("ReferenceBoxerCreation") != null, "boxer creation missing on tutorial entry")
     check(main.get_node_or_null("TutorialRestartButton") == null, "obsolete tutorial restart button still exists")
     game.state["career"]["wins"] = 8
     game.state["career"]["money"] = 777777
     game.state["first_cycle_tutorial"]["active"] = false
     main._return_to_reference_title()
-    main._start_new_career_from_title()
+    main._start_new_career_from_title(false)
     await process_frame
-    check(str(game.state.get("phase", "")) == "style_select", "second new career should not show tutorial")
+    check(str(game.state.get("phase", "")) == "style_select", "declining tutorial must still enter boxer creation")
     check(not bool(game.state.get("first_cycle_tutorial", {}).get("active", true)), "second new career has active tutorial")
     check(int(game.state["career"]["wins"]) == 0, "new career did not clear wins")
     game.state["career"]["wins"] = 6
@@ -48,9 +49,10 @@ func _run() -> void:
     check(not bool(game.state.get("first_cycle_tutorial", {}).get("active", false)), "reset must not start tutorial before player action")
     check(not bool(main._onboarding_install.get_value("install", "tutorial_started", false)), "reset must clear onboarding usage marker")
     check(SaveService.load_game().get("phase", "") != "tutorial_welcome", "reset must not save tutorial as the startup phase")
-    main._start_new_career_from_title()
+    main._start_new_career_from_title(true)
     await process_frame
-    check(str(game.state.get("phase", "")) == "tutorial_welcome", "new career after a full reset must start the first-use tutorial")
+    check(str(game.state.get("phase", "")) == "style_select", "new career after a full reset must enter boxer creation")
+    check(bool(game.state.get("first_cycle_tutorial", {}).get("active", false)), "tutorial must remain active after reset")
     main.queue_free()
     await process_frame
     await create_timer(0.15).timeout

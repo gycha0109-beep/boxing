@@ -26,6 +26,14 @@
 - Remote 인스턴스에 직접 가한 변경은 게임 종료 시 사라질 수 있습니다. 보존할 수정은 Local 씬에서 변경하고 씬 동기화를 사용합니다.
 - 스크립트 변경으로 현재 실행 흐름이나 노드 구조가 호환되지 않으면 재실행이 필요할 수 있습니다.
 
+## 타이틀 인트로 연출
+
+- 첫 타이틀 진입: 암전에서 경기장 조명이 켜지고, 복서가 페이드 인·미세 확대되며, 타이틀 문구와 챔피언 벨트·버튼이 순서대로 등장합니다.
+- 같은 실행 세션에서 타이틀로 돌아오면 짧은 재등장 연출만 재생합니다.
+- 인트로 이후 복서는 느린 호흡처럼 미세하게 확대·축소하고, 시작 버튼은 약하게 발광합니다.
+- 챔피언 벨트와 상단 장식에는 간격을 둔 금색 광택 이동이 반복됩니다.
+- 모든 연출은 기존 개별 이미지와 Godot Tween/GradientTexture2D를 사용하며 저장 데이터나 커리어 상태는 변경하지 않습니다.
+
 ## ChatGPT와의 협업
 
 현재 Desktop Commander 연결로 프로젝트 파일 수정, Godot 실행, 로그 확인, 캡처 파일 읽기가 가능합니다. 따라서 화면 캡처를 매번 수동으로 전달하지 않고 제가 수정 후 캡처를 읽어 반복 검수할 수 있습니다.
@@ -39,3 +47,15 @@
 ## 참고
 
 - Godot 4.7 Game Embedding: https://docs.godotengine.org/en/4.7/tutorials/editor/game_embedding.html
+
+## Cinematic title lighting upgrade (2026-11-26)
+
+- Replaced the flat moving gradient strips with dedicated CanvasItem shaders.
+- `title_arena_lighting.gdshader`: animated left/right spot beams, soft center beam, light pools, and subtle flicker on the existing arena background.
+- `title_boxer_rim.gdshader`: alpha-edge sampling creates a restrained gold rim light around the transparent boxer cutout; visibility follows the existing fade-in.
+- `title_belt_metal.gdshader`: a slow, continuous specular sweep follows the existing belt artwork.
+- Added low-count additive CPU dust particles in front of the arena and behind the boxer.
+- Applied the existing metallic title typography shader to the live title label.
+- Kept the existing 2D / Compatibility renderer and existing career/save/button logic unchanged.
+- Verified with Godot 4.7.2: editor import/parse, title layers/shader presence, intro completion, skip behavior, and title career flow smoke tests all PASS.
+- Note: the headless dummy renderer does not provide a readable viewport texture, so final visual quality still requires inspection in the normal desktop game window.

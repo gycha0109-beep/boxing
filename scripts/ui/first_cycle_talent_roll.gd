@@ -12,6 +12,8 @@ const CARD_H := 136.0
 const CARD_GAP := 8.0
 const STEP := CARD_W + CARD_GAP
 const STOP_INDEX := 27
+# Keep cards beyond the winning card so the reel never exposes its terminal edge.
+const TRAILING_CARDS := 8
 const SPIN_DURATION := 4.6
 
 var talents: Array = []
@@ -143,7 +145,21 @@ func _prepare_reel() -> void:
         var item: Dictionary = talents[rng.randi_range(0, talents.size() - 1)]
         _add_talent_card(item)
     _add_talent_card(_chosen)
-    _strip.size = Vector2(float(STOP_INDEX + 1) * CARD_W + float(STOP_INDEX) * CARD_GAP, CARD_H)
+
+    # The winning card is the stopping point, not the end of the strip.
+    # Add a shuffled-looking tail after it so the viewport remains visually continuous.
+    var trailing_options: Array = []
+    for item in talents:
+        if str(item.get("id", "")) != chosen_id:
+            trailing_options.append(item)
+    for i in range(TRAILING_CARDS):
+        var tail_item: Dictionary = _chosen
+        if not trailing_options.is_empty():
+            tail_item = trailing_options[rng.randi_range(0, trailing_options.size() - 1)]
+        _add_talent_card(tail_item)
+
+    var total_cards := STOP_INDEX + 1 + TRAILING_CARDS
+    _strip.size = Vector2(float(total_cards) * CARD_W + float(total_cards - 1) * CARD_GAP, CARD_H)
     var layout_frames := 0
     while _reel.size.x <= 0.0 and layout_frames < 8:
         await get_tree().process_frame

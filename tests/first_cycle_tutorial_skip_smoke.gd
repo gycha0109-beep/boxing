@@ -23,23 +23,22 @@ func _run() -> void:
     screen._onboarding_install.clear()
     screen._guide_settings.clear()
     screen._return_to_reference_title()
-    screen._start_new_career_from_title()
+    screen._start_new_career_from_title(true)
     await process_frame
 
-    _check(str(game.state.get("phase", "")) == "tutorial_welcome", "welcome tutorial did not start")
+    _check(str(game.state.get("phase", "")) == "style_select", "tutorial must begin in boxer creation")
+    _check(screen.body.get_node_or_null("ReferenceBoxerCreation") != null, "boxer creation missing before tutorial skip")
     _press_skip()
     await process_frame
-    _check(str(game.state.get("phase", "")) == "style_select", "skip from welcome must open ordinary boxer creation")
-    _check(not screen._tutorial_active(), "skip from welcome left guide active")
-    _check(not bool(SaveService.load_game().get("first_cycle_tutorial", {}).get("active", true)), "skip from welcome was not saved")
+    _check(str(game.state.get("phase", "")) == "style_select", "skip must preserve boxer creation")
+    _check(not screen._tutorial_active(), "skip left guide active")
+    _check(not bool(SaveService.load_game().get("first_cycle_tutorial", {}).get("active", true)), "skip was not saved")
 
     # Test skipping while a randomly assigned talent reel is still spinning.
     screen._set_first_bout_guide(true)
     screen._onboarding_install.clear()
     screen._return_to_reference_title()
-    screen._start_new_career_from_title()
-    screen._tutorial_story_next()
-    screen._tutorial_story_next()
+    screen._start_new_career_from_title(true)
     await process_frame
     _check(bool(game.select_boxing_style("balanced").get("ok", false)), "style selection failed")
     screen._render_phase()
@@ -100,7 +99,7 @@ func _run() -> void:
     screen = null
     await create_timer(0.2).timeout
     if failures.is_empty():
-        print("PASS: tutorial skip and persistence at welcome, reel, training and offers")
+        print("PASS: tutorial skip and persistence at boxer creation, reel, training and offers")
         quit(0)
     else:
         printerr("FAIL: tutorial skip: ", failures)
@@ -108,7 +107,9 @@ func _run() -> void:
 
 
 func _press_skip() -> void:
-    var button := screen.body.find_child("TutorialSkip", true, false) as Button
+    var button := screen.find_child("TutorialSkip", true, false) as Button
+    if button == null:
+        button = screen.body.find_child("TutorialSkip", true, false) as Button
     _check(button != null, "tutorial skip button missing in current view")
     if button != null:
         button.pressed.emit()

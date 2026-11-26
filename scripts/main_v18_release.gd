@@ -32,6 +32,7 @@ var v19_menu_button: Button
 var v19_money_box: Control
 var v19_settings_button: Button
 var _dev_reset_confirmation: ConfirmationDialog
+var _tutorial_consent_dialog: ConfirmationDialog
 var _onboarding_install := ConfigFile.new()
 var v19_bottom_nav: Control
 var v19_previous_overlay: String = ""
@@ -791,7 +792,7 @@ func _render_launch_title() -> void:
             int(state.get("meta_state", {}).get("generation", 1)),
             int(career.get("fights", 0)),
         ]
-    view.new_career_requested.connect(_start_new_career_from_title)
+    view.new_career_requested.connect(_request_tutorial_consent)
     view.continue_requested.connect(_continue_from_reference_title)
     view.settings_requested.connect(_open_title_settings)
     add_child(view)
@@ -841,24 +842,95 @@ func _continue_from_reference_title() -> void:
     if not launch_gate_active or not _has_career_to_continue():
         return
     launch_gate_active = false
-    v17_overlay = "home"
+    var saved_phase := str(GameState.state.get("phase", ""))
+    if saved_phase in ["tutorial_welcome", "tutorial_overview"]:
+        # Migrate old saved tutorial intro screens into the real boxer creation step.
+        GameState.state["phase"] = "style_select"
+        SaveService.save_game(GameState.state)
+        saved_phase = "style_select"
+    # An unfinished boxer must resume creation, never land on the career home.
+    v17_overlay = "" if saved_phase in ["style_select", "talent_reveal"] else "home"
     _render_phase()
     _reset_reference_scroll()
 
-func _start_new_career_from_title() -> void:
+func _request_tutorial_consent() -> void:
+    if not launch_gate_active:
+        return
+    if is_instance_valid(_tutorial_consent_dialog):
+        return
+
+    var dialog := ConfirmationDialog.new()
+    dialog.name = "TutorialConsentDialog"
+    dialog.title = "새 커리어 시작"
+    dialog.dialog_text = "튜토리얼을 진행하시겠습니까?\n관장의 안내를 받으며 복서를 만들고 첫 경기를 시작합니다."
+    dialog.ok_button_text = "튜토리얼 진행"
+    dialog.cancel_button_text = "바로 시작"
+    dialog.dialog_autowrap = true
+    var dialog_theme := theme.duplicate() as Theme
+    dialog_theme.default_font = _v18_font(580)
+    dialog_theme.default_font_size = 15
+    dialog_theme.set_stylebox("panel", "AcceptDialog", REFERENCE_UI.panel_style(Color("#0b1420"), Color("#a77b3c"), 14))
+    dialog.theme = dialog_theme
+
+    var accept := dialog.get_ok_button()
+    accept.custom_minimum_size = Vector2(132, 48)
+    accept.add_theme_stylebox_override("normal", REFERENCE_UI.gold_button_style())
+    accept.add_theme_stylebox_override("hover", REFERENCE_UI.gold_button_style())
+    accept.add_theme_color_override("font_color", Color("#111a26"))
+    accept.add_theme_font_override("font", _v18_font(650))
+
+    var decline := dialog.get_cancel_button()
+    decline.custom_minimum_size = Vector2(112, 48)
+    decline.add_theme_stylebox_override("normal", REFERENCE_UI.panel_style(Color("#172331"), Color("#6f7b89"), 8))
+    decline.add_theme_stylebox_override("hover", REFERENCE_UI.panel_style(Color("#243549"), Color("#d5a75e"), 8))
+    decline.add_theme_color_override("font_color", Color("#f7f2e7"))
+    decline.add_theme_font_override("font", _v18_font(580))
+
+    _tutorial_consent_dialog = dialog
+    dialog.confirmed.connect(func():
+        _tutorial_consent_dialog = null
+        dialog.queue_free()
+        _start_new_career_from_title(true)
+    )
+    decline.pressed.connect(func():
+        _tutorial_consent_dialog = null
+        dialog.queue_free()
+        _start_new_career_from_title(false)
+    )
+    dialog.canceled.connect(_dismiss_tutorial_consent.bind(dialog), CONNECT_DEFERRED)
+    dialog.close_requested.connect(_dismiss_tutorial_consent.bind(dialog))
+    add_child(dialog)
+    dialog.popup_centered(Vector2i(360, 190))
+
+
+func _dismiss_tutorial_consent(dialog: ConfirmationDialog) -> void:
+    if not is_instance_valid(dialog) or dialog.is_queued_for_deletion():
+        return
+    if _tutorial_consent_dialog == dialog:
+        _tutorial_consent_dialog = null
+    var title_view := get_node_or_null("ReferenceTitle")
+    if title_view != null and title_view.has_method("reset_new_career_request"):
+        title_view.reset_new_career_request()
+    dialog.hide()
+    dialog.queue_free()
+
+
+func _start_new_career_from_title(guided: bool = true) -> void:
     if not launch_gate_active:
         return
     current_opponent = {}
     combat = null
-    super._start_new_career_from_title()
-    var guided := _first_bout_guide_enabled() and not bool(_onboarding_install.get_value("install", "tutorial_started", false))
+    GameState.new_career("무명 복서")
+    GameState.state["first_launch_acknowledged"] = true
+    GameState.state["weigh_in_acknowledged"] = true
+    GameState.begin_boxer_creation()
+    launch_gate_active = false
+    v17_overlay = ""
     _mark_onboarding_started()
-    GameState.state["first_cycle_tutorial"] = {"active": guided, "complete": false, "talent_roll_seen": false, "actions_seen": []}
     if guided:
-        GameState.state["phase"] = "tutorial_welcome"
-        v17_overlay = ""
-    else:
-        v17_overlay = "home"
+        _set_first_bout_guide(true)
+    GameState.state["first_cycle_tutorial"] = {"active": guided, "complete": false, "talent_roll_seen": false, "actions_seen": []}
+    GameState.state["phase"] = "style_select"
     SaveService.save_game(GameState.state)
     _render_phase()
     _reset_reference_scroll()
@@ -1284,7 +1356,6 @@ func _skip_first_bout_guide() -> void:
     tutorial["active"] = false
     GameState.state["first_cycle_tutorial"] = tutorial
     SaveService.save_game(GameState.state)
-    _set_first_bout_guide(false)
     _render_phase()
 
 func _v19_menu_button(parent: Node, label_text: String, action: Callable) -> void:
@@ -1533,7 +1604,7 @@ func _render_camp() -> void:
         body.remove_child(previous)
     var training := REFERENCE_TRAINING.new()
     training.actions = camp_actions
-    training.show_first_bout_guide = false
+    training.show_first_bout_guide = _tutorial_active()
     training.guide_skipped.connect(_skip_first_bout_guide)
     training.bold_font = _v18_font(620)
     training.heading_font = REFERENCE_UI.heading_font(_v18_font(780))
@@ -1749,9 +1820,9 @@ func _render_tutorial_story() -> void:
 func _tutorial_story_next() -> void:
     var phase := str(GameState.state.get("phase", ""))
     var tutorial: Dictionary = GameState.state.get("first_cycle_tutorial", {}).duplicate(true)
-    if phase == "tutorial_welcome":
-        GameState.state["phase"] = "tutorial_overview"
-    elif phase == "tutorial_overview":
+    if phase in ["tutorial_welcome", "tutorial_overview"]:
+        # Accepting the tutorial starts guidance inside boxer creation.
+        # There is no separate overview slideshow before the player can act.
         GameState.state["phase"] = "style_select"
     elif bool(tutorial.get("training_result_pending", false)):
         tutorial.erase("training_result_pending")
@@ -1776,34 +1847,37 @@ func _tutorial_attach() -> void:
     # the reel with the generic spotlight coach panel.
     if phase == "talent_reveal" and not bool(GameState.state.get("first_cycle_tutorial", {}).get("talent_roll_seen", false)):
         return
+    # Camp embeds the coach in its own header; never dim or cover the training list.
+    if phase == "camp":
+        return
     # Dedicated preparation, offer, scouting and fight widgets handle their
     # own coaching without a floating panel covering actionable controls.
     if phase in ["fight_offer", "tactical_prep", "condition_prep", "game_plan", "fight"]:
         return
     var info: Dictionary = {
-        "style_select": ["1/10 · 선수 스타일", "복싱 스타일을 비교한 뒤 원하는 카드를 선택하세요.", "BoxerStyle_balanced"],
-        "talent_reveal": ["2/10 · 타고난 재능", "재능은 무작위로 정해집니다. 추첨 연출을 보고 결과를 확인하세요.", "RandomTalentContinue"],
-        "camp": ["3/10 · 첫 훈련", "실제 훈련을 골라 능력치 변화를 확인하세요.", "TrainingSelect_sparring"],
-        "fight_offer": ["5/10 · 첫 상대", "상대의 난이도와 보상을 비교하고 계약하세요.", "FightOfferSelect_*"],
-        "tactical_prep": ["6/10 · 전술 준비", "상대의 습관에 맞춰 전술을 선택하세요.", "PreparationSelect_*"],
-        "condition_prep": ["6/10 · 몸 상태", "피로와 체중을 확인하고 컨디션을 결정하세요.", "PreparationSelect_*"],
-        "game_plan": ["7/10 · 경기 분석", "상대의 강점과 약점을 읽고 게임플랜으로 넘어가세요.", "ScoutingShowPlans"],
-        "result": ["10/10 · 경기 정산", "전적, 파이트머니, 건강과 피로 변화를 확인하세요.", "FightResultContinue"],
+        "style_select": ["1/10 · 네 복싱 스타일", "어떤 스타일로 싸울지 네가 직접 골라봐.", "BoxerStyle_balanced"],
+        "talent_reveal": ["2/10 · 타고난 재능", "네 재능은 무작위로 정해져. 추첨이 끝나면 결과를 확인해.", "RandomTalentContinue"],
+        "camp": ["3/10 · 첫 훈련", "첫 훈련을 골라봐. 훈련 결과는 네 능력치에 반영돼.", "TrainingSelect_sparring"],
+        "fight_offer": ["5/10 · 첫 상대", "상대의 전적과 난이도를 살펴봐. 첫 경기는 무리하지 말고 골라.", "FightOfferSelect_*"],
+        "tactical_prep": ["6/10 · 전술 준비", "상대가 자주 쓰는 패턴을 보고 네 전술을 골라봐.", "PreparationSelect_*"],
+        "condition_prep": ["6/10 · 몸 상태", "피로와 체중을 확인하고 오늘 컨디션을 정해.", "PreparationSelect_*"],
+        "game_plan": ["7/10 · 경기 분석", "상대의 강점과 약점을 확인했지? 이제 그에 맞는 작전을 골라.", "ScoutingShowPlans"],
+        "result": ["10/10 · 경기 정산", "전적과 파이트머니, 네 몸 상태가 어떻게 바뀌었는지 확인해.", "FightResultContinue"],
     }
     if phase == "fight" and _needs_weigh_in_interstitial():
-        info["fight"] = ["8/10 · 공식 계체", "체중 판정을 확인하고 실제 경기에 입장하세요.", "WeighInEnterFight"]
+        info["fight"] = ["8/10 · 공식 계체", "체중을 확인해. 계체를 통과하면 링에 오른다.", "WeighInEnterFight"]
     elif phase == "fight":
         var action := _tutorial_next_action()
         if action.is_empty():
             return
-        info["fight"] = ["9/10 · 경기 실전", "%s 공격을 직접 시도해보세요. 결과는 실제 전투로 계산됩니다." % {"jab":"잽", "guard":"가드", "body":"바디", "power":"파워", "counter":"카운터"}.get(action, action), "FightAction_" + action]
+        info["fight"] = ["9/10 · 경기 실전", "%s 공격을 직접 해봐. 결과는 실제 경기로 이어져." % {"jab":"잽", "guard":"가드", "body":"바디", "power":"파워", "counter":"카운터"}.get(action, action), "FightAction_" + action]
     if not info.has(phase):
         return
     var entry: Array = info[phase]
     if phase == "talent_reveal" and bool(GameState.state.get("first_cycle_tutorial", {}).get("talent_roll_seen", false)):
-        entry = ["2/10 · 재능 확정", "선택한 재능과 능력치 보정을 확인하고 커리어를 시작하세요.", "BoxerBeginCareer"]
+        entry = ["2/10 · 재능 확정", "네 재능과 능력치 보정을 확인하고 커리어를 시작해.", "BoxerBeginCareer"]
     if phase == "fight" and _needs_weigh_in_interstitial():
-        entry = ["8/10 · 공식 계체", "체중 판정을 확인하고 실제 경기에 입장하세요.", "WeighInEnterFight"]
+        entry = ["8/10 · 공식 계체", "체중을 확인해. 계체를 통과하면 링에 오른다.", "WeighInEnterFight"]
     var target := body.find_child(str(entry[2]), true, false) as Control
     if target == null:
         return

@@ -24,12 +24,26 @@ func _run() -> void:
     _check(not ui.v19_bottom_nav.visible and ui.v19_settings_button.visible, "title must keep settings without career navigation")
     ui._onboarding_install.clear()
     ui._guide_settings.clear()
+    var before_consent: Dictionary = Save.load_game().duplicate(true)
     _check(_press("TitleNewCareer"), "fresh title must expose its start button")
     await _settle()
-    _check(Save.load_game().get("phase") == "tutorial_welcome", "first installation enters the tutorial")
+    var consent := ui.find_child("TutorialConsentDialog", true, false) as ConfirmationDialog
+    _check(consent != null and consent.visible, "new career must ask whether to start the tutorial")
+    _check(Save.load_game() == before_consent, "opening tutorial consent must not create or replace a boxer")
+    if consent != null:
+        consent.get_ok_button().pressed.emit()
+    await _settle()
+    _check(Save.load_game().get("phase") == "style_select", "accepting tutorial must enter boxer creation")
+    _check(bool(Save.load_game().get("first_cycle_tutorial", {}).get("active", false)), "accepted tutorial must remain active")
+    ui._return_to_reference_title()
+    await create_timer(4.0).timeout
+    _check(_press("TitleContinue"), "unfinished boxer creation must be resumable from the title")
+    await _settle()
+    _check(Save.load_game().get("phase") == "style_select", "continue must resume boxer creation instead of home")
+    _check(ui.body.get_node_or_null("ReferenceBoxerCreation") != null, "continue sent an unfinished boxer to the home screen")
+    _check(ui.get_node_or_null("FirstCycleSpotlight") != null, "continue did not restore the active coach guidance")
     ui._skip_first_bout_guide()
     await _settle()
-    _check(Save.load_game().get("phase") == "style_select", "new game must enter boxer creation")
 
     var creation := Save.load_game()
     await _open_title_from_menu()
@@ -69,8 +83,14 @@ func _run() -> void:
     if warning != null:
         warning.get_ok_button().pressed.emit()
     await _settle()
+    var consent_after_restart := ui.find_child("TutorialConsentDialog", true, false) as ConfirmationDialog
+    _check(consent_after_restart != null and consent_after_restart.visible, "confirmed restart must ask for tutorial choice")
+    if consent_after_restart != null:
+        consent_after_restart.get_cancel_button().pressed.emit()
+    await _settle()
     var fresh := Save.load_game()
-    _check(fresh.phase == "style_select" and int(fresh.meta_state.generation) == 1 and fresh.meta_state.legacy_slots.is_empty(), "only explicit confirmation may replace the isolated career")
+    _check(fresh.phase == "style_select" and int(fresh.meta_state.generation) == 1 and fresh.meta_state.legacy_slots.is_empty(), "restart must enter boxer creation after consent")
+    _check(not bool(fresh.get("first_cycle_tutorial", {}).get("active", true)), "declining tutorial must still create a boxer without guidance")
 
     await _close()
     await create_timer(0.30).timeout
@@ -85,6 +105,7 @@ func _open() -> void:
     ui = (load("res://scenes/Main.tscn") as PackedScene).instantiate()
     root.add_child(ui)
     await _settle()
+    await create_timer(4.0).timeout
 
 func _close() -> void:
     ui.queue_free()
@@ -98,6 +119,7 @@ func _open_title_from_menu() -> void:
             button.pressed.emit()
             break
     await _settle()
+    await create_timer(0.6).timeout
     _check(ui.find_child("ReferenceTitle", true, false) != null, "menu must open the reference title")
 
 func _press(node_name: String) -> bool:
